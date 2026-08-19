@@ -11,6 +11,8 @@ permissions:
 jobs:
   materialize:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +36,9 @@ jobs:
         run: xvfb-run -a npm run test:integration
       - name: Official VSIX package
         run: npm run package
+      - name: Generate SHA256
+        shell: bash
+        run: sha256sum *.vsix > SHA256SUMS.txt
       - name: Finalize repository
         shell: bash
         run: |
@@ -44,8 +49,11 @@ jobs:
           git add -A
           git commit -m "build: finalize initial release"
           git push origin HEAD:main
-      - name: Tag initial release
+      - name: Create initial GitHub Release
         shell: bash
         run: |
-          git tag -a v1.0.0 -m "Codex Review 1.0.0"
-          git push origin v1.0.0
+          COMMIT="$(git rev-parse HEAD)"
+          gh release create v1.0.0 *.vsix SHA256SUMS.txt \
+            --target "$COMMIT" \
+            --title "Codex Review v1.0.0" \
+            --generate-notes
