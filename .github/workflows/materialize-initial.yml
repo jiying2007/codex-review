@@ -23,7 +23,7 @@ jobs:
       - name: Reconstruct extension source
         shell: bash
         run: |
-          cat .bootstrap/extension.b64.* | base64 --decode > extension.js
+          cat .bootstrap/extension.js.gz.b64.* | base64 --decode | gzip -dc > extension.js
           node --check extension.js
       - name: Generate real npm lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
