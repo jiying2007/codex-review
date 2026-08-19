@@ -98,8 +98,9 @@ function prepareCommand(command, args) {
   const commandLine = [quoteWindowsCmdArg(command), ...args.map(quoteWindowsCmdArg)].join(' ');
   return {
     command: process.env.ComSpec || 'cmd.exe',
-    args: ['/d', '/s', '/c', commandLine],
-    shell: false
+    args: ['/d', '/s', '/c', `"${commandLine}"`],
+    shell: false,
+    windowsVerbatimArguments: true
   };
 }
 
@@ -174,6 +175,7 @@ function runProcess(command, args, options = {}, stdinText = '', token) {
         env: options.env || process.env,
         windowsHide: true,
         shell: prepared.shell,
+        windowsVerbatimArguments: prepared.windowsVerbatimArguments === true,
         detached: options.detached === true
       });
     } catch (error) {
