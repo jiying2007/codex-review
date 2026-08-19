@@ -31,11 +31,17 @@ jobs:
           from pathlib import Path
           p = Path('extension.js')
           s = p.read_text(encoding='utf-8')
-          old = "args: ['/d', '/s', '/c', commandLine],"
-          new = "args: ['/d', '/s', '/c', `\"${commandLine}\"`],"
-          if old not in s:
+          old_prepare = """    args: ['/d', '/s', '/c', commandLine],\n    shell: false\n"""
+          new_prepare = """    args: ['/d', '/s', '/c', `\"${commandLine}\"`],\n    shell: false,\n    windowsVerbatimArguments: true\n"""
+          if old_prepare not in s:
               raise SystemExit('expected prepareCommand pattern not found')
-          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          s = s.replace(old_prepare, new_prepare, 1)
+          old_spawn = """        shell: prepared.shell,\n        detached: options.detached === true\n"""
+          new_spawn = """        shell: prepared.shell,\n        windowsVerbatimArguments: prepared.windowsVerbatimArguments === true,\n        detached: options.detached === true\n"""
+          if old_spawn not in s:
+              raise SystemExit('expected spawn options pattern not found')
+          s = s.replace(old_spawn, new_spawn, 1)
+          p.write_text(s, encoding='utf-8')
           '@ | python -
           node --check extension.js
       - run: npm ci --ignore-scripts
