@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Require lockfile
+        shell: bash
+        run: test -f package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - name: Extension Host integration (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:integration
+      - name: Extension Host integration (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:integration
+
+  package:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run package
+      - run: sha256sum *.vsix > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-review-vsix
+          path: |
+            *.vsix
+            SHA256SUMS.txt
+          if-no-files-found: error
