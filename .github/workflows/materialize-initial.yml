@@ -8,6 +8,10 @@ on:
     types: [opened, reopened, synchronize]
   workflow_dispatch:
 
+concurrency:
+  group: codex-review-initial-materialize
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -29,6 +33,20 @@ jobs:
         shell: bash
         run: |
           cat .bootstrap/extension.js.gz.b64.* | base64 --decode | gzip -dc > extension.js
+          node --check extension.js
+      - name: Apply final command-completion hotfix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('extension.js')
+          s = p.read_text(encoding='utf-8')
+          old = """      const action = await vscode.window.showWarningMessage(\n        message,\n        '查看报告',\n        '打开 Problems'\n      );\n      if (action === '查看报告') outputChannel.show(true);\n      if (action === '打开 Problems') {\n        vscode.commands.executeCommand('workbench.actions.view.problems');\n      }\n"""
+          new = """      void vscode.window.showWarningMessage(\n        message,\n        '查看报告',\n        '打开 Problems'\n      ).then(action => {\n        if (action === '查看报告') outputChannel.show(true);\n        if (action === '打开 Problems') {\n          void vscode.commands.executeCommand('workbench.actions.view.problems');\n        }\n      }, error => {\n        log(`warning notification failed: ${error?.message || error}`);\n      });\n"""
+          if old not in s:
+              raise SystemExit('expected showWarningMessage block not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
           node --check extension.js
       - name: Generate real npm lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
