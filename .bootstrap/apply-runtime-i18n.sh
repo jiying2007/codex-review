@@ -57,6 +57,7 @@ localized_notification = '''    if (result.review.verdict === 'pass') {
     }'''
 extension.write_text(text[:start] + localized_notification + text[end:])
 Path('extension.js.rej').unlink(missing_ok=True)
+Path('extension.js.orig').unlink(missing_ok=True)
 
 test = Path('test.js')
 value = test.read_text()
@@ -68,17 +69,6 @@ pkg_path = Path('package.json')
 pkg = json.loads(pkg_path.read_text())
 pkg['l10n'] = './l10n'
 pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
-
-for workflow in [Path('.github/workflows/ci.yml'), Path('.github/workflows/release.yml')]:
-    value = workflow.read_text()
-    marker = "          grep -Fx 'extension/package.nls.zh-cn.json' /tmp/vsix-files.txt\n"
-    extra = (
-        "          grep -Fx 'extension/l10n/bundle.l10n.json' /tmp/vsix-files.txt\n"
-        "          grep -Fx 'extension/l10n/bundle.l10n.zh-cn.json' /tmp/vsix-files.txt\n"
-    )
-    if extra not in value:
-        value = value.replace(marker, marker + extra)
-    workflow.write_text(value)
 
 readme = Path('README.md')
 value = readme.read_text().replace(
