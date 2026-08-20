@@ -1,6 +1,6 @@
 # Codex Review Safe
 
-English | [简体中文](README.zh-CN.md)
+[English](README.md) | [简体中文](README.zh-CN.md)
 
 Review safe, structured findings from **staged Git changes only** in VS Code using the local Codex CLI.
 
