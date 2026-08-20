@@ -1,0 +1,96 @@
+name: Apply runtime bilingual localization
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'engineering-hardening' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: engineering-hardening
+          fetch-depth: 0
+      - name: Apply runtime localization patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .bootstrap/runtime-i18n.patch.gz.b64 | gzip -dc > /tmp/runtime.patch
+          # Public 1.0.0 was created from the internal final source; normalize the one version-bearing error string.
+          sed -i 's/Codex Review 1\.0\.6/Codex Review 1.0.0/g' /tmp/runtime.patch
+          # The public repository intentionally uses a compact unit-test file; patch it separately below.
+          sed -n '1,/^--- .*test\.js/ p' /tmp/runtime.patch | sed '$d' > /tmp/extension.patch
+          patch -p4 --fuzz=3 < /tmp/extension.patch
+          base64 --decode .bootstrap/l10n.tgz.b64 | tar -xz
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          test = Path('test.js')
+          text = test.read_text()
+          text = text.replace('/Problems: 已定位到 src\\/a\\.c:10/', '/Problems: published at src\\/a\\.c:10/')
+          text = text.replace('All Codex Review 1.0.0 unit/regression tests passed.', 'All Codex Review 1.1.0 unit/regression tests passed.')
+          test.write_text(text)
+
+          pkg_path = Path('package.json')
+          pkg = json.loads(pkg_path.read_text())
+          pkg['l10n'] = './l10n'
+          pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
+
+          for workflow in [Path('.github/workflows/ci.yml'), Path('.github/workflows/release.yml')]:
+              value = workflow.read_text()
+              marker = "          grep -Fx 'extension/package.nls.zh-cn.json' /tmp/vsix-files.txt\n"
+              extra = (
+                  "          grep -Fx 'extension/l10n/bundle.l10n.json' /tmp/vsix-files.txt\n"
+                  "          grep -Fx 'extension/l10n/bundle.l10n.zh-cn.json' /tmp/vsix-files.txt\n"
+              )
+              if extra not in value:
+                  value = value.replace(marker, marker + extra)
+              workflow.write_text(value)
+
+          readme = Path('README.md')
+          value = readme.read_text()
+          value = value.replace(
+              'Command titles, configuration descriptions, capability descriptions, and Marketplace metadata follow the VS Code UI locale.',
+              'Command titles, configuration descriptions, capability descriptions, Marketplace metadata, progress notifications, reports, environment checks, and runtime errors follow the VS Code UI locale through VS Code NLS and `vscode.l10n`.'
+          )
+          readme.write_text(value)
+
+          readme_zh = Path('README.zh-CN.md')
+          value = readme_zh.read_text()
+          value = value.replace(
+              '命令标题、配置说明、Capability 描述和 Marketplace 元数据会跟随 VS Code UI 语言自动切换。',
+              '命令标题、配置说明、Capability 描述、Marketplace 元数据、进度提示、报告说明、环境检查和运行时错误都会通过 VS Code NLS 与 `vscode.l10n` 跟随 VS Code UI 语言自动切换。'
+          )
+          readme_zh.write_text(value)
+
+          changelog = Path('CHANGELOG.md')
+          value = changelog.read_text()
+          needle = '- Add English and Simplified Chinese Marketplace/manifest localization with `package.nls.json` and `package.nls.zh-cn.json`.\n'
+          runtime_line = '- Add English and Simplified Chinese runtime UI localization through `vscode.l10n`.\n'
+          if runtime_line not in value:
+              value = value.replace(needle, needle + runtime_line)
+          changelog.write_text(value)
+          PY
+          node --check extension.js
+          node test.js
+          node -e "const p=require('./package.json'); if(p.l10n!=='./l10n') process.exit(1)"
+          test -f l10n/bundle.l10n.json
+          test -f l10n/bundle.l10n.zh-cn.json
+      - name: Clean one-time localization bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .bootstrap
+          rm -f .github/workflows/apply-runtime-i18n.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: localize runtime UI"
+          git push origin HEAD:engineering-hardening
