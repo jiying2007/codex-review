@@ -168,7 +168,7 @@ npm run test:integration
 npm run package
 ```
 
-CI 会验证 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容、简体中文运行时 smoke、源码与双语 l10n key 一致性、官方 VSIX 内容和 SHA-256。
+CI 会验证 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容、Extension Host 中的简体中文本地化 smoke、源码与双语 l10n key 一致性、官方 VSIX 内容和 SHA-256。
 
 发布流程见 [PUBLISHING.md](PUBLISHING.md)。
 
