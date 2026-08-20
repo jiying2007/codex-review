@@ -54,6 +54,8 @@ Timeouts, cancellation, process-tree termination, stdout/stderr size limits, and
 
 An explicitly configured Codex executable is considered usable only when `<path> --version` exits successfully and returns non-empty version information.
 
+Codex CLI arguments are assembled through a single argv builder. The approval policy is passed as a global CLI option before the `exec` subcommand, while `exec`-specific flags remain after the subcommand. Unit and fake-CLI integration tests lock this contract to prevent silent CLI-order regressions.
+
 ## Logging
 
 Operational logs must not contain source code, staged diff contents, model review content, secrets, or absolute repository paths. Reports are shown only in the dedicated VS Code OutputChannel and Problems collection for the active user session.
@@ -71,9 +73,11 @@ Release tags must:
 The release gate runs:
 
 - lockfile integrity verification;
-- unit/regression tests;
+- manifest/runtime localization parity plus runtime source-key coverage;
+- unit/regression tests, including the Codex CLI argv contract;
 - latest VS Code Extension Host tests on Linux, Windows, and macOS;
 - minimum supported VS Code `1.90.0` compatibility tests;
+- a deterministic Simplified-Chinese localization smoke inside Extension Host, verifying the shipped zh-CN runtime bundle and critical translated report/error keys;
 - official `@vscode/vsce` packaging;
 - VSIX content checks;
 - SHA-256 generation.

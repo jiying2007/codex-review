@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1
+
+- Fixed current Codex CLI compatibility by placing the global approval policy before the `exec` subcommand.
+- Added a shared Codex argv builder plus regression and fake-CLI argument-order checks.
+- Improved Codex CLI compatibility errors so they no longer incorrectly require an upgrade for every rejected argument.
+- Added runtime localization source-to-bundle coverage and a Simplified-Chinese Extension Host smoke test.
+- Removed remaining pre-release rebrand residue from publishing documentation and made integration test version output dynamic.
+
 ## 1.0.0
 
 - Initial public baseline as **Codex Review Safe**.

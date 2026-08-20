@@ -35,7 +35,7 @@
   "Findings must be an array.": "Findings must be an array.",
   "The number of findings exceeds the configured limit.": "The number of findings exceeds the configured limit.",
   "No usable Codex CLI was found at {0}. Verify that \"codex --version\" works, or set safeCodexReview.codexPath in User Settings.": "No usable Codex CLI was found at {0}. Verify that \"codex --version\" works, or set safeCodexReview.codexPath in User Settings.",
-  "The current Codex CLI is incompatible with the arguments required by Codex Review Safe. Upgrade the Codex CLI. Original error: {0}": "The current Codex CLI is incompatible with the arguments required by Codex Review Safe. Upgrade the Codex CLI. Original error: {0}",
+  "The installed Codex CLI rejected one or more arguments required by Codex Review Safe. Check Codex CLI compatibility or update Codex Review Safe. Original error: {0}": "The installed Codex CLI rejected one or more arguments required by Codex Review Safe. Check Codex CLI compatibility or update Codex Review Safe. Original error: {0}",
   "Codex final agent_message is not JSON matching the output schema.": "Codex final agent_message is not JSON matching the output schema.",
   "Review result path escapes the repository: {0}": "Review result path escapes the repository: {0}",
   "Location note: the model line was outside the changed lines and was mapped to the nearest changed line {0}.": "Location note: the model line was outside the changed lines and was mapped to the nearest changed line {0}.",

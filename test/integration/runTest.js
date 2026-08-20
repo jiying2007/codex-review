@@ -30,6 +30,9 @@ const fs=require('fs');
 const args=process.argv.slice(2);
 if(process.env.CODEX_REVIEW_IT_FAKE_LOG)fs.appendFileSync(process.env.CODEX_REVIEW_IT_FAKE_LOG,'NODE '+JSON.stringify(args)+'\\n');
 if(args.includes('--version')){console.log('codex-cli fake');process.exit(0);}
+const execIndex=args.indexOf('exec');
+const approvalIndex=args.indexOf('--ask-for-approval');
+if(execIndex<0||approvalIndex<0||approvalIndex>execIndex||args[approvalIndex+1]!=='never'){console.error("error: unexpected argument '--ask-for-approval'");process.exit(2);}
 const delay=Number(process.env.CODEX_REVIEW_IT_DELAY_MS||0);
 const mode=process.env.CODEX_REVIEW_IT_MODE||'normal';
 const findings=[{severity:'medium',category:'correctness',file:'a.c',line:mode==='farline'?500:1,endLine:mode==='farline'?500:1,title:'测试问题',description:'测试诊断',suggestion:'修复它',confidence:0.9}];
