@@ -7,7 +7,8 @@ Codex Review releases are built by GitHub Actions from the committed npm lockfil
 A release requires:
 
 - committed `package-lock.json`;
-- `npm run verify:lock` passing;
+- `npm run verify:lock` passing, including package name/version and dev-dependency parity;
+- English/Simplified-Chinese manifest and runtime localization key parity passing via `npm run verify:l10n`;
 - unit/regression tests passing;
 - latest VS Code Extension Host tests passing on Linux, Windows, and macOS;
 - minimum supported VS Code `1.90.0` Extension Host test passing on Ubuntu;
