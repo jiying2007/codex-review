@@ -1,6 +1,6 @@
 # Publishing
 
-Codex Review Safe Safe releases are built by GitHub Actions from the committed npm lockfile.
+Codex Review Safe releases are built by GitHub Actions from the committed npm lockfile.
 
 ## Release gate
 
@@ -59,6 +59,6 @@ Development-only content such as tests, scripts, lockfiles, repository metadata,
 
 ## Future VS Code Marketplace publication
 
-The stable Marketplace identity is `jiying2007.codex-review-safe-safe-safe`. Do not rename the extension `name` (`codex-review-safe`) or the `safeCodexReview.*` command/settings namespace as part of publishing; doing so would create a different extension or break upgrade continuity.
+The stable Marketplace identity is `jiying2007.codex-review-safe`. Do not rename the extension `name` (`codex-review-safe`) or the `safeCodexReview.*` command/settings namespace as part of publishing; doing so would create a different extension or break upgrade continuity.
 
 Marketplace publication is intentionally not automated yet. When enabled, keep the publishing credential outside the repository (for example, a protected Actions secret) and run the same CI/release gate before `vsce publish`.

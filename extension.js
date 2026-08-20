@@ -1348,6 +1348,36 @@ function isCliCompatibilityError(error) {
   );
 }
 
+
+function buildCodexArgs(schemaPath, model) {
+  const args = [
+    '--ask-for-approval', 'never',
+    'exec',
+    '--json',
+    '--ephemeral',
+    '--skip-git-repo-check',
+    '--ignore-user-config',
+    '--ignore-rules',
+    '--sandbox', 'read-only',
+    '--output-schema', schemaPath,
+    '--config', 'web_search="disabled"',
+    '--config', 'features.shell_tool=false',
+    '--config', 'features.unified_exec=false',
+    '--config', 'features.shell_snapshot=false',
+    '--config', 'features.apps=false',
+    '--config', 'features.multi_agent=false',
+    '--config', 'features.remote_plugin=false',
+    '--config', 'features.hooks=false',
+    '--config', 'features.goals=false',
+    '--config', 'features.memories=false',
+    '--config', 'features.skill_mcp_dependency_install=false'
+  ];
+
+  if (model) args.push('--model', model);
+  args.push('-');
+  return args;
+}
+
 async function withTemporaryDirectory(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-'));
   try {
@@ -1376,31 +1406,7 @@ async function runCodexReview(diff, stagedPaths, options, token) {
       mode: 0o600
     });
 
-    const args = [
-      'exec',
-      '--json',
-      '--ephemeral',
-      '--skip-git-repo-check',
-      '--ignore-user-config',
-      '--ignore-rules',
-      '--sandbox', 'read-only',
-      '--ask-for-approval', 'never',
-      '--output-schema', schemaPath,
-      '--config', 'web_search="disabled"',
-      '--config', 'features.shell_tool=false',
-      '--config', 'features.unified_exec=false',
-      '--config', 'features.shell_snapshot=false',
-      '--config', 'features.apps=false',
-      '--config', 'features.multi_agent=false',
-      '--config', 'features.remote_plugin=false',
-      '--config', 'features.hooks=false',
-      '--config', 'features.goals=false',
-      '--config', 'features.memories=false',
-      '--config', 'features.skill_mcp_dependency_install=false'
-    ];
-
-    if (options.model) args.push('--model', options.model);
-    args.push('-');
+    const args = buildCodexArgs(schemaPath, options.model);
 
     let processResult;
     try {
@@ -1418,7 +1424,7 @@ async function runCodexReview(diff, stagedPaths, options, token) {
     } catch (error) {
       if (isCliCompatibilityError(error)) {
         const wrapped = new Error(
-          t('The current Codex CLI is incompatible with the arguments required by Codex Review Safe. Upgrade the Codex CLI. Original error: {0}', error.stderr || error.message)
+          t('The installed Codex CLI rejected one or more arguments required by Codex Review Safe. Check Codex CLI compatibility or update Codex Review Safe. Original error: {0}', error.stderr || error.message)
         );
         wrapped.code = 'ECODEXVERSION';
         throw wrapped;
@@ -2096,6 +2102,8 @@ module.exports = {
     prepareCommand,
     parseCodexJsonl,
     buildPrompt,
+    buildCodexArgs,
+    isCliCompatibilityError,
     resolveCodexExecutable,
     outputSchema,
     normalizeFinding,

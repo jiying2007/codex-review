@@ -35,7 +35,7 @@
   "Findings must be an array.": "findings 必须是数组。",
   "The number of findings exceeds the configured limit.": "findings 数量超过限制。",
   "No usable Codex CLI was found at {0}. Verify that \"codex --version\" works, or set safeCodexReview.codexPath in User Settings.": "找不到可用的 Codex CLI：{0}。请确认 \"codex --version\" 正常，或在 User Settings 中设置 safeCodexReview.codexPath。",
-  "The current Codex CLI is incompatible with the arguments required by Codex Review Safe. Upgrade the Codex CLI. Original error: {0}": "当前 Codex CLI 与 Codex Review Safe 所需参数不兼容。请升级 Codex CLI。原始错误：{0}",
+  "The installed Codex CLI rejected one or more arguments required by Codex Review Safe. Check Codex CLI compatibility or update Codex Review Safe. Original error: {0}": "已安装的 Codex CLI 拒绝了 Codex Review Safe 所需的一个或多个参数。请检查 Codex CLI 兼容性，或更新 Codex Review Safe。原始错误：{0}",
   "Codex final agent_message is not JSON matching the output schema.": "Codex 最终 agent_message 不是符合 output schema 的 JSON。",
   "Review result path escapes the repository: {0}": "审查结果文件路径越界：{0}",
   "Location note: the model line was outside the changed lines and was mapped to the nearest changed line {0}.": "定位说明：模型行号不在本次 diff 修改行，已映射到最近修改行 {0}。",

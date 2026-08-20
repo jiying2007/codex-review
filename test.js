@@ -15,6 +15,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { __test } = require('./extension.js');
+const pkg = require('./package.json');
 
 (async () => {
   assert.strictEqual(__test.severityPasses('high','medium'), true);
@@ -40,6 +41,17 @@ const { __test } = require('./extension.js');
 
   const chinesePrompt=__test.buildPrompt({language:'zh-CN',extraInstructions:''},['src/a.c']);
   assert.match(chinesePrompt,/Write summary, title, description, and suggestion in Simplified Chinese/);
+
+  const cliArgs=__test.buildCodexArgs('/tmp/schema.json','gpt-test');
+  const execIndex=cliArgs.indexOf('exec');
+  const approvalIndex=cliArgs.indexOf('--ask-for-approval');
+  assert.ok(approvalIndex>=0 && approvalIndex<execIndex,'--ask-for-approval must be before exec');
+  for(const flag of ['--json','--ephemeral','--skip-git-repo-check','--ignore-user-config','--ignore-rules','--sandbox','--output-schema','--config','--model']){
+    assert.ok(cliArgs.indexOf(flag)>execIndex,`${flag} must remain after exec`);
+  }
+  assert.strictEqual(cliArgs.at(-1),'-');
+  assert.strictEqual(__test.isCliCompatibilityError({stderr:'error: unexpected argument --output-schema'}),true);
+  assert.strictEqual(__test.isCliCompatibilityError({stderr:'error: invalid value for model'}),false);
 
   if(process.platform!=='win32'){
     const cliDir=fs.mkdtempSync(path.join(os.tmpdir(),'codex-review-safe-cli-'));
@@ -111,5 +123,5 @@ const { __test } = require('./extension.js');
     const index1=await __test.getIndexFingerprint(repo); const head1=await __test.getHeadOid(repo); assert.strictEqual(head1,'<unborn>'); git(['commit','-m','initial']); const index2=await __test.getIndexFingerprint(repo); const head2=await __test.getHeadOid(repo); assert.strictEqual(index1,index2); assert.notStrictEqual(head1,head2);
   } finally { fs.rmSync(repo,{recursive:true,force:true}); }
 
-  console.log('All Codex Review Safe unit/regression tests passed.');
+  console.log(`All Codex Review Safe ${pkg.version} unit/regression tests passed.`);
 })().catch(error=>{console.error(error);process.exit(1);});

@@ -55,4 +55,19 @@ if (pkg.l10n !== './l10n') {
   process.exit(5);
 }
 
-console.log('English/Simplified-Chinese localization bundles verified.');
+const extensionText = fs.readFileSync('extension.js', 'utf8');
+const runtimeReferenced = [...extensionText.matchAll(/\bt\(\s*'((?:\\.|[^'\\])*)'/g)]
+  .map(match => match[1]
+    .replace(/\\'/g, "'")
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\\/g, '\\'));
+for (const key of runtimeReferenced) {
+  if (!(key in runtimeEn) || !(key in runtimeZh)) {
+    console.error(`extension.js references missing runtime l10n key: ${key}`);
+    process.exit(6);
+  }
+}
+
+console.log('English/Simplified-Chinese localization bundles and runtime source references verified.');

@@ -104,7 +104,7 @@ codex --version
 Download the VSIX from a GitHub Release and install it:
 
 ```bash
-code --install-extension codex-review-safe-1.0.0.vsix
+code --install-extension codex-review-safe-1.0.1.vsix
 ```
 
 Or in VS Code:
@@ -168,7 +168,7 @@ npm run test:integration
 npm run package
 ```
 
-CI validates latest VS Code on Linux/Windows/macOS, VS Code `1.90.0` minimum compatibility, localization parity, official VSIX contents, and SHA-256 generation.
+CI validates latest VS Code on Linux/Windows/macOS, VS Code `1.90.0` minimum compatibility, a Simplified-Chinese runtime smoke test, localization source/bundle parity, official VSIX contents, and SHA-256 generation.
 
 See [PUBLISHING.md](PUBLISHING.md) for release details.
 
