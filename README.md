@@ -1,85 +1,136 @@
-# Codex Review
+# Codex Review Safe
 
-[简体中文](README.zh-CN.md) | English
+English | [简体中文](README.zh-CN.md)
 
-Codex Review brings a conservative, staged-only code review workflow to VS Code Source Control. It sends the Git index diff to the local Codex CLI, validates Structured Output locally, publishes only safely mappable findings to **Problems**, and keeps the full report in the **Codex Review** OutputChannel.
+Review safe, structured findings from **staged Git changes only** in VS Code using the local Codex CLI.
 
-> **Why conservative?** Like its companion [Codex Commit Safe](https://github.com/jiying2007/codex-commit), the extension deliberately keeps a narrow trust boundary: staged-only input, Structured Output, HEAD + raw-index consistency checks, minimal Codex capabilities, no automatic edits/commit/push, and fail-safe output projection.
+> **Why “Safe”?** Codex Review Safe is the review-side companion to [Codex Commit Safe](https://github.com/jiying2007/codex-commit). Both extensions deliberately keep a narrow trust boundary: staged-only input, Structured Output, HEAD + raw-index consistency checks, minimal Codex capabilities, fail-closed behavior, and no automatic source edits/commit/push.
 
 ## Highlights
 
-- Review **staged/index changes only** from the Source Control title bar or Command Palette.
-- Local `codex exec` integration with Structured Output and local schema/path validation.
-- Deterministic local verdict: `critical/high -> block`, other findings -> `needs_attention`, no findings -> `pass`.
-- Fail-safe inline diagnostics: a finding is published to Problems only when it can be mapped safely to the current working-tree file.
-- Detects dirty editors, unstaged changes, deleted files, binary files, submodules, symlink escapes, pure rename/copy changes, and stale Git state.
-- Multi-stage `HEAD + raw INDEX` snapshot checks discard stale results when Git state changes during review.
-- Rejects unresolved merge conflicts before Codex is called.
-- Repository policy is pinned to the captured HEAD, so a staged `.codex-review.json` change cannot weaken the review of itself.
-- All VS Code policy settings are application-scoped; workspace/folder settings cannot weaken review policy.
-- Multi-repository workspaces keep diagnostics and reports isolated per repository.
-- Trusted local workspaces only; virtual workspaces are unsupported.
+- One-click review from VS Code Source Control
+- Uses **staged/index changes only** (`git diff --cached`)
+- Review findings in **Simplified Chinese or English**
+- VS Code commands, settings, progress, warnings, reports, and errors localized for **English and Simplified Chinese**
+- UI language and review-result language are independent
+- Codex Structured Output with strict local schema/path validation
+- Conservative Problems publishing: only safely mappable findings become inline diagnostics
+- HEAD + raw Git index snapshot protection against stale results and TOCTOU races
+- HEAD-pinned `.codex-review.json` policy, so a staged policy change cannot weaken its own review
+- Dirty editors, unstaged changes, deleted/binary/submodule files, symlink escapes, pure rename/copy changes, and unsafe line mappings fall back to report-only
+- Windows `.exe` / `.cmd` / `.bat`, Linux, and macOS execution paths covered by CI
+- Never automatically modifies source files, commits, pushes, or opens pull requests
 
-## Chinese / English support
+## Language support
 
-The extension manifest is localized with VS Code NLS files:
+The VS Code UI automatically follows the editor locale:
 
-- English: `package.nls.json`
-- Simplified Chinese: `package.nls.zh-cn.json`
+- English VS Code → English commands/messages/reports
+- Simplified Chinese VS Code → Simplified Chinese commands/messages/reports
 
-Command titles, configuration descriptions, capability descriptions, Marketplace metadata, progress notifications, reports, environment checks, and runtime errors follow the VS Code UI locale through VS Code NLS and `vscode.l10n`. Review summary/findings are controlled separately by `codexReview.language`:
+The review-result language is controlled separately:
 
-- `zh-CN` — Simplified Chinese review output
-- `en` — English review output
+```json
+{
+  "safeCodexReview.language": "zh-CN"
+}
+```
 
-This lets an English VS Code user request Chinese review findings, or a Chinese VS Code user request English findings.
+or:
+
+```json
+{
+  "safeCodexReview.language": "en"
+}
+```
+
+A Chinese UI can request English findings, and an English UI can request Chinese findings.
+
+## Workflow
+
+```text
+Stage changes
+    ↓
+VS Code Source Control
+    ↓
+Codex Review Safe
+    ↓
+local Codex CLI
+    ↓
+Structured review result
+    ↓
+local validation
+    ↓
+Problems + review report
+```
+
+## Safety model
+
+Codex Review Safe deliberately keeps the execution boundary narrow:
+
+- only the staged diff is sent for inference;
+- Codex runs from a temporary directory, not the repository;
+- user Codex config and project execution rules are ignored for the review request;
+- unnecessary Codex capabilities are explicitly disabled where supported;
+- sandbox mode is read-only and approvals are disabled;
+- model output must pass strict local schema, path, and range validation;
+- repository state is represented by **HEAD OID + SHA-256(raw `git ls-files --stage -z`)**;
+- snapshots are checked before/after collection, after Codex returns, and after Problems publication;
+- stale reviews are discarded if HEAD/index changes or a newer review supersedes them;
+- workspace/folder settings cannot weaken review policy;
+- `.codex-review.json` is read from the exact captured HEAD OID;
+- operational logs do not contain source code, staged diff contents, review content, secrets, or absolute repository paths.
+
+Organization-managed Codex requirements, MDM settings, managed hooks, and cloud policy may still apply. The extension does not attempt to bypass organization policy.
+
+> The staged diff leaves the local machine for the configured Codex service. Use the extension only where your organization’s source-code and data policy permits it.
+
+See [SECURITY.md](SECURITY.md) for details.
 
 ## Requirements
 
-- VS Code `1.90.0+`
+- VS Code `1.90.0` or later
 - Git
-- A working local Codex CLI
+- OpenAI Codex CLI installed and authenticated
 
-Verify Codex:
+Check Codex CLI first:
 
 ```bash
 codex --version
 ```
 
-## Install
+## Installation
 
-Download the VSIX from GitHub Releases, then:
+Download the VSIX from a GitHub Release and install it:
 
 ```bash
-code --install-extension codex-review-*.vsix
+code --install-extension codex-review-safe-1.0.0.vsix
+```
+
+Or in VS Code:
+
+```text
+Extensions → ... → Install from VSIX...
+```
+
+Then run:
+
+```text
+Ctrl+Shift+P → Codex Review Safe: Check Codex Environment
 ```
 
 ## Usage
 
-1. Stage the changes you intend to commit.
-2. Click **Codex Review** in the Source Control title bar, or run **Codex Review: Review Staged Changes**.
-3. Safely locatable findings appear in **Problems**.
-4. The complete report, including report-only findings and reasons, is available in the **Codex Review** OutputChannel.
-5. Editing files or changing HEAD/index invalidates stale inline diagnostics.
+1. Stage the changes you want to review.
+2. Open **Source Control**.
+3. Run **Codex Review Safe: Review Staged Changes** or use the Source Control toolbar action.
+4. Safely locatable findings appear in **Problems**.
+5. Open **Codex Review Safe: Show Review Report** for the complete report, including report-only findings and reasons.
+6. Fix issues, stage again, rerun the review, and commit manually.
 
-## Settings
+## Project configuration
 
-All settings below are application-scoped User Settings.
-
-| Setting | Default | Purpose |
-|---|---:|---|
-| `codexReview.codexPath` | `codex` | Codex CLI executable path |
-| `codexReview.model` | empty | Optional model override |
-| `codexReview.language` | `zh-CN` | Review output language: `zh-CN` / `en` |
-| `codexReview.maxDiffBytes` | `524288` | Maximum staged diff bytes sent to Codex |
-| `codexReview.maxFindings` | `40` | Maximum accepted findings |
-| `codexReview.severityThreshold` | `low` | Minimum severity shown in Problems/report |
-| `codexReview.timeoutSeconds` | `120` | Codex timeout |
-| `codexReview.extraInstructions` | empty | Additional user-level review instructions |
-
-## Repository review policy
-
-A repository may commit `.codex-review.json` as team policy. The extension reads the policy from the **exact HEAD OID captured for the review snapshot**, not from the working tree/index.
+A repository may include `.codex-review.json`:
 
 ```json
 {
@@ -88,29 +139,24 @@ A repository may commit `.codex-review.json` as team policy. The extension reads
   "maxFindings": 40,
   "severityThreshold": "low",
   "timeoutSeconds": 120,
-  "extraInstructions": "Focus on resource leaks, concurrency, bounds checks, error handling, and long-running embedded stability."
+  "extraInstructions": "Focus on correctness, resource leaks, concurrency, bounds checks, error handling, and long-running stability."
 }
 ```
 
-If `.codex-review.json` is staged in the same review, the previous HEAD policy remains in effect; the new policy takes effect after commit.
+Project rules cannot configure the Codex executable, model, environment variables, working directory, or arbitrary commands. The repository policy is read from the exact HEAD captured for the review, so a staged policy edit takes effect only after commit.
 
-## Security model
+All `safeCodexReview.*` VS Code settings are application-scoped User Settings.
 
-Codex Review runs Codex from a temporary directory and uses a controlled non-interactive request, including:
+## Extension identity
 
-- `--json`
-- `--output-schema`
-- `--ephemeral`
-- `--ignore-user-config`
-- `--ignore-rules`
-- `--sandbox read-only`
-- `--ask-for-approval never`
-
-Unneeded shell/app/hook/goal/memory/plugin-related features are disabled where supported. Finding paths and line mappings are validated locally before diagnostics are published.
-
-> The staged diff leaves the local machine for Codex inference. Follow your organization's source-code and data-handling policies.
-
-See [SECURITY.md](SECURITY.md) for the complete trust and release-supply-chain model.
+- Repository: `codex-review`
+- Extension name: `codex-review-safe`
+- Display name: **Codex Review Safe**
+- Publisher/VSIX ID: `jiying2007.codex-review-safe`
+- Command/settings namespace: `safeCodexReview.*`
+- Repository policy: `.codex-review.json`
+- Companion extension: **Codex Commit Safe** (`jiying2007.codex-commit-safe`)
+- Marketplace status: **not published yet**; GitHub Releases are the current distribution channel
 
 ## Development
 
@@ -122,34 +168,10 @@ npm run test:integration
 npm run package
 ```
 
-## CI and releases
+CI validates latest VS Code on Linux/Windows/macOS, VS Code `1.90.0` minimum compatibility, localization parity, official VSIX contents, and SHA-256 generation.
 
-CI validates:
-
-- lockfile integrity;
-- unit/regression tests;
-- latest VS Code Extension Host on Linux, Windows, and macOS;
-- minimum supported VS Code `1.90.0` on Ubuntu;
-- official `@vscode/vsce` packaging;
-- VSIX contents and SHA-256.
-
-Release tags must use `vMAJOR.MINOR.PATCH`, match `package.json.version`, and point to a commit reachable from `main`. Only the final release job receives repository write permission.
-
-See [PUBLISHING.md](PUBLISHING.md).
-
-
-## Extension identity
-
-- Repository: `codex-review`
-- Extension name: `codex-review`
-- Display name: **Codex Review**
-- Publisher/VSIX ID: `jiying2007.codex-review`
-- Command/settings namespace: `codexReview.*`
-- Companion extension: **Codex Commit Safe** (`jiying2007.codex-commit-safe`)
-- Marketplace status: **not published yet**; GitHub Releases are the current distribution channel
-
-The technical extension ID and namespace are intentionally stable so future Marketplace publication preserves the GitHub/VSIX upgrade path.
+See [PUBLISHING.md](PUBLISHING.md) for release details.
 
 ## License
 
-MIT
+See [LICENSE](LICENSE).

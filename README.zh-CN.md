@@ -1,48 +1,99 @@
-# Codex Review
+# Codex Review Safe
 
-简体中文 | [English](README.md)
+[English](README.md) | 简体中文
 
-Codex Review 在 VS Code Source Control 中提供保守、可靠的 **staged-only** 代码审查流程：将 Git 暂存区 diff 交给本地 Codex CLI，使用 Structured Output 获取结果，在本地完成 schema / 路径 / 行号校验，只把可安全定位的问题发布到 **Problems**，完整报告保留在 **Codex Review OutputChannel**。
+在 VS Code 中使用本地 Codex CLI，仅针对 **Git 暂存区变更**生成安全、结构化的代码审查结果。
 
-> **为什么强调保守 / Safe？** 和配套的 [Codex Commit Safe](https://github.com/jiying2007/codex-commit) 一样，本扩展刻意保持窄信任边界：只使用 staged 输入、Structured Output、HEAD + raw index 一致性校验、最小 Codex 能力、不自动修改/提交/推送，并且对无法可靠定位的结果 fail-safe。
+> **为什么叫 “Safe”？** Codex Review Safe 是 [Codex Commit Safe](https://github.com/jiying2007/codex-commit) 的代码审查配套扩展。两者统一采用 staged-only 输入、Structured Output、HEAD + raw index 一致性校验、最小 Codex 能力集、fail-closed 行为，并且都不会自动修改源码、Commit 或 Push。
 
-## 核心特性
+## 主要能力
 
-- 从 Source Control 标题栏或 Command Palette 直接审查 **Git staged/index changes**。
-- 本地 `codex exec` + Structured Output，模型结果先经过本地 schema 和路径验证。
-- Verdict 本地确定：`critical/high -> block`，其他 finding -> `needs_attention`，无 finding -> `pass`。
-- Inline Diagnostic 采用 fail-safe 策略：只有能够可靠映射到当前 working-tree 文件时才进入 Problems。
-- 检测 dirty editor、unstaged changes、删除文件、binary、submodule、symlink 越界、纯 rename/copy、Git stale state 等边界。
-- 多阶段 `HEAD + raw INDEX` snapshot 校验，审查过程中 Git 状态变化会丢弃旧结果。
-- 存在 unresolved merge conflicts 时，在调用 Codex 前直接拒绝审查。
-- Repository policy 固定到审查 snapshot 的 HEAD；本次 staged 修改 `.codex-review.json` 不会影响对自身的审查。
-- 所有 VS Code Review policy 设置均为 application scope，workspace/folder settings 无法降低审查策略。
-- 支持多仓库 workspace，每个 repository 独立维护 Problems 和报告。
-- 仅支持 trusted local workspace；不支持 virtual workspace。
+- VS Code Source Control 一键审查 staged changes
+- **只审查 Git 暂存区**（`git diff --cached`）
+- 审查结果支持 **简体中文 / 英文**
+- 命令、设置、进度、警告、报告、错误完整支持 **中英文 UI**
+- VS Code UI 语言与审查结果语言相互独立
+- Codex Structured Output + 本地严格 schema / path 校验
+- Problems 保守发布：只有能安全映射到当前 working tree 的问题才发布 inline Diagnostic
+- 使用 HEAD + raw Git index snapshot 防止 stale result 和 TOCTOU
+- `.codex-review.json` 固定读取捕获到的 HEAD，因此 staged 规则修改不能降低对自身的审查
+- dirty editor、unstaged changes、删除文件、binary、submodule、symlink 越界、纯 rename/copy、无法安全定位的行号全部 fail-safe 为 report-only
+- Windows `.exe` / `.cmd` / `.bat`、Linux、macOS 均由 CI 覆盖
+- 永远不会自动修改源码、Commit、Push 或创建 PR
 
 ## 中英文支持
 
-扩展 Manifest 使用 VS Code NLS：
+VS Code UI 自动跟随编辑器语言：
 
-- 英文：`package.nls.json`
-- 简体中文：`package.nls.zh-cn.json`
+- 英文 VS Code → 英文命令/提示/报告
+- 简体中文 VS Code → 中文命令/提示/报告
 
-命令标题、配置说明、Capability 描述、Marketplace 元数据、进度提示、报告说明、环境检查和运行时错误都会通过 VS Code NLS 与 `vscode.l10n` 跟随 VS Code UI 语言自动切换。
+审查结果语言独立配置：
 
-审查结果语言由 `codexReview.language` 独立控制：
+```json
+{
+  "safeCodexReview.language": "zh-CN"
+}
+```
 
-- `zh-CN`：审查摘要/findings 使用简体中文
-- `en`：审查摘要/findings 使用英文
+或：
 
-因此可以做到：英文 VS Code + 中文审查结果，或者中文 VS Code + 英文审查结果。
+```json
+{
+  "safeCodexReview.language": "en"
+}
+```
+
+因此中文 VS Code 可以输出英文 Review，英文 VS Code 也可以输出中文 Review。
+
+## 工作流
+
+```text
+Stage changes
+    ↓
+VS Code Source Control
+    ↓
+Codex Review Safe
+    ↓
+本地 Codex CLI
+    ↓
+Structured review result
+    ↓
+本地安全校验
+    ↓
+Problems + 完整审查报告
+```
+
+## 安全模型
+
+Codex Review Safe 有意保持较小的执行和信任边界：
+
+- 只把 staged diff 发送给 Codex 推理；
+- Codex 在临时目录执行，而不是项目仓库目录；
+- 本次 Review 忽略用户 Codex config 和项目执行规则；
+- 在 CLI 支持的情况下显式关闭不需要的 Codex 能力；
+- 使用 read-only sandbox，并关闭 approval；
+- 模型输出必须通过严格的本地 schema、路径和范围校验；
+- 仓库状态使用 **HEAD OID + SHA-256(raw `git ls-files --stage -z`)** 表示；
+- 在输入采集前后、Codex 返回后、Problems 发布后都进行 snapshot 校验；
+- HEAD/index 发生变化或新 Review 覆盖旧 Review 时，旧结果直接丢弃；
+- workspace/folder settings 不能降低 Review policy；
+- `.codex-review.json` 从捕获到的精确 HEAD OID 中读取；
+- operational log 不记录源码、staged diff、审查内容、secret 或仓库绝对路径。
+
+组织级 Codex 策略、MDM、managed hooks 和云端策略仍可能具有更高优先级，扩展不会尝试绕过组织策略。
+
+> staged diff 会离开本机并发送到所配置的 Codex 服务。请确保符合所在组织的源码和数据使用规范。
+
+完整说明见 [SECURITY.md](SECURITY.md)。
 
 ## 环境要求
 
-- VS Code `1.90.0+`
+- VS Code `1.90.0` 或更高版本
 - Git
-- 已安装并可正常使用的本地 Codex CLI
+- 已安装并登录 OpenAI Codex CLI
 
-检查 Codex：
+先确认：
 
 ```bash
 codex --version
@@ -50,38 +101,36 @@ codex --version
 
 ## 安装
 
-从 GitHub Releases 下载 VSIX：
+从 GitHub Release 下载 VSIX：
 
 ```bash
-code --install-extension codex-review-*.vsix
+code --install-extension codex-review-safe-1.0.0.vsix
 ```
 
-## 使用
+或在 VS Code 中：
 
-1. 在 Source Control 中 Stage 准备提交的修改。
-2. 点击 Source Control 标题栏中的 **Codex Review**，或执行 **Codex Review: 审查 Staged Changes**。
-3. 可可靠定位的 findings 显示在 **Problems**。
-4. 完整报告、report-only finding 和原因显示在 **Codex Review OutputChannel**。
-5. 文件继续编辑或 HEAD/index 变化后，旧 inline diagnostics 会自动失效。
+```text
+Extensions → ... → Install from VSIX...
+```
 
-## 配置
+然后运行：
 
-以下配置全部为 application-scoped User Settings：
+```text
+Ctrl+Shift+P → Codex Review Safe: 检查 Codex 环境
+```
 
-| Setting | Default | 说明 |
-|---|---:|---|
-| `codexReview.codexPath` | `codex` | Codex CLI 可执行路径 |
-| `codexReview.model` | empty | 可选模型覆盖 |
-| `codexReview.language` | `zh-CN` | 审查结果语言：`zh-CN` / `en` |
-| `codexReview.maxDiffBytes` | `524288` | 发送给 Codex 的最大 staged diff 字节数 |
-| `codexReview.maxFindings` | `40` | 最大 accepted findings 数量 |
-| `codexReview.severityThreshold` | `low` | Problems/报告显示的最低严重级别 |
-| `codexReview.timeoutSeconds` | `120` | Codex 超时时间 |
-| `codexReview.extraInstructions` | empty | 用户级附加审查要求 |
+## 使用方法
 
-## Repository Review Policy
+1. Stage 需要审查的修改。
+2. 打开 **Source Control**。
+3. 运行 **Codex Review Safe: 审查 Staged Changes**，或点击 Source Control 工具栏按钮。
+4. 能安全定位的问题会出现在 **Problems**。
+5. 使用 **Codex Review Safe: 显示审查报告** 查看完整报告，包括 report-only 问题和原因。
+6. 修复问题、重新 Stage，再重新 Review，最后手动 Commit。
 
-仓库可以提交 `.codex-review.json` 作为团队规则。插件从**审查 snapshot 对应的精确 HEAD OID**读取 policy，而不是读取 working tree/index 中的新版本。
+## 项目配置
+
+仓库可以提交 `.codex-review.json`：
 
 ```json
 {
@@ -90,29 +139,24 @@ code --install-extension codex-review-*.vsix
   "maxFindings": 40,
   "severityThreshold": "low",
   "timeoutSeconds": 120,
-  "extraInstructions": "重点关注资源泄漏、并发、越界、错误处理和嵌入式长期运行稳定性。"
+  "extraInstructions": "重点关注正确性、资源泄漏、并发、边界检查、错误处理和长期运行稳定性。"
 }
 ```
 
-如果本次 staged changes 同时修改 `.codex-review.json`，当前审查仍使用提交前 HEAD 中的旧规则；新规则提交后生效。
+项目规则不能设置 Codex 可执行文件、模型、环境变量、工作目录或任意命令。Review policy 从本次 Review 捕获到的精确 HEAD 中读取，因此 staged 的规则修改只会在提交后生效。
 
-## 安全模型
+所有 `safeCodexReview.*` VS Code 设置都是 application-scoped User Settings。
 
-Codex Review 从临时目录调用 Codex，并使用受控非交互请求，包括：
+## 扩展身份
 
-- `--json`
-- `--output-schema`
-- `--ephemeral`
-- `--ignore-user-config`
-- `--ignore-rules`
-- `--sandbox read-only`
-- `--ask-for-approval never`
-
-同时在支持的情况下关闭不需要的 shell/app/hook/goal/memory/plugin 能力。Finding 文件路径和行号会在发布 Diagnostic 前由本地代码验证。
-
-> Staged diff 会离开本机发送给 Codex 推理，请遵守组织的源代码和数据策略。
-
-完整信任边界和发布供应链说明见 [SECURITY.md](SECURITY.md)。
+- 仓库：`codex-review`
+- Extension name：`codex-review-safe`
+- Display name：**Codex Review Safe**
+- Publisher/VSIX ID：`jiying2007.codex-review-safe`
+- 命令/设置 namespace：`safeCodexReview.*`
+- 仓库规则：`.codex-review.json`
+- 配套扩展：**Codex Commit Safe**（`jiying2007.codex-commit-safe`）
+- Marketplace：**暂未发布**，当前通过 GitHub Releases 分发
 
 ## 开发
 
@@ -124,34 +168,10 @@ npm run test:integration
 npm run package
 ```
 
-## CI / Release
+CI 会验证 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容、双语 key 一致性、官方 VSIX 内容和 SHA-256。
 
-CI 会验证：
-
-- lockfile 完整性；
-- unit/regression tests；
-- Linux / Windows / macOS 最新 VS Code Extension Host；
-- Ubuntu 上最低支持版本 VS Code `1.90.0`；
-- 官方 `@vscode/vsce` 打包；
-- VSIX 内容和 SHA-256。
-
-Release tag 必须符合 `vMAJOR.MINOR.PATCH`，与 `package.json.version` 一致，并且对应 commit 必须可从 `main` 追溯。只有最终 release job 拥有仓库写权限。
-
-详见 [PUBLISHING.md](PUBLISHING.md)。
-
-
-## 扩展身份
-
-- 仓库：`codex-review`
-- Extension name：`codex-review`
-- Display name：**Codex Review**
-- Publisher/VSIX ID：`jiying2007.codex-review`
-- 命令/配置 namespace：`codexReview.*`
-- 配套扩展：**Codex Commit Safe**（`jiying2007.codex-commit-safe`）
-- Marketplace 状态：**尚未发布**；当前以 GitHub Releases 为正式分发渠道
-
-技术 Extension ID 和 namespace 保持稳定，后续发布 VS Code Marketplace 时不会切断现有 GitHub/VSIX 用户的升级链路。
+发布流程见 [PUBLISHING.md](PUBLISHING.md)。
 
 ## License
 
-MIT
+见 [LICENSE](LICENSE)。

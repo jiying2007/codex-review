@@ -49,7 +49,7 @@ function log(message) {
 
 function assertTrustedWorkspace() {
   if (!vscode.workspace.isTrusted) {
-    throw new Error(t('The current workspace is in Restricted Mode. Trust the workspace before using Codex Review.'));
+    throw new Error(t('The current workspace is in Restricted Mode. Trust the workspace before using Codex Review Safe.'));
   }
 }
 
@@ -788,7 +788,7 @@ function refreshOutputChannel() {
   outputChannel.clear();
 
   if (!reportsByRepo.size) {
-    outputChannel.appendLine(t('Codex Review: no review report is available.'));
+    outputChannel.appendLine(t('Codex Review Safe: no review report is available.'));
     return;
   }
 
@@ -943,7 +943,7 @@ async function readProjectRulesAtHead(repoRoot, headOid, token) {
 
 async function getEffectiveOptions(repoRoot, headOid, token) {
   const config = vscode.workspace.getConfiguration(
-    'codexReview',
+    'safeCodexReview',
     vscode.Uri.file(repoRoot)
   );
 
@@ -959,10 +959,10 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   ).trim();
 
   if (!codexPath || codexPath.length > 1024 || /[\r\n\0]/.test(codexPath)) {
-    throw new Error(t('User-level codexReview.codexPath is invalid.'));
+    throw new Error(t('User-level safeCodexReview.codexPath is invalid.'));
   }
   if (model.length > 128 || /[\r\n\0]/.test(model)) {
-    throw new Error(t('User-level codexReview.model is invalid.'));
+    throw new Error(t('User-level safeCodexReview.model is invalid.'));
   }
 
   const language =
@@ -1328,7 +1328,7 @@ async function resolveCodexExecutable(codexPath) {
   const suffix = detail ? t(' Original error: {0}', detail) : '';
   const error = new Error(
     t(
-      'No usable Codex CLI was found for: {0}. Make sure "codex --version" succeeds, or set codexReview.codexPath in User Settings.{1}',
+      'No usable Codex CLI was found for: {0}. Make sure "codex --version" succeeds, or set safeCodexReview.codexPath in User Settings.{1}',
       codexPath,
       suffix
     )
@@ -1349,7 +1349,7 @@ function isCliCompatibilityError(error) {
 }
 
 async function withTemporaryDirectory(fn) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-'));
   try {
     return await fn(dir);
   } finally {
@@ -1418,7 +1418,7 @@ async function runCodexReview(diff, stagedPaths, options, token) {
     } catch (error) {
       if (isCliCompatibilityError(error)) {
         const wrapped = new Error(
-          t('The current Codex CLI is incompatible with the arguments required by Codex Review. Upgrade the Codex CLI. Original error: {0}', error.stderr || error.message)
+          t('The current Codex CLI is incompatible with the arguments required by Codex Review Safe. Upgrade the Codex CLI. Original error: {0}', error.stderr || error.message)
         );
         wrapped.code = 'ECODEXVERSION';
         throw wrapped;
@@ -1630,7 +1630,7 @@ async function publishDiagnostics(
       message,
       severityToDiagnostic(finding.severity)
     );
-    diagnostic.source = 'Codex Review';
+    diagnostic.source = 'Codex Review Safe';
     diagnostic.code = `${finding.category}/${finding.severity}`;
 
     if (stateBeforeRead !== fileStateToken(uri.fsPath)) {
@@ -1959,7 +1959,7 @@ async function reviewStaged(commandArgs = []) {
     const hiddenFindings = result.review.findings.length - visibleFindings;
 
     if (result.review.verdict === 'pass') {
-      vscode.window.showInformationMessage(t('Codex Review: no substantive issues found.'));
+      vscode.window.showInformationMessage(t('Codex Review Safe: no substantive issues found.'));
     } else {
       const rejectedCount = result.review.rejectedFindings?.length || 0;
       const allRejected =
@@ -1971,8 +1971,8 @@ async function reviewStaged(commandArgs = []) {
         : '';
 
       const message = allRejected
-        ? t('Codex Review: the model returned {0} findings, but all were rejected by format/path validation. See the report.', rejectedCount)
-        : t('Codex Review: {0}; showing {1} findings{2}.', result.review.verdict, visibleFindings, thresholdNote);
+        ? t('Codex Review Safe: the model returned {0} findings, but all were rejected by format/path validation. See the report.', rejectedCount)
+        : t('Codex Review Safe: {0}; showing {1} findings{2}.', result.review.verdict, visibleFindings, thresholdNote);
 
       const viewReportAction = t('View Report');
       const openProblemsAction = t('Open Problems');
@@ -2007,7 +2007,7 @@ function clearReview() {
   fileWatcherSubscriptions = [];
   if (fileWatcher) { try { fileWatcher.dispose(); } catch {}; fileWatcher = undefined; }
   outputChannel.clear();
-  vscode.window.setStatusBarMessage(`$(check) ${t('Codex Review: review results cleared')}`, 3000);
+  vscode.window.setStatusBarMessage(`$(check) ${t('Codex Review Safe: review results cleared')}`, 3000);
 }
 
 async function checkEnvironment() {
@@ -2028,43 +2028,43 @@ async function checkEnvironment() {
   );
 
   vscode.window.showInformationMessage(
-    t('Codex Review environment is ready: {0}; {1}', resolved.version || resolved.executable, gitVersion.trim())
+    t('Codex Review Safe environment is ready: {0}; {1}', resolved.version || resolved.executable, gitVersion.trim())
   );
 }
 
 function friendlyError(error) {
   const detail = error?.stderr || error?.message || String(error);
   if (error?.code === 'ETIMEDOUT') {
-    return t('{0}. Increase codexReview.timeoutSeconds, or check Codex network/login status.', detail);
+    return t('{0}. Increase safeCodexReview.timeoutSeconds, or check Codex network/login status.', detail);
   }
   return detail;
 }
 
 function activate(context) {
-  outputChannel = vscode.window.createOutputChannel('Codex Review');
-  diagnosticCollection = vscode.languages.createDiagnosticCollection('codex-review');
+  outputChannel = vscode.window.createOutputChannel('Codex Review Safe');
+  diagnosticCollection = vscode.languages.createDiagnosticCollection('codex-review-safe');
 
   context.subscriptions.push(outputChannel, diagnosticCollection);
   setupInvalidationWatchers(context);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('codexReview.reviewStaged', async (...args) => {
+    vscode.commands.registerCommand('safeCodexReview.reviewStaged', async (...args) => {
       try {
         await reviewStaged(args);
       } catch (error) {
         log(`review failed: code=${error?.code || 'unknown'}`);
         if (error?.code !== 'ECANCELLED') {
-          vscode.window.showErrorMessage(t('Codex Review failed: {0}', friendlyError(error)));
+          vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error)));
         }
       }
     }),
-    vscode.commands.registerCommand('codexReview.clearReview', clearReview),
-    vscode.commands.registerCommand('codexReview.showOutput', () => outputChannel.show(true)),
-    vscode.commands.registerCommand('codexReview.checkEnvironment', async () => {
+    vscode.commands.registerCommand('safeCodexReview.clearReview', clearReview),
+    vscode.commands.registerCommand('safeCodexReview.showOutput', () => outputChannel.show(true)),
+    vscode.commands.registerCommand('safeCodexReview.checkEnvironment', async () => {
       try {
         await checkEnvironment();
       } catch (error) {
-        vscode.window.showErrorMessage(t('Codex Review environment check failed: {0}', friendlyError(error)));
+        vscode.window.showErrorMessage(t('Codex Review Safe environment check failed: {0}', friendlyError(error)));
       }
     })
   );
