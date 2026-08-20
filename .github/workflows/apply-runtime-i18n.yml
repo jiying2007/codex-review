@@ -22,21 +22,101 @@ jobs:
         run: |
           set -euo pipefail
           base64 --decode .bootstrap/runtime-i18n.patch.gz.b64 | gzip -dc > /tmp/runtime.patch
-          # Public 1.0.0 was created from the internal final source; normalize the one version-bearing error string.
           sed -i 's/Codex Review 1\.0\.6/Codex Review 1.0.0/g' /tmp/runtime.patch
-          # The public repository intentionally uses a compact unit-test file; patch it separately below.
           sed -n '1,/^--- .*test\.js/ p' /tmp/runtime.patch | sed '$d' > /tmp/extension.patch
+
+          set +e
           patch -p4 --fuzz=3 < /tmp/extension.patch
+          patch_rc=$?
+          set -e
+          if [[ $patch_rc -gt 1 ]]; then
+            echo "unexpected patch failure: $patch_rc" >&2
+            exit "$patch_rc"
+          fi
+
           base64 --decode .bootstrap/l10n.tgz.b64 | tar -xz
+
           python3 - <<'PY'
           from pathlib import Path
           import json
 
+          extension = Path('extension.js')
+          text = extension.read_text()
+          old = '''    if (result.review.verdict === 'pass') {
+      vscode.window.showInformationMessage('Codex Review：未发现实质问题。');
+    } else {
+      const rejectedCount = result.review.rejectedFindings?.length || 0;
+      const allRejected =
+        result.review.findings.length === 0 &&
+        rejectedCount > 0;
+
+      const thresholdNote = hiddenFindings > 0
+        ? `，另有 ${hiddenFindings} 个低于当前阈值`
+        : '';
+
+      const message = allRejected
+        ? `Codex Review：模型返回 ${rejectedCount} 个问题，但全部因格式/路径校验失败被拒绝，请查看报告。`
+        : `Codex Review：${result.review.verdict}，当前显示 ${visibleFindings} 个问题${thresholdNote}。`;
+
+      void vscode.window.showWarningMessage(
+        message,
+        '查看报告',
+        '打开 Problems'
+      ).then(action => {
+        if (action === '查看报告') outputChannel.show(true);
+        if (action === '打开 Problems') {
+          void vscode.commands.executeCommand('workbench.actions.view.problems');
+        }
+      }, error => {
+        log(`warning notification failed: ${error?.message || error}`);
+      });
+    }
+'''
+          new = '''    if (result.review.verdict === 'pass') {
+      vscode.window.showInformationMessage(t('Codex Review: no substantive issues found.'));
+    } else {
+      const rejectedCount = result.review.rejectedFindings?.length || 0;
+      const allRejected =
+        result.review.findings.length === 0 &&
+        rejectedCount > 0;
+
+      const thresholdNote = hiddenFindings > 0
+        ? t(', with {0} additional findings below the current threshold', hiddenFindings)
+        : '';
+
+      const message = allRejected
+        ? t('Codex Review: the model returned {0} findings, but all were rejected by format/path validation. See the report.', rejectedCount)
+        : t('Codex Review: {0}; showing {1} findings{2}.', result.review.verdict, visibleFindings, thresholdNote);
+
+      const viewReportAction = t('View Report');
+      const openProblemsAction = t('Open Problems');
+      void vscode.window.showWarningMessage(
+        message,
+        viewReportAction,
+        openProblemsAction
+      ).then(action => {
+        if (action === viewReportAction) outputChannel.show(true);
+        if (action === openProblemsAction) {
+          void vscode.commands.executeCommand('workbench.actions.view.problems');
+        }
+      }, error => {
+        log(`warning notification failed: ${error?.message || error}`);
+      });
+    }
+'''
+          if old not in text:
+              raise SystemExit('public notification block not found')
+          extension.write_text(text.replace(old, new))
+
+          reject = Path('extension.js.rej')
+          if reject.exists():
+              reject.unlink()
+
           test = Path('test.js')
-          text = test.read_text()
-          text = text.replace('/Problems: 已定位到 src\\/a\\.c:10/', '/Problems: published at src\\/a\\.c:10/')
-          text = text.replace('All Codex Review 1.0.0 unit/regression tests passed.', 'All Codex Review 1.1.0 unit/regression tests passed.')
-          test.write_text(text)
+          value = test.read_text()
+          value = value.replace('/Problems: 已定位到 src\\/a\\.c:10/', '/Problems: published at src\\/a\\.c:10/')
+          value = value.replace('All Codex Review 1.0.0 unit/regression tests passed.', 'All Codex Review 1.1.0 unit/regression tests passed.')
+          test.write_text(value)
 
           pkg_path = Path('package.json')
           pkg = json.loads(pkg_path.read_text())
@@ -78,6 +158,7 @@ jobs:
               value = value.replace(needle, needle + runtime_line)
           changelog.write_text(value)
           PY
+
           node --check extension.js
           node test.js
           node -e "const p=require('./package.json'); if(p.l10n!=='./l10n') process.exit(1)"
