@@ -92,11 +92,11 @@ jobs:
       - run: xvfb-run -a npm run test:integration
 
   integration-zh-cn:
-    name: Extension Host / Ubuntu / zh-CN runtime
+    name: Extension Host / Ubuntu / zh-CN localization
     needs: unit
     runs-on: ubuntu-latest
     env:
-      VSCODE_TEST_LOCALE: 'zh-cn'
+      CODEX_REVIEW_IT_ZH_SMOKE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
