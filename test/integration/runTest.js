@@ -101,7 +101,7 @@ async function main() {
     const vscodeExecutablePath = await downloadAndUnzipVSCode(process.env.VSCODE_TEST_VERSION || 'stable');
     await installLanguagePack(vscodeExecutablePath);
     runOptions.vscodeExecutablePath = vscodeExecutablePath;
-    runOptions.launchArgs.push(`--locale=${locale}`);
+    runOptions.launchArgs.push('--locale', locale);
   } else {
     runOptions.launchArgs.splice(1, 0, '--disable-extensions');
     if (process.env.VSCODE_TEST_VERSION) runOptions.version = process.env.VSCODE_TEST_VERSION;
