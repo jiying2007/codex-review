@@ -168,7 +168,7 @@ npm run test:integration
 npm run package
 ```
 
-CI validates latest VS Code on Linux/Windows/macOS, VS Code `1.90.0` minimum compatibility, a Simplified-Chinese runtime smoke test, localization source/bundle parity, official VSIX contents, and SHA-256 generation.
+CI validates latest VS Code on Linux/Windows/macOS, VS Code `1.90.0` minimum compatibility, a Simplified-Chinese localization smoke inside Extension Host, localization source/bundle parity, official VSIX contents, and SHA-256 generation.
 
 See [PUBLISHING.md](PUBLISHING.md) for release details.
 
