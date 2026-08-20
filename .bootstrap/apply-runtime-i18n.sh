@@ -22,37 +22,9 @@ import json
 
 extension = Path('extension.js')
 text = extension.read_text()
-old = '''    if (result.review.verdict === 'pass') {
-      vscode.window.showInformationMessage('Codex Review：未发现实质问题。');
-    } else {
-      const rejectedCount = result.review.rejectedFindings?.length || 0;
-      const allRejected =
-        result.review.findings.length === 0 &&
-        rejectedCount > 0;
-
-      const thresholdNote = hiddenFindings > 0
-        ? `，另有 ${hiddenFindings} 个低于当前阈值`
-        : '';
-
-      const message = allRejected
-        ? `Codex Review：模型返回 ${rejectedCount} 个问题，但全部因格式/路径校验失败被拒绝，请查看报告。`
-        : `Codex Review：${result.review.verdict}，当前显示 ${visibleFindings} 个问题${thresholdNote}。`;
-
-      void vscode.window.showWarningMessage(
-        message,
-        '查看报告',
-        '打开 Problems'
-      ).then(action => {
-        if (action === '查看报告') outputChannel.show(true);
-        if (action === '打开 Problems') {
-          void vscode.commands.executeCommand('workbench.actions.view.problems');
-        }
-      }, error => {
-        log(`warning notification failed: ${error?.message || error}`);
-      });
-    }
-'''
-new = '''    if (result.review.verdict === 'pass') {
+start = text.index("    if (result.review.verdict === 'pass') {")
+end = text.index("\n\n    log('review completed');", start)
+localized_notification = '''    if (result.review.verdict === 'pass') {
       vscode.window.showInformationMessage(t('Codex Review: no substantive issues found.'));
     } else {
       const rejectedCount = result.review.rejectedFindings?.length || 0;
@@ -82,13 +54,9 @@ new = '''    if (result.review.verdict === 'pass') {
       }, error => {
         log(`warning notification failed: ${error?.message || error}`);
       });
-    }
-'''
-if old not in text:
-    raise SystemExit('public notification block not found')
-extension.write_text(text.replace(old, new))
-reject = Path('extension.js.rej')
-if reject.exists(): reject.unlink()
+    }'''
+extension.write_text(text[:start] + localized_notification + text[end:])
+Path('extension.js.rej').unlink(missing_ok=True)
 
 test = Path('test.js')
 value = test.read_text()
@@ -130,7 +98,8 @@ changelog = Path('CHANGELOG.md')
 value = changelog.read_text()
 needle = '- Add English and Simplified Chinese Marketplace/manifest localization with `package.nls.json` and `package.nls.zh-cn.json`.\n'
 runtime_line = '- Add English and Simplified Chinese runtime UI localization through `vscode.l10n`.\n'
-if runtime_line not in value: value = value.replace(needle, needle + runtime_line)
+if runtime_line not in value:
+    value = value.replace(needle, needle + runtime_line)
 changelog.write_text(value)
 PY
 
