@@ -4,11 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const {
-  downloadAndUnzipVSCode,
-  resolveCliArgsFromVSCodeExecutablePath,
-  runTests
-} = require('@vscode/test-electron');
+const { runTests } = require('@vscode/test-electron');
 
 function exec(command, args, cwd) {
   const r = spawnSync(command, args, { cwd, encoding: 'utf8', shell: false });
@@ -56,32 +52,6 @@ setTimeout(()=>console.log(JSON.stringify({type:'item.completed',item:{type:'age
   return sh;
 }
 
-async function installLanguagePack(vscodeExecutablePath, userDataDir, extensionsDir) {
-  const [cliPath, ...baseArgs] = resolveCliArgsFromVSCodeExecutablePath(
-    vscodeExecutablePath,
-    { reuseMachineInstall: true }
-  );
-  const result = spawnSync(
-    cliPath,
-    [
-      ...baseArgs,
-      `--user-data-dir=${userDataDir}`,
-      `--extensions-dir=${extensionsDir}`,
-      '--install-extension', 'MS-CEINTL.vscode-language-pack-zh-hans',
-      '--force'
-    ],
-    {
-      encoding: 'utf8',
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-      windowsHide: true
-    }
-  );
-  if (result.status !== 0) {
-    throw new Error(`Failed to install Simplified-Chinese VS Code language pack (exit ${result.status}).`);
-  }
-}
-
 async function main() {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-it-'));
   const repo1 = path.join(base, 'repo1');
@@ -99,31 +69,12 @@ async function main() {
   process.env.CODEX_REVIEW_IT_REPO2 = repo2;
   process.env.CODEX_REVIEW_IT_FAKE = fake;
 
-  const locale = process.env.VSCODE_TEST_LOCALE || '';
   const runOptions = {
     extensionDevelopmentPath: path.resolve(__dirname, '..', '..'),
     extensionTestsPath: path.resolve(__dirname, 'suite', 'index'),
-    launchArgs: [workspace, '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes']
+    launchArgs: [workspace, '--disable-extensions', '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes']
   };
-
-  if (locale) {
-    const vscodeExecutablePath = await downloadAndUnzipVSCode(process.env.VSCODE_TEST_VERSION || 'stable');
-    const userDataDir = path.join(base, 'vscode-user-data');
-    const extensionsDir = path.join(base, 'vscode-extensions');
-    fs.mkdirSync(userDataDir, { recursive: true });
-    fs.mkdirSync(extensionsDir, { recursive: true });
-    fs.writeFileSync(path.join(userDataDir, 'argv.json'), JSON.stringify({ locale }, null, 2));
-    await installLanguagePack(vscodeExecutablePath, userDataDir, extensionsDir);
-    runOptions.vscodeExecutablePath = vscodeExecutablePath;
-    runOptions.launchArgs.push(
-      `--user-data-dir=${userDataDir}`,
-      `--extensions-dir=${extensionsDir}`,
-      '--locale', locale
-    );
-  } else {
-    runOptions.launchArgs.splice(1, 0, '--disable-extensions');
-    if (process.env.VSCODE_TEST_VERSION) runOptions.version = process.env.VSCODE_TEST_VERSION;
-  }
+  if (process.env.VSCODE_TEST_VERSION) runOptions.version = process.env.VSCODE_TEST_VERSION;
 
   try {
     await runTests(runOptions);
