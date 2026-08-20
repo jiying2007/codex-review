@@ -7,23 +7,50 @@ Codex Review releases are built by GitHub Actions from the committed npm lockfil
 A release requires:
 
 - committed `package-lock.json`;
+- `npm run verify:lock` passing;
 - unit/regression tests passing;
-- Linux Extension Host integration tests passing under Xvfb;
-- Windows Extension Host integration tests passing, including `.cmd` Codex execution;
+- latest VS Code Extension Host tests passing on Linux, Windows, and macOS;
+- minimum supported VS Code `1.90.0` Extension Host test passing on Ubuntu;
 - official `@vscode/vsce` packaging;
-- SHA256 generated from the packaged VSIX.
+- VSIX content verification;
+- SHA-256 generation.
 
-## Continuous integration
+Validation jobs use read-only repository permissions. Only the final package/publish job receives `contents: write`.
 
-Every pull request and push to `main` runs the long-lived `CI` workflow on both `ubuntu-latest` and `windows-latest`. The packaging job runs only after both platform test jobs pass and uploads the VSIX plus `SHA256SUMS.txt` as a workflow artifact.
+## Versioning
 
-## Create a GitHub Release
+Release tags must use strict semantic versioning:
 
-Ensure `package.json` version matches the tag, then:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
+```text
+vMAJOR.MINOR.PATCH
 ```
 
-The `Release` workflow verifies both platforms, packages the VSIX, generates `SHA256SUMS.txt`, and creates the GitHub Release automatically.
+The tag version must match `package.json.version`, and the tagged commit must be reachable from `main`.
+
+## Create a release
+
+After the version change has passed CI and is merged to `main`:
+
+```bash
+git checkout main
+git pull --ff-only
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+The `Release` workflow validates all platforms, packages the official VSIX, checks package contents, generates `SHA256SUMS`, uploads the build artifact, and creates the GitHub Release automatically.
+
+## Package contents
+
+The release gate requires these user-facing files inside the VSIX:
+
+- `package.nls.json`
+- `package.nls.zh-cn.json`
+- `l10n/bundle.l10n.json`
+- `l10n/bundle.l10n.zh-cn.json`
+- `README.zh-CN.md`
+- `images/icon.png`
+
+The NLS files localize extension metadata, commands, and configuration. The `l10n` bundles localize runtime progress, notifications, reports, environment checks, and errors.
+
+Development-only content such as tests, scripts, lockfiles, repository metadata, and publishing documentation must not be included in the VSIX.

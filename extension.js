@@ -7,6 +7,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+function t(message, ...args) {
+  if (vscode.l10n?.t) return vscode.l10n.t(message, ...args);
+  return String(message).replace(/\{(\d+)\}/g, (_match, index) =>
+    args[Number(index)] === undefined ? `{${index}}` : String(args[Number(index)])
+  );
+}
+
 const PROJECT_RULES_FILE = '.codex-review.json';
 const PROJECT_RULE_KEYS = new Set([
   'language',
@@ -42,7 +49,7 @@ function log(message) {
 
 function assertTrustedWorkspace() {
   if (!vscode.workspace.isTrusted) {
-    throw new Error('当前工作区处于 Restricted Mode。请先信任工作区后再使用 Codex Review。');
+    throw new Error(t('The current workspace is in Restricted Mode. Trust the workspace before using Codex Review.'));
   }
 }
 
@@ -55,16 +62,16 @@ function clampNumber(value, fallback, min, max, name) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   if (n < min || n > max) {
-    throw new Error(`${name} 超出允许范围：${n}（允许 ${min}～${max}）`);
+    throw new Error(t('{0} is outside the allowed range: {1} (allowed {2}–{3}).', name, n, min, max));
   }
   return Math.round(n);
 }
 
 function validateExtraInstructions(value) {
   if (value == null) return '';
-  if (typeof value !== 'string') throw new Error('extraInstructions 必须是字符串。');
+  if (typeof value !== 'string') throw new Error(t('extraInstructions must be a string.'));
   const text = value.trim();
-  if (text.length > 5000) throw new Error('extraInstructions 最长 5000 字符。');
+  if (text.length > 5000) throw new Error(t('extraInstructions must not exceed 5000 characters.'));
   return text;
 }
 
@@ -196,7 +203,7 @@ function runProcess(command, args, options = {}, stdinText = '', token) {
     child.stdout?.on('data', chunk => {
       stdoutBytes += Buffer.byteLength(chunk, 'utf8');
       if (stdoutBytes > maxStdoutBytes) {
-        const error = new Error(`子进程 stdout 超过限制（${maxStdoutBytes} bytes）`);
+        const error = new Error(t('Subprocess stdout exceeded the limit ({0} bytes).', maxStdoutBytes));
         error.code = 'EOUTPUTLIMIT';
         terminate(error);
         return;
@@ -207,7 +214,7 @@ function runProcess(command, args, options = {}, stdinText = '', token) {
     child.stderr?.on('data', chunk => {
       stderrBytes += Buffer.byteLength(chunk, 'utf8');
       if (stderrBytes > maxStderrBytes) {
-        const error = new Error(`子进程 stderr 超过限制（${maxStderrBytes} bytes）`);
+        const error = new Error(t('Subprocess stderr exceeded the limit ({0} bytes).', maxStderrBytes));
         error.code = 'EOUTPUTLIMIT';
         terminate(error);
         return;
@@ -240,7 +247,7 @@ function runProcess(command, args, options = {}, stdinText = '', token) {
 
     if (options.timeoutMs > 0) {
       timeoutHandle = setTimeout(() => {
-        const error = new Error(`进程执行超时（${Math.round(options.timeoutMs / 1000)} 秒）`);
+        const error = new Error(t('Process timed out after {0} seconds.', Math.round(options.timeoutMs / 1000)));
         error.code = 'ETIMEDOUT';
         terminate(error);
       }, options.timeoutMs);
@@ -248,13 +255,13 @@ function runProcess(command, args, options = {}, stdinText = '', token) {
 
     if (token) {
       if (token.isCancellationRequested) {
-        const error = new Error('操作已取消。');
+        const error = new Error(t('Operation cancelled.'));
         error.code = 'ECANCELLED';
         terminate(error);
         return;
       }
       cancellationDisposable = token.onCancellationRequested(() => {
-        const error = new Error('操作已取消。');
+        const error = new Error(t('Operation cancelled.'));
         error.code = 'ECANCELLED';
         terminate(error);
       });
@@ -308,7 +315,7 @@ function runProcessBuffer(command, args, options = {}, token) {
     child.stdout?.on('data', chunk => {
       stdoutBytes += chunk.length;
       if (stdoutBytes > maxStdoutBytes) {
-        const error = new Error(`子进程 stdout 超过限制（${maxStdoutBytes} bytes）`);
+        const error = new Error(t('Subprocess stdout exceeded the limit ({0} bytes).', maxStdoutBytes));
         error.code = 'EOUTPUTLIMIT';
         terminate(error);
         return;
@@ -318,7 +325,7 @@ function runProcessBuffer(command, args, options = {}, token) {
     child.stderr?.on('data', chunk => {
       stderrBytes += chunk.length;
       if (stderrBytes > maxStderrBytes) {
-        const error = new Error(`子进程 stderr 超过限制（${maxStderrBytes} bytes）`);
+        const error = new Error(t('Subprocess stderr exceeded the limit ({0} bytes).', maxStderrBytes));
         error.code = 'EOUTPUTLIMIT';
         terminate(error);
         return;
@@ -344,7 +351,7 @@ function runProcessBuffer(command, args, options = {}, token) {
 
     if (options.timeoutMs > 0) {
       timeoutHandle = setTimeout(() => {
-        const error = new Error(`进程执行超时（${Math.round(options.timeoutMs / 1000)} 秒）`);
+        const error = new Error(t('Process timed out after {0} seconds.', Math.round(options.timeoutMs / 1000)));
         error.code = 'ETIMEDOUT';
         terminate(error);
       }, options.timeoutMs);
@@ -352,13 +359,13 @@ function runProcessBuffer(command, args, options = {}, token) {
 
     if (token) {
       if (token.isCancellationRequested) {
-        const error = new Error('操作已取消。');
+        const error = new Error(t('Operation cancelled.'));
         error.code = 'ECANCELLED';
         terminate(error);
         return;
       }
       cancellationDisposable = token.onCancellationRequested(() => {
-        const error = new Error('操作已取消。');
+        const error = new Error(t('Operation cancelled.'));
         error.code = 'ECANCELLED';
         terminate(error);
       });
@@ -413,7 +420,7 @@ function repositoryFromCommandContext(repositories, commandArgs) {
 
 async function chooseRepository(commandArgs = []) {
   const repositories = await getRepositories();
-  if (!repositories.length) throw new Error('当前工作区未检测到 Git 仓库。');
+  if (!repositories.length) throw new Error(t('No Git repository was detected in the current workspace.'));
 
   const contextual = repositoryFromCommandContext(repositories, commandArgs);
   if (contextual) return { ...contextual, repositoryCount: repositories.length };
@@ -438,7 +445,7 @@ async function chooseRepository(commandArgs = []) {
       description: item.root,
       item
     })),
-    { placeHolder: '选择要审查 staged changes 的 Git 仓库' }
+    { placeHolder: t('Select the Git repository whose staged changes should be reviewed') }
   );
 
   return selected?.item
@@ -500,7 +507,7 @@ async function getHeadOid(repoRoot, token) {
     );
     const oid = stdout.trim();
     if (!/^[0-9a-f]{40,64}$/i.test(oid)) {
-      throw new Error('Git HEAD 返回了无效的 object id。');
+      throw new Error(t('Git HEAD returned an invalid object ID.'));
     }
     return oid;
   } catch (error) {
@@ -790,7 +797,7 @@ function refreshOutputChannel() {
   outputChannel.clear();
 
   if (!reportsByRepo.size) {
-    outputChannel.appendLine('Codex Review：暂无审查报告。');
+    outputChannel.appendLine(t('Codex Review: no review report is available.'));
     return;
   }
 
@@ -907,13 +914,12 @@ async function readProjectRulesAtHead(repoRoot, headOid, token) {
     ));
   } catch (error) {
     throw new Error(
-      `无法从 HEAD ${headOid.slice(0, 12)} 读取 ${PROJECT_RULES_FILE}: ` +
-      `${error?.message || error}`
+      t('Failed to read {0} from HEAD {1}: {2}', PROJECT_RULES_FILE, headOid.slice(0, 12), error?.message || error)
     );
   }
 
   if (Buffer.byteLength(stdout, 'utf8') > 64 * 1024) {
-    throw new Error(`HEAD 中的 ${PROJECT_RULES_FILE} 最大 64 KiB。`);
+    throw new Error(t('{0} in HEAD must not exceed 64 KiB.', PROJECT_RULES_FILE));
   }
 
   let parsed;
@@ -921,13 +927,13 @@ async function readProjectRulesAtHead(repoRoot, headOid, token) {
     parsed = JSON.parse(stdout);
   } catch (error) {
     throw new Error(
-      `HEAD 中的 ${PROJECT_RULES_FILE} 无法解析：${error.message}`
+      t('Failed to parse {0} in HEAD: {1}', PROJECT_RULES_FILE, error.message)
     );
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error(
-      `HEAD 中的 ${PROJECT_RULES_FILE} 顶层必须是 JSON object。`
+      t('The top level of {0} in HEAD must be a JSON object.', PROJECT_RULES_FILE)
     );
   }
 
@@ -937,7 +943,7 @@ async function readProjectRulesAtHead(repoRoot, headOid, token) {
 
   if (unknown.length) {
     throw new Error(
-      `HEAD 中的 ${PROJECT_RULES_FILE} 包含不支持的字段：${unknown.join(', ')}`
+      t('{0} in HEAD contains unsupported fields: {1}', PROJECT_RULES_FILE, unknown.join(', '))
     );
   }
 
@@ -962,10 +968,10 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   ).trim();
 
   if (!codexPath || codexPath.length > 1024 || /[\r\n\0]/.test(codexPath)) {
-    throw new Error('User-level codexReview.codexPath 非法。');
+    throw new Error(t('User-level codexReview.codexPath is invalid.'));
   }
   if (model.length > 128 || /[\r\n\0]/.test(model)) {
-    throw new Error('User-level codexReview.model 非法。');
+    throw new Error(t('User-level codexReview.model is invalid.'));
   }
 
   const language =
@@ -973,7 +979,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     getUserOnlySetting(config, 'language', 'zh-CN');
 
   if (!['zh-CN', 'en'].includes(language)) {
-    throw new Error(`language 不支持：${language}`);
+    throw new Error(t('Unsupported language: {0}', language));
   }
 
   const severityThreshold =
@@ -982,7 +988,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
 
   if (!(severityThreshold in SEVERITY_ORDER)) {
     throw new Error(
-      `severityThreshold 不支持：${severityThreshold}`
+      t('Unsupported severityThreshold: {0}', severityThreshold)
     );
   }
 
@@ -995,7 +1001,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
 
   if (extraInstructions.length > 5000) {
     throw new Error(
-      '合并后的 extraInstructions 最长 5000 字符。'
+      t('The combined extraInstructions must not exceed 5000 characters.')
     );
   }
 
@@ -1152,7 +1158,7 @@ function parseCodexJsonl(stdout) {
     try {
       event = JSON.parse(line);
     } catch {
-      throw new Error('Codex --json 返回了无法解析的 JSONL。');
+      throw new Error(t('Codex --json returned invalid JSONL.'));
     }
 
     if (
@@ -1171,28 +1177,28 @@ function parseCodexJsonl(stdout) {
   }
 
   if (!lastAgentMessage && errors.length) throw new Error(errors.join('; '));
-  if (!lastAgentMessage) throw new Error('Codex JSONL 中没有最终 agent_message。');
+  if (!lastAgentMessage) throw new Error(t('Codex JSONL did not contain a final agent_message.'));
   return lastAgentMessage.trim();
 }
 
 function normalizeFinding(finding, stagedPathSet) {
   if (!finding || typeof finding !== 'object' || Array.isArray(finding)) {
-    throw new Error('finding 不是合法 object。');
+    throw new Error(t('Finding is not a valid object.'));
   }
 
   const severity = String(finding.severity || '');
-  if (!(severity in SEVERITY_ORDER)) throw new Error(`非法 severity：${severity}`);
+  if (!(severity in SEVERITY_ORDER)) throw new Error(t('Invalid severity: {0}', severity));
 
   const category = String(finding.category || '');
   const allowedCategories = new Set([
     'correctness', 'security', 'concurrency', 'resource', 'performance',
     'robustness', 'maintainability', 'api', 'test', 'other'
   ]);
-  if (!allowedCategories.has(category)) throw new Error(`非法 category：${category}`);
+  if (!allowedCategories.has(category)) throw new Error(t('Invalid category: {0}', category));
 
   const file = normalizeGitPathForComparison(finding.file);
   if (!stagedPathSet.has(file)) {
-    throw new Error(`Codex 返回了非 staged 文件路径：${file}`);
+    throw new Error(t('Codex returned a path that is not staged: {0}', file));
   }
 
   const line = Math.max(1, Math.round(Number(finding.line) || 1));
@@ -1202,9 +1208,9 @@ function normalizeFinding(finding, stagedPathSet) {
   const suggestion = String(finding.suggestion || '').trim();
   const confidence = Math.max(0, Math.min(1, Number(finding.confidence) || 0));
 
-  if (!title || title.length > 160) throw new Error('finding title 非法。');
-  if (!description || description.length > 1200) throw new Error('finding description 非法。');
-  if (suggestion.length > 1200) throw new Error('finding suggestion 过长。');
+  if (!title || title.length > 160) throw new Error(t('Finding title is invalid.'));
+  if (!description || description.length > 1200) throw new Error(t('Finding description is invalid.'));
+  if (suggestion.length > 1200) throw new Error(t('Finding suggestion is too long.'));
 
   return {
     severity,
@@ -1221,15 +1227,15 @@ function normalizeFinding(finding, stagedPathSet) {
 
 function validateReviewResult(value, options, stagedPaths) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Codex 最终输出不是 JSON object。');
+    throw new Error(t('Codex final output is not a JSON object.'));
   }
 
   const summary = String(value.summary || '').trim();
-  if (summary.length > 1200) throw new Error('summary 过长。');
+  if (summary.length > 1200) throw new Error(t('Summary is too long.'));
 
-  if (!Array.isArray(value.findings)) throw new Error('findings 必须是数组。');
+  if (!Array.isArray(value.findings)) throw new Error(t('Findings must be an array.'));
   if (value.findings.length > options.maxFindings) {
-    throw new Error('findings 数量超过限制。');
+    throw new Error(t('The number of findings exceeds the configured limit.'));
   }
 
   const stagedPathSet = new Set(stagedPaths.map(normalizeGitPathForComparison));
@@ -1313,7 +1319,7 @@ async function resolveCodexExecutable(codexPath) {
   }
 
   const error = new Error(
-    `找不到可用的 Codex CLI：${codexPath}。请确认 "codex --version" 正常，或在 User Settings 中设置 codexReview.codexPath。`
+    t('No usable Codex CLI was found at {0}. Verify that "codex --version" works, or set codexReview.codexPath in User Settings.', codexPath)
   );
   error.cause = lastError;
   throw error;
@@ -1399,8 +1405,7 @@ async function runCodexReview(diff, stagedPaths, options, token) {
     } catch (error) {
       if (isCliCompatibilityError(error)) {
         const wrapped = new Error(
-          '当前 Codex CLI 与 Codex Review 1.0.0 所需参数不兼容。请升级 Codex CLI。原始错误：' +
-          (error.stderr || error.message)
+          t('The current Codex CLI is incompatible with the arguments required by Codex Review. Upgrade the Codex CLI. Original error: {0}', error.stderr || error.message)
         );
         wrapped.code = 'ECODEXVERSION';
         throw wrapped;
@@ -1413,7 +1418,7 @@ async function runCodexReview(diff, stagedPaths, options, token) {
     try {
       parsed = JSON.parse(agentText);
     } catch {
-      throw new Error('Codex 最终 agent_message 不是符合 output schema 的 JSON。');
+      throw new Error(t('Codex final agent_message is not JSON matching the output schema.'));
     }
 
     return validateReviewResult(parsed, options, stagedPaths);
@@ -1447,7 +1452,7 @@ function safeFileUri(repoRoot, relativeFile) {
     normalizedAbsolute !== normalizedRoot &&
     !normalizedAbsolute.startsWith(normalizedRoot + path.sep)
   ) {
-    throw new Error(`审查结果文件路径越界：${relativeFile}`);
+    throw new Error(t('Review result path escapes the repository: {0}', relativeFile));
   }
   return vscode.Uri.file(absolute);
 }
@@ -1601,10 +1606,10 @@ async function publishDiagnostics(
 
     const locationNote = exactChangedLine
       ? ''
-      : `\n\n定位说明：模型行号不在本次 diff 修改行，已映射到最近修改行 ${lineNumber}。`;
+      : `\n\n${t('Location note: the model line was outside the changed lines and was mapped to the nearest changed line {0}.', lineNumber)}`;
 
     const message = finding.suggestion
-      ? `${finding.title}\n\n${finding.description}\n\n建议：${finding.suggestion}${locationNote}`
+      ? `${finding.title}\n\n${finding.description}\n\n${t('Suggestion:')} ${finding.suggestion}${locationNote}`
       : `${finding.title}\n\n${finding.description}${locationNote}`;
 
     const diagnostic = new vscode.Diagnostic(
@@ -1666,7 +1671,7 @@ function buildReviewReport(review, options, publishMeta) {
 
   const lines = [];
   lines.push(`Verdict: ${review.verdict}`);
-  lines.push(`Summary: ${review.summary || '无'}`);
+  lines.push(`Summary: ${review.summary || t('None')}`);
   lines.push(`Review policy: ${options.policySource}`);
   if (review.policyNotice) lines.push(`Policy notice: ${review.policyNotice}`);
   lines.push(
@@ -1678,14 +1683,14 @@ function buildReviewReport(review, options, publishMeta) {
   lines.push('');
 
   if (!visibleFindings.length) {
-    lines.push('未发现达到当前严重级别阈值的问题。');
+    lines.push(t('No findings meet the current severity threshold.'));
     if (hiddenCount > 0) {
-      lines.push(`另有 ${hiddenCount} 个较低严重级别问题被当前阈值隐藏。`);
+      lines.push(t('{0} lower-severity findings are hidden by the current threshold.', hiddenCount));
     }
   }
 
   if (review.rejectedFindings?.length) {
-    lines.push('模型返回的无效 findings 已逐条丢弃：');
+    lines.push(t('Invalid findings returned by the model were rejected individually:'));
     for (const rejected of review.rejectedFindings.slice(0, 10)) {
       lines.push(`- finding[${rejected.index}]: ${rejected.reason}`);
     }
@@ -1698,29 +1703,29 @@ function buildReviewReport(review, options, publishMeta) {
     );
     lines.push(`   ${f.title}`);
     lines.push(`   ${f.description}`);
-    if (f.suggestion) lines.push(`   建议：${f.suggestion}`);
+    if (f.suggestion) lines.push(`   ${t('Suggestion:')} ${f.suggestion}`);
 
     const meta = publishMeta?.get(f);
     if (meta && !meta.published) {
       const reasonText = {
-        deleted_file: '文件在 staged 版本中已删除，无法映射到当前 working tree。',
-        submodule_change: '这是 submodule 指针变化，只保留报告。',
-        binary_file: '这是 binary 文件变化，没有可靠源码行号，只保留报告。',
-        dirty_editor: 'VS Code 中该文件有未保存编辑；为避免行号错位，不发布 inline Diagnostic。',
-        unstaged_changes: '该文件还有 unstaged changes；为避免行号错位，不发布 inline Diagnostic。',
-        rename_without_content_change: '这是纯 rename，没有可定位的修改后源码行。',
-        copy_without_content_change: '这是纯 copy，没有可定位的新增/修改源码行。',
-        no_added_or_modified_line: '本次 diff 没有可定位的新文件行，只保留报告。',
-        line_not_mappable: '模型行号无法映射到本次修改行，只保留报告。',
-        symlink_outside_repo: '文件实际路径通过 symlink 指向仓库外，只保留报告。',
-        file_changed_during_publish: '文件在生成 Diagnostic 的极短窗口内发生变化，只保留报告。',
-        unstaged_changes_after_publish: '最终校验发现新的 unstaged changes，已撤销 inline Diagnostic。',
-        dirty_editor_after_publish: '最终校验发现新的未保存编辑，已撤销 inline Diagnostic。',
-        file_read_failed: '无法读取 working-tree 文件，只保留报告。'
-      }[meta.reason] || '未发布 inline Diagnostic。';
-      lines.push(`   Problems: 未发布 — ${reasonText}`);
+        deleted_file: t('The file is deleted in the staged version and cannot be mapped to the current working tree.'),
+        submodule_change: t('This is a submodule pointer change; it is report-only.'),
+        binary_file: t('This is a binary file change with no reliable source line; it is report-only.'),
+        dirty_editor: t('The file has unsaved editor changes; no inline Diagnostic is published to avoid line drift.'),
+        unstaged_changes: t('The file also has unstaged changes; no inline Diagnostic is published to avoid line drift.'),
+        rename_without_content_change: t('This is a pure rename with no changed post-image source line.'),
+        copy_without_content_change: t('This is a pure copy with no changed post-image source line.'),
+        no_added_or_modified_line: t('This diff has no locatable new-file line; the finding is report-only.'),
+        line_not_mappable: t('The model line cannot be mapped to a changed line; the finding is report-only.'),
+        symlink_outside_repo: t('The real file path escapes the repository through a symlink; the finding is report-only.'),
+        file_changed_during_publish: t('The file changed while the Diagnostic was being built; the finding is report-only.'),
+        unstaged_changes_after_publish: t('Final validation found new unstaged changes; the inline Diagnostic was retracted.'),
+        dirty_editor_after_publish: t('Final validation found new unsaved edits; the inline Diagnostic was retracted.'),
+        file_read_failed: t('The working-tree file could not be read; the finding is report-only.')
+      }[meta.reason] || t('Inline Diagnostic was not published.');
+      lines.push(`   Problems: ${t('not published')} — ${reasonText}`);
     } else if (meta?.published) {
-      lines.push(`   Problems: 已定位到 ${f.file}:${meta.mappedLine}`);
+      lines.push(`   Problems: ${t('published at')} ${f.file}:${meta.mappedLine}`);
     }
 
     lines.push(`   Confidence: ${f.confidence.toFixed(2)}`);
@@ -1794,7 +1799,7 @@ async function reviewStaged(commandArgs = []) {
     const result = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.SourceControl,
-        title: 'Codex 正在审查 Staged Changes…',
+        title: t('Codex is reviewing Staged Changes…'),
         cancellable: true
       },
       async (_progress, uiToken) => {
@@ -1806,10 +1811,10 @@ async function reviewStaged(commandArgs = []) {
           if (unmergedPaths.length) {
             const preview = unmergedPaths.slice(0, 10).join(', ');
             const suffix = unmergedPaths.length > 10
-              ? ` 等 ${unmergedPaths.length} 个文件`
+              ? t(' and {0} files total', unmergedPaths.length)
               : '';
             const error = new Error(
-              `检测到未解决的 Git 冲突：${preview}${suffix}。请先解决冲突并 Stage 后再审查。`
+              t('Unresolved Git conflicts were detected: {0}{1}. Resolve and stage the conflicts before reviewing.', preview, suffix)
             );
             error.code = 'EUNMERGED';
             throw error;
@@ -1839,25 +1844,25 @@ async function reviewStaged(commandArgs = []) {
           const snapshotAfter = await getRepositorySnapshot(repoRoot, token);
           if (!snapshotsEqual(snapshotBefore, snapshotAfter)) {
             const error = new Error(
-              'Git HEAD 或 staged changes 在采集过程中发生变化，请重新审查。'
+              t('Git HEAD or staged changes changed while input was being collected. Review again.')
             );
             error.code = 'EREPOSITORYCHANGED';
             throw error;
           }
 
           if (!diff.trim()) {
-            vscode.window.showInformationMessage('没有 staged changes。请先 Stage 需要审查的修改。');
+            vscode.window.showInformationMessage(t('There are no staged changes. Stage the changes you want to review first.'));
             return undefined;
           }
 
           if (stagedPaths.length > 5000) {
-            throw new Error(`staged 文件数量过多（${stagedPaths.length}），建议拆分审查。`);
+            throw new Error(t('There are too many staged files ({0}). Split the review into smaller changes.', stagedPaths.length));
           }
 
           const diffBytes = Buffer.byteLength(diff, 'utf8');
           if (diffBytes > options.maxDiffBytes) {
             throw new Error(
-              `staged diff 约 ${Math.ceil(diffBytes / 1024)} KiB，超过 ${Math.ceil(options.maxDiffBytes / 1024)} KiB 限制。建议拆分提交后再审查。`
+              t('The staged diff is about {0} KiB and exceeds the {1} KiB limit. Split the commit before reviewing.', Math.ceil(diffBytes / 1024), Math.ceil(options.maxDiffBytes / 1024))
             );
           }
 
@@ -1892,7 +1897,7 @@ async function reviewStaged(commandArgs = []) {
     if (!snapshotsEqual(currentSnapshot, result.snapshot)) {
       log('review discarded: HEAD or staged index changed');
       vscode.window.showWarningMessage(
-        'Git HEAD 或 staged changes 在审查过程中发生变化，已丢弃旧结果。请重新审查。'
+        t('Git HEAD or staged changes changed during review. The stale result was discarded; review again.')
       );
       return;
     }
@@ -1919,13 +1924,13 @@ async function reviewStaged(commandArgs = []) {
       clearDiagnosticsForRepo(repoRoot, { markReportStale: true });
       log('review discarded after publish: HEAD or staged index changed');
       vscode.window.showWarningMessage(
-        'Git HEAD 或 staged changes 在发布审查结果时发生变化，已撤销旧 Problems。请重新审查。'
+        t('Git HEAD or staged changes changed while publishing results. Stale Problems were retracted; review again.')
       );
       return;
     }
 
     if (result.stagedPolicyChange) {
-      result.review.policyNotice = `${PROJECT_RULES_FILE} 在本次 staged changes 中被修改；当前审查仍使用 HEAD 中的旧规则，新规则将在提交后生效。`;
+      result.review.policyNotice = t('{0} is modified in the staged changes. This review still uses the policy from HEAD; the new policy takes effect after commit.', PROJECT_RULES_FILE);
     }
     reviewSnapshotsByRepo.set(normalizeFsPath(repoRoot), result.snapshot);
     renderOutput(repoRoot, result.review, result.options, publishMeta);
@@ -1937,7 +1942,7 @@ async function reviewStaged(commandArgs = []) {
     const hiddenFindings = result.review.findings.length - visibleFindings;
 
     if (result.review.verdict === 'pass') {
-      vscode.window.showInformationMessage('Codex Review：未发现实质问题。');
+      vscode.window.showInformationMessage(t('Codex Review: no substantive issues found.'));
     } else {
       const rejectedCount = result.review.rejectedFindings?.length || 0;
       const allRejected =
@@ -1945,20 +1950,22 @@ async function reviewStaged(commandArgs = []) {
         rejectedCount > 0;
 
       const thresholdNote = hiddenFindings > 0
-        ? `，另有 ${hiddenFindings} 个低于当前阈值`
+        ? t(', with {0} additional findings below the current threshold', hiddenFindings)
         : '';
 
       const message = allRejected
-        ? `Codex Review：模型返回 ${rejectedCount} 个问题，但全部因格式/路径校验失败被拒绝，请查看报告。`
-        : `Codex Review：${result.review.verdict}，当前显示 ${visibleFindings} 个问题${thresholdNote}。`;
+        ? t('Codex Review: the model returned {0} findings, but all were rejected by format/path validation. See the report.', rejectedCount)
+        : t('Codex Review: {0}; showing {1} findings{2}.', result.review.verdict, visibleFindings, thresholdNote);
 
+      const viewReportAction = t('View Report');
+      const openProblemsAction = t('Open Problems');
       void vscode.window.showWarningMessage(
         message,
-        '查看报告',
-        '打开 Problems'
+        viewReportAction,
+        openProblemsAction
       ).then(action => {
-        if (action === '查看报告') outputChannel.show(true);
-        if (action === '打开 Problems') {
+        if (action === viewReportAction) outputChannel.show(true);
+        if (action === openProblemsAction) {
           void vscode.commands.executeCommand('workbench.actions.view.problems');
         }
       }, error => {
@@ -1983,7 +1990,7 @@ function clearReview() {
   fileWatcherSubscriptions = [];
   if (fileWatcher) { try { fileWatcher.dispose(); } catch {}; fileWatcher = undefined; }
   outputChannel.clear();
-  vscode.window.setStatusBarMessage('$(check) Codex Review：已清除审查结果', 3000);
+  vscode.window.setStatusBarMessage(`$(check) ${t('Codex Review: review results cleared')}`, 3000);
 }
 
 async function checkEnvironment() {
@@ -2004,14 +2011,14 @@ async function checkEnvironment() {
   );
 
   vscode.window.showInformationMessage(
-    `Codex Review 环境正常：${resolved.version || resolved.executable}；${gitVersion.trim()}`
+    t('Codex Review environment is ready: {0}; {1}', resolved.version || resolved.executable, gitVersion.trim())
   );
 }
 
 function friendlyError(error) {
   const detail = error?.stderr || error?.message || String(error);
   if (error?.code === 'ETIMEDOUT') {
-    return `${detail}。可提高 codexReview.timeoutSeconds，或检查 Codex 网络/登录状态。`;
+    return t('{0}. Increase codexReview.timeoutSeconds, or check Codex network/login status.', detail);
   }
   return detail;
 }
@@ -2030,7 +2037,7 @@ function activate(context) {
       } catch (error) {
         log(`review failed: code=${error?.code || 'unknown'}`);
         if (error?.code !== 'ECANCELLED') {
-          vscode.window.showErrorMessage(`Codex Review 失败：${friendlyError(error)}`);
+          vscode.window.showErrorMessage(t('Codex Review failed: {0}', friendlyError(error)));
         }
       }
     }),
@@ -2040,7 +2047,7 @@ function activate(context) {
       try {
         await checkEnvironment();
       } catch (error) {
-        vscode.window.showErrorMessage(`Codex Review 环境检查失败：${friendlyError(error)}`);
+        vscode.window.showErrorMessage(t('Codex Review environment check failed: {0}', friendlyError(error)));
       }
     })
   );

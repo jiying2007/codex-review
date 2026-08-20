@@ -1,0 +1,20 @@
+{
+  "extension.displayName": "Codex Review",
+  "extension.description": "Review staged Git changes from VS Code Source Control using the local Codex CLI with fail-safe diagnostics.",
+  "command.review.title": "Review Staged Changes",
+  "command.clear.title": "Clear Review Results",
+  "command.showOutput.title": "Show Review Report",
+  "command.checkEnvironment.title": "Check Codex Environment",
+  "capability.untrusted": "Codex Review executes Git and the local Codex CLI and reads staged workspace content, so a trusted workspace is required.",
+  "capability.virtual": "Codex Review requires a local Git repository and local CLI executables.",
+  "config.codexPath": "Codex CLI executable path. Application-scoped: only User Settings can configure it.",
+  "config.model": "Optional Codex model. Application-scoped: only User Settings can configure it.",
+  "config.language": "Language used for review summary and findings.",
+  "config.language.zhCN": "Simplified Chinese",
+  "config.language.en": "English",
+  "config.maxDiffBytes": "Maximum staged diff size sent to Codex, in bytes.",
+  "config.maxFindings": "Maximum number of review findings accepted from Codex.",
+  "config.severityThreshold": "Minimum severity shown in Problems and the review report.",
+  "config.timeoutSeconds": "Maximum time to wait for Codex CLI.",
+  "config.extraInstructions": "Additional user-level review instructions. They cannot override the extension safety boundary."
+}

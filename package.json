@@ -1,56 +1,201 @@
 {
   "name": "codex-review",
-  "displayName": "Codex Review",
-  "description": "Review staged Git changes from VS Code Source Control using the local Codex CLI with fail-safe diagnostics.",
-  "version": "1.0.0",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
+  "version": "1.1.0",
   "publisher": "jiying2007",
   "license": "MIT",
-  "engines": {"vscode": "^1.90.0"},
-  "categories": ["Other"],
-  "keywords": ["git","review","codex","source control","diagnostics","ai"],
-  "activationEvents": ["onCommand:codexReview.reviewStaged","onCommand:codexReview.clearReview","onCommand:codexReview.checkEnvironment","onCommand:codexReview.showOutput"],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "keywords": [
+    "git",
+    "review",
+    "code review",
+    "codex",
+    "source control",
+    "diagnostics",
+    "staged",
+    "ai",
+    "scm"
+  ],
+  "activationEvents": [
+    "onCommand:codexReview.reviewStaged",
+    "onCommand:codexReview.clearReview",
+    "onCommand:codexReview.checkEnvironment",
+    "onCommand:codexReview.showOutput"
+  ],
   "main": "./extension.js",
   "capabilities": {
-    "untrustedWorkspaces": {"supported": false, "description": "Codex Review executes Git and the local Codex CLI and reads staged workspace content, so a trusted workspace is required."},
-    "virtualWorkspaces": {"supported": false, "description": "Codex Review requires a local Git repository and local CLI executables."}
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "%capability.untrusted%"
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "%capability.virtual%"
+    }
   },
   "contributes": {
     "commands": [
-      {"command":"codexReview.reviewStaged","title":"审查 Staged Changes","category":"Codex Review","icon":"$(shield)"},
-      {"command":"codexReview.clearReview","title":"清除审查结果","category":"Codex Review","icon":"$(clear-all)"},
-      {"command":"codexReview.showOutput","title":"显示审查报告","category":"Codex Review"},
-      {"command":"codexReview.checkEnvironment","title":"检查 Codex 环境","category":"Codex Review"}
+      {
+        "command": "codexReview.reviewStaged",
+        "title": "%command.review.title%",
+        "category": "%extension.displayName%",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "codexReview.clearReview",
+        "title": "%command.clear.title%",
+        "category": "%extension.displayName%",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "codexReview.showOutput",
+        "title": "%command.showOutput.title%",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "codexReview.checkEnvironment",
+        "title": "%command.checkEnvironment.title%",
+        "category": "%extension.displayName%"
+      }
     ],
     "menus": {
       "scm/title": [
-        {"command":"codexReview.reviewStaged","when":"scmProvider == git && isWorkspaceTrusted","group":"navigation@7"},
-        {"command":"codexReview.clearReview","when":"scmProvider == git && isWorkspaceTrusted","group":"navigation@8"}
+        {
+          "command": "codexReview.reviewStaged",
+          "when": "scmProvider == git && isWorkspaceTrusted",
+          "group": "navigation@7"
+        },
+        {
+          "command": "codexReview.clearReview",
+          "when": "scmProvider == git && isWorkspaceTrusted",
+          "group": "navigation@8"
+        }
       ],
       "commandPalette": [
-        {"command":"codexReview.reviewStaged","when":"workspaceFolderCount > 0 && isWorkspaceTrusted"},
-        {"command":"codexReview.clearReview"},
-        {"command":"codexReview.showOutput"},
-        {"command":"codexReview.checkEnvironment","when":"isWorkspaceTrusted"}
+        {
+          "command": "codexReview.reviewStaged",
+          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
+        },
+        {
+          "command": "codexReview.clearReview"
+        },
+        {
+          "command": "codexReview.showOutput"
+        },
+        {
+          "command": "codexReview.checkEnvironment",
+          "when": "isWorkspaceTrusted"
+        }
       ]
     },
     "configuration": {
-      "title": "Codex Review",
+      "title": "%extension.displayName%",
       "properties": {
-        "codexReview.codexPath":{"type":"string","default":"codex","scope":"application","description":"Codex CLI executable path. Application-scoped: only User Settings can configure it."},
-        "codexReview.model":{"type":"string","default":"","scope":"application","description":"Optional Codex model. Leave empty to use the CLI default."},
-        "codexReview.language":{"type":"string","enum":["zh-CN","en"],"default":"zh-CN","description":"Language used for review findings.","scope":"application"},
-        "codexReview.maxDiffBytes":{"type":"number","default":524288,"minimum":4096,"maximum":2097152,"description":"Maximum staged diff size sent to Codex, in bytes.","scope":"application"},
-        "codexReview.maxFindings":{"type":"number","default":40,"minimum":1,"maximum":100,"description":"Maximum number of review findings accepted from Codex.","scope":"application"},
-        "codexReview.severityThreshold":{"type":"string","enum":["critical","high","medium","low","info"],"default":"low","description":"Minimum severity shown in Problems and the review report.","scope":"application"},
-        "codexReview.timeoutSeconds":{"type":"number","default":120,"minimum":10,"maximum":300,"description":"Maximum time to wait for Codex.","scope":"application"},
-        "codexReview.extraInstructions":{"type":"string","default":"","description":"Optional team review rules. Treated as untrusted prompt data and cannot change safety restrictions.","scope":"application"}
+        "codexReview.codexPath": {
+          "type": "string",
+          "default": "codex",
+          "scope": "application",
+          "description": "%config.codexPath%"
+        },
+        "codexReview.model": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "%config.model%"
+        },
+        "codexReview.language": {
+          "type": "string",
+          "enum": [
+            "zh-CN",
+            "en"
+          ],
+          "default": "zh-CN",
+          "scope": "application",
+          "description": "%config.language%",
+          "enumDescriptions": [
+            "%config.language.zhCN%",
+            "%config.language.en%"
+          ]
+        },
+        "codexReview.maxDiffBytes": {
+          "type": "number",
+          "default": 524288,
+          "minimum": 4096,
+          "maximum": 2097152,
+          "scope": "application",
+          "description": "%config.maxDiffBytes%"
+        },
+        "codexReview.maxFindings": {
+          "type": "number",
+          "default": 40,
+          "minimum": 1,
+          "maximum": 100,
+          "scope": "application",
+          "description": "%config.maxFindings%"
+        },
+        "codexReview.severityThreshold": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
+          "default": "low",
+          "scope": "application",
+          "description": "%config.severityThreshold%"
+        },
+        "codexReview.timeoutSeconds": {
+          "type": "number",
+          "default": 120,
+          "minimum": 10,
+          "maximum": 300,
+          "scope": "application",
+          "description": "%config.timeoutSeconds%"
+        },
+        "codexReview.extraInstructions": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "%config.extraInstructions%"
+        }
       }
     }
   },
-  "scripts": {"check":"node --check extension.js && node test.js","test":"node test.js","test:integration":"node ./test/integration/runTest.js","package":"vsce package --no-dependencies"},
-  "devDependencies": {"@vscode/test-electron":"3.0.0","@vscode/vsce":"3.9.2"},
-  "extensionDependencies": ["vscode.git"],
-  "repository": {"type":"git","url":"https://github.com/jiying2007/codex-review.git"},
+  "scripts": {
+    "check": "node --check extension.js && node test.js",
+    "test:unit": "node test.js",
+    "test:integration": "node ./test/integration/runTest.js",
+    "test": "npm run test:unit",
+    "package": "vsce package --no-dependencies",
+    "verify:lock": "node ./scripts/verify-lock.js",
+    "ci": "npm run verify:lock && npm ci --ignore-scripts --no-audit --no-fund && npm run check && npm run test:integration && npm run package"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "3.9.2"
+  },
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jiying2007/codex-review.git"
+  },
   "homepage": "https://github.com/jiying2007/codex-review#readme",
-  "bugs": {"url":"https://github.com/jiying2007/codex-review/issues"}
+  "bugs": {
+    "url": "https://github.com/jiying2007/codex-review/issues"
+  },
+  "pricing": "Free",
+  "preview": false,
+  "icon": "images/icon.png",
+  "l10n": "./l10n"
 }

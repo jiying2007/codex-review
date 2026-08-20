@@ -1,23 +1,79 @@
 # Security
 
-Codex Review reviews only Git staged changes and treats inline diagnostics as a fail-safe projection of a stable staged snapshot.
+## Data flow
 
-## Trust boundaries
+Codex Review sends only the staged Git diff and review instructions to the configured Codex service. The repository itself is not used as the Codex working directory.
 
-- A trusted VS Code workspace is required.
-- Virtual workspaces are unsupported.
-- Review settings are User/Application scoped; workspace/folder settings cannot weaken policy.
-- Repository `.codex-review.json` is read from the exact HEAD OID captured for the review snapshot, so a staged policy change cannot alter the review of itself.
-- Finding paths must belong to staged changes and must remain inside the repository after realpath resolution.
+The staged diff still leaves the local machine for model inference. Use the extension only where your organization’s source-code and data policy permits it.
+
+## Execution boundary
+
+For review generation, the extension:
+
+- runs Codex from a temporary directory;
+- requests a read-only sandbox and no approvals;
+- ignores user Codex config and project execution rules for the request;
+- disables unnecessary shell, execution, web, app, agent, hook, goal, memory, and plugin-related features where supported;
+- validates Structured Output locally before publishing diagnostics;
+- never automatically edits source files, commits, pushes, or opens pull requests.
+
+Organization-managed Codex requirements, managed hooks, MDM settings, or cloud policy have higher precedence and may still apply. The extension does not attempt to bypass organization policy.
+
+## Review policy boundary
+
+All VS Code Review settings are application-scoped User Settings. Workspace and folder settings cannot weaken review policy.
+
+Repository `.codex-review.json` is treated as repository-controlled policy and is read from the exact HEAD OID captured for the stable review snapshot. A staged policy change therefore cannot weaken the review of itself; it takes effect only after commit.
+
+Project policy cannot configure the Codex executable, model, environment variables, working directory, or arbitrary commands.
 
 ## Repository consistency
 
-HEAD + raw INDEX identity is checked before and after input collection, after Codex returns, and after inline diagnostics are published. Any mismatch fails safe and stale Problems are removed.
+A review must describe the exact staged state that was analyzed. The extension snapshots both:
 
-Dirty editor buffers and unstaged disk changes suppress inline diagnostics. File state is also checked around Range construction and monitored after publication.
+- the current `HEAD` object ID, including an explicit unborn-HEAD state; and
+- a SHA-256 fingerprint of the raw `git ls-files --stage -z` index bytes.
 
-## Codex execution
+The snapshot is checked before and after input collection, after Codex returns, and again after inline diagnostics are published. Any mismatch fails safe and stale Problems are removed.
 
-Codex is invoked non-interactively with structured output and a read-only sandbox. User/project Codex configuration and rules are ignored for this operation, and unnecessary tools/features are disabled.
+Unresolved merge conflicts stop review before Codex is called. A newer request also supersedes any older in-flight review for the same repository.
 
-Staged diff content is sent to Codex for inference. Follow your organization's source-code and data-handling policies.
+## Diagnostic safety
+
+Inline diagnostics are a conservative projection of the staged snapshot onto the current working tree.
+
+A finding is report-only when safe inline mapping cannot be established, including dirty editors, unstaged changes, deleted files, binary files, submodules, symlink escapes, pure rename/copy changes, unmappable lines, or file changes during publication.
+
+Finding paths must belong to staged changes and must remain inside the repository after realpath resolution.
+
+## Process handling
+
+Native executables are started without a shell. On Windows, `.cmd` and `.bat` shims are invoked through `cmd.exe` with explicit quoting and `windowsVerbatimArguments`.
+
+Timeouts, cancellation, process-tree termination, stdout/stderr size limits, and Codex `--version` checks are enforced.
+
+## Logging
+
+Operational logs must not contain source code, staged diff contents, model review content, secrets, or absolute repository paths. Reports are shown only in the dedicated VS Code OutputChannel and Problems collection for the active user session.
+
+## Release supply chain
+
+GitHub Actions validation jobs run with read-only repository permissions. Only the final release job receives `contents: write`.
+
+Release tags must:
+
+- use `vMAJOR.MINOR.PATCH`;
+- match `package.json.version`;
+- point to a commit reachable from `main`.
+
+The release gate runs:
+
+- lockfile integrity verification;
+- unit/regression tests;
+- latest VS Code Extension Host tests on Linux, Windows, and macOS;
+- minimum supported VS Code `1.90.0` compatibility tests;
+- official `@vscode/vsce` packaging;
+- VSIX content checks;
+- SHA-256 generation.
+
+Third-party GitHub Actions are pinned to immutable commit SHAs and maintained through Dependabot.

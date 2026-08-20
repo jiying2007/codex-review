@@ -1,73 +1,83 @@
 # Codex Review
 
-在 VS Code Source Control 中使用本地 Codex CLI 审查 **staged changes**，将可信定位的问题发布到 Problems，并在 OutputChannel 中保留完整审查报告。
+[简体中文](README.zh-CN.md) | English
 
-## 特性
+Codex Review brings a conservative, staged-only code review workflow to VS Code Source Control. It sends the Git index diff to the local Codex CLI, validates Structured Output locally, publishes only safely mappable findings to **Problems**, and keeps the full report in the **Codex Review** OutputChannel.
 
-- 直接集成 VS Code Source Control，可从 SCM 标题栏发起审查。
-- 只审查 Git staged/index 内容，不读取未暂存改动作为审查输入。
-- 使用本地 `codex exec` + Structured Output，结果经过本地 schema 和路径校验。
-- critical/high 自动判定为 `block`，其他 finding 为 `needs_attention`，无 finding 为 `pass`。
-- Finding 只有在能够可靠映射到本次 staged changed line 时才进入 Problems；否则保留为 report-only。
-- 检测 dirty editor、unstaged changes、删除文件、binary、submodule、symlink、纯 rename/copy 等边界，宁可不做 inline 定位，也不显示可能错行的 Diagnostic。
-- HEAD + raw INDEX 多阶段 snapshot 校验，审查过程中 Git 状态变化会丢弃旧结果。
-- 存在 unresolved merge conflicts 时拒绝审查。
-- Review policy 固定到审查开始时的 HEAD；本次 staged 修改 `.codex-review.json` 不会影响对自身的审查。
-- VS Code Review 设置均为 User/Application scope，workspace/folder 无法降低审查策略。
-- 支持多仓库 workspace，每个 repository 独立维护 Problems 和报告。
-- Workspace 必须 trusted；virtual workspace 不支持。
+## Highlights
 
-## 要求
+- Review **staged/index changes only** from the Source Control title bar or Command Palette.
+- Local `codex exec` integration with Structured Output and local schema/path validation.
+- Deterministic local verdict: `critical/high -> block`, other findings -> `needs_attention`, no findings -> `pass`.
+- Fail-safe inline diagnostics: a finding is published to Problems only when it can be mapped safely to the current working-tree file.
+- Detects dirty editors, unstaged changes, deleted files, binary files, submodules, symlink escapes, pure rename/copy changes, and stale Git state.
+- Multi-stage `HEAD + raw INDEX` snapshot checks discard stale results when Git state changes during review.
+- Rejects unresolved merge conflicts before Codex is called.
+- Repository policy is pinned to the captured HEAD, so a staged `.codex-review.json` change cannot weaken the review of itself.
+- All VS Code policy settings are application-scoped; workspace/folder settings cannot weaken review policy.
+- Multi-repository workspaces keep diagnostics and reports isolated per repository.
+- Trusted local workspaces only; virtual workspaces are unsupported.
+
+## Chinese / English support
+
+The extension manifest is localized with VS Code NLS files:
+
+- English: `package.nls.json`
+- Simplified Chinese: `package.nls.zh-cn.json`
+
+Command titles, configuration descriptions, capability descriptions, Marketplace metadata, progress notifications, reports, environment checks, and runtime errors follow the VS Code UI locale through VS Code NLS and `vscode.l10n`. Review summary/findings are controlled separately by `codexReview.language`:
+
+- `zh-CN` — Simplified Chinese review output
+- `en` — English review output
+
+This lets an English VS Code user request Chinese review findings, or a Chinese VS Code user request English findings.
+
+## Requirements
 
 - VS Code `1.90.0+`
 - Git
-- 已安装并可正常使用的 Codex CLI
+- A working local Codex CLI
 
-检查 Codex CLI：
+Verify Codex:
 
 ```bash
 codex --version
 ```
 
-## 安装
+## Install
 
-从 GitHub Releases 下载 `codex-review-*.vsix` 后：
+Download the VSIX from GitHub Releases, then:
 
 ```bash
 code --install-extension codex-review-*.vsix
 ```
 
-## 使用
+## Usage
 
-1. 在 Source Control 中 Stage 需要提交的修改。
-2. 点击 SCM 标题栏的 **Codex Review** 按钮，或打开 Command Palette 执行 `Codex Review: 审查 Staged Changes`。
-3. 审查完成后：
-   - 可可靠定位的问题显示在 **Problems**；
-   - 完整 finding、report-only 原因和 verdict 显示在 **Codex Review OutputChannel**。
-4. Git HEAD/INDEX 或文件内容变化后，旧 inline diagnostics 会自动失效。
+1. Stage the changes you intend to commit.
+2. Click **Codex Review** in the Source Control title bar, or run **Codex Review: Review Staged Changes**.
+3. Safely locatable findings appear in **Problems**.
+4. The complete report, including report-only findings and reasons, is available in the **Codex Review** OutputChannel.
+5. Editing files or changing HEAD/index invalidates stale inline diagnostics.
 
-## 配置
+## Settings
 
-User Settings 支持：
+All settings below are application-scoped User Settings.
 
-| Setting | Default | Description |
+| Setting | Default | Purpose |
 |---|---:|---|
-| `codexReview.codexPath` | `codex` | Codex CLI 路径 |
-| `codexReview.model` | empty | 可选模型，空值使用 CLI 默认 |
-| `codexReview.language` | `zh-CN` | `zh-CN` / `en` |
-| `codexReview.maxDiffBytes` | `524288` | 最大 staged diff 字节数 |
-| `codexReview.maxFindings` | `40` | 最大 findings 数量 |
-| `codexReview.severityThreshold` | `low` | Problems/报告显示阈值 |
-| `codexReview.timeoutSeconds` | `120` | Codex 超时 |
-| `codexReview.extraInstructions` | empty | 用户级附加审查要求 |
+| `codexReview.codexPath` | `codex` | Codex CLI executable path |
+| `codexReview.model` | empty | Optional model override |
+| `codexReview.language` | `zh-CN` | Review output language: `zh-CN` / `en` |
+| `codexReview.maxDiffBytes` | `524288` | Maximum staged diff bytes sent to Codex |
+| `codexReview.maxFindings` | `40` | Maximum accepted findings |
+| `codexReview.severityThreshold` | `low` | Minimum severity shown in Problems/report |
+| `codexReview.timeoutSeconds` | `120` | Codex timeout |
+| `codexReview.extraInstructions` | empty | Additional user-level review instructions |
 
-这些设置为 `application` scope，仓库中的 `.vscode/settings.json` 无法覆盖。
+## Repository review policy
 
-## Repository Review Policy
-
-仓库可提交 `.codex-review.json` 作为团队规则。审查时使用 **当前稳定 snapshot 对应 HEAD 中的版本**，而不是 working tree/index 里的新版本。
-
-示例：
+A repository may commit `.codex-review.json` as team policy. The extension reads the policy from the **exact HEAD OID captured for the review snapshot**, not from the working tree/index.
 
 ```json
 {
@@ -76,13 +86,15 @@ User Settings 支持：
   "maxFindings": 40,
   "severityThreshold": "low",
   "timeoutSeconds": 120,
-  "extraInstructions": "重点关注资源泄漏、并发、越界、错误处理和嵌入式长期运行稳定性。"
+  "extraInstructions": "Focus on resource leaks, concurrency, bounds checks, error handling, and long-running embedded stability."
 }
 ```
 
-## 安全边界
+If `.codex-review.json` is staged in the same review, the previous HEAD policy remains in effect; the new policy takes effect after commit.
 
-Codex Review 调用 Codex 时保持受控非交互模式，包括：
+## Security model
+
+Codex Review runs Codex from a temporary directory and uses a controlled non-interactive request, including:
 
 - `--json`
 - `--output-schema`
@@ -92,25 +104,36 @@ Codex Review 调用 Codex 时保持受控非交互模式，包括：
 - `--sandbox read-only`
 - `--ask-for-approval never`
 
-同时关闭不需要的 shell/apps/hooks/goals/memories 等能力。详细说明见 [SECURITY.md](SECURITY.md)。
+Unneeded shell/app/hook/goal/memory/plugin-related features are disabled where supported. Finding paths and line mappings are validated locally before diagnostics are published.
 
-> Staged diff 会发送给 Codex 进行推理。请遵守组织的代码、隐私和数据策略。
+> The staged diff leaves the local machine for Codex inference. Follow your organization's source-code and data-handling policies.
 
-## 开发
+See [SECURITY.md](SECURITY.md) for the complete trust and release-supply-chain model.
+
+## Development
 
 ```bash
-npm ci --ignore-scripts
+npm run verify:lock
+npm ci --ignore-scripts --no-audit --no-fund
 npm run check
 npm run test:integration
 npm run package
 ```
 
-## GitHub Actions / Release
+## CI and releases
 
-- `CI`：Linux + Windows 单元/Extension Host 测试，并生成 VSIX artifact。
-- `Release`：推送 `v*` tag 后重新跑 Linux + Windows 验证，使用官方 `@vscode/vsce` 打包，并创建 GitHub Release，附带 VSIX 与 SHA256。
+CI validates:
 
-正式发布由 `v*` tag 触发，校验 `package.json` 版本后自动创建 GitHub Release。
+- lockfile integrity;
+- unit/regression tests;
+- latest VS Code Extension Host on Linux, Windows, and macOS;
+- minimum supported VS Code `1.90.0` on Ubuntu;
+- official `@vscode/vsce` packaging;
+- VSIX contents and SHA-256.
+
+Release tags must use `vMAJOR.MINOR.PATCH`, match `package.json.version`, and point to a commit reachable from `main`. Only the final release job receives repository write permission.
+
+See [PUBLISHING.md](PUBLISHING.md).
 
 ## License
 

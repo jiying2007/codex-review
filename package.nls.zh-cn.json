@@ -1,0 +1,20 @@
+{
+  "extension.displayName": "Codex Review",
+  "extension.description": "使用本地 Codex CLI 审查 VS Code Source Control 中的 Git 暂存区变更，并以 fail-safe 方式发布诊断结果。",
+  "command.review.title": "审查 Staged Changes",
+  "command.clear.title": "清除审查结果",
+  "command.showOutput.title": "显示审查报告",
+  "command.checkEnvironment.title": "检查 Codex 环境",
+  "capability.untrusted": "Codex Review 会执行 Git 和本地 Codex CLI，并读取暂存区内容，因此要求受信任工作区。",
+  "capability.virtual": "Codex Review 需要本地 Git 仓库和本地 CLI 可执行文件。",
+  "config.codexPath": "Codex CLI 可执行文件路径。应用级设置：仅允许 User Settings 配置。",
+  "config.model": "可选 Codex 模型。应用级设置：仅允许 User Settings 配置。",
+  "config.language": "审查摘要和 findings 使用的语言。",
+  "config.language.zhCN": "简体中文",
+  "config.language.en": "英文",
+  "config.maxDiffBytes": "发送给 Codex 的最大 staged diff 大小（字节）。",
+  "config.maxFindings": "允许接收的最大审查 finding 数量。",
+  "config.severityThreshold": "在 Problems 和审查报告中显示的最低严重级别。",
+  "config.timeoutSeconds": "等待 Codex CLI 的最长时间。",
+  "config.extraInstructions": "用户级附加审查要求，不能覆盖扩展的安全边界。"
+}
