@@ -1,6 +1,6 @@
 # Codex Review Safe
 
-[English](README.md) | 简体中文
+[English](README.md) | [简体中文](README.zh-CN.md)
 
 在 VS Code 中使用本地 Codex CLI，仅针对 **Git 暂存区变更**生成安全、结构化的代码审查结果。
 
