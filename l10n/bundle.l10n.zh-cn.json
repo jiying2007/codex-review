@@ -81,5 +81,18 @@
   "Codex Review environment is ready: {0}; {1}": "Codex Review 环境正常：{0}；{1}",
   "{0}. Increase codexReview.timeoutSeconds, or check Codex network/login status.": "{0}。可提高 codexReview.timeoutSeconds，或检查 Codex 网络/登录状态。",
   "Codex Review failed: {0}": "Codex Review 失败：{0}",
-  "Codex Review environment check failed: {0}": "Codex Review 环境检查失败：{0}"
+  "Codex Review environment check failed: {0}": "Codex Review 环境检查失败：{0}",
+  "Codex CLI {0} returned no version information from --version.": "Codex CLI {0} 的 --version 没有返回版本信息。",
+  "Codex CLI failed to run: {0}. Make sure \"{0} --version\" succeeds. Original error: {1}": "Codex CLI 无法正常执行：{0}。请确认 \"{0} --version\" 可成功运行。原始错误：{1}",
+  " Original error: {0}": " 原始错误：{0}",
+  "No usable Codex CLI was found for: {0}. Make sure \"codex --version\" succeeds, or set codexReview.codexPath in User Settings.{1}": "找不到可用的 Codex CLI：{0}。请确认 \"codex --version\" 可成功运行，或在 User Settings 中设置 codexReview.codexPath。{1}",
+  "Verdict: {0}": "结论：{0}",
+  "Summary: {0}": "摘要：{0}",
+  "Review policy: {0}": "审查策略：{0}",
+  "Policy notice: {0}": "策略提示：{0}",
+  "Findings: {0} accepted / {1} model, {2} visible, {3} hidden, {4} rejected": "问题：模型返回 {1} 个，接受 {0} 个，显示 {2} 个，隐藏 {3} 个，拒绝 {4} 个",
+  "Problems: {0} — {1}": "Problems：{0} — {1}",
+  "Problems: published at {0}:{1}": "Problems：已定位到 {0}:{1}",
+  "Confidence: {0}": "置信度：{0}",
+  "STALE": "已过期"
 }

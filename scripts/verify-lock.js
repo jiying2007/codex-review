@@ -18,15 +18,17 @@ if (!root) {
   console.error('package-lock.json is missing the root package metadata.');
   process.exit(3);
 }
-
 if (root.name && root.name !== pkg.name) {
   console.error('package-lock.json root package name does not match package.json.');
   process.exit(4);
 }
-
+if (lock.version !== pkg.version || root.version !== pkg.version) {
+  console.error('package-lock.json version does not match package.json.');
+  process.exit(5);
+}
 if (JSON.stringify(root.devDependencies) !== JSON.stringify(pkg.devDependencies)) {
   console.error('package-lock.json root devDependencies do not match package.json.');
-  process.exit(5);
+  process.exit(6);
 }
 
 console.log('package-lock.json verified.');

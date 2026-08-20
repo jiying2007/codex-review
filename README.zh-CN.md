@@ -4,6 +4,8 @@
 
 Codex Review 在 VS Code Source Control 中提供保守、可靠的 **staged-only** 代码审查流程：将 Git 暂存区 diff 交给本地 Codex CLI，使用 Structured Output 获取结果，在本地完成 schema / 路径 / 行号校验，只把可安全定位的问题发布到 **Problems**，完整报告保留在 **Codex Review OutputChannel**。
 
+> **为什么强调保守 / Safe？** 和配套的 [Codex Commit Safe](https://github.com/jiying2007/codex-commit) 一样，本扩展刻意保持窄信任边界：只使用 staged 输入、Structured Output、HEAD + raw index 一致性校验、最小 Codex 能力、不自动修改/提交/推送，并且对无法可靠定位的结果 fail-safe。
+
 ## 核心特性
 
 - 从 Source Control 标题栏或 Command Palette 直接审查 **Git staged/index changes**。
@@ -136,6 +138,19 @@ CI 会验证：
 Release tag 必须符合 `vMAJOR.MINOR.PATCH`，与 `package.json.version` 一致，并且对应 commit 必须可从 `main` 追溯。只有最终 release job 拥有仓库写权限。
 
 详见 [PUBLISHING.md](PUBLISHING.md)。
+
+
+## 扩展身份
+
+- 仓库：`codex-review`
+- Extension name：`codex-review`
+- Display name：**Codex Review**
+- Publisher/VSIX ID：`jiying2007.codex-review`
+- 命令/配置 namespace：`codexReview.*`
+- 配套扩展：**Codex Commit Safe**（`jiying2007.codex-commit-safe`）
+- Marketplace 状态：**尚未发布**；当前以 GitHub Releases 为正式分发渠道
+
+技术 Extension ID 和 namespace 保持稳定，后续发布 VS Code Marketplace 时不会切断现有 GitHub/VSIX 用户的升级链路。
 
 ## License
 

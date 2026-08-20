@@ -52,6 +52,8 @@ Native executables are started without a shell. On Windows, `.cmd` and `.bat` sh
 
 Timeouts, cancellation, process-tree termination, stdout/stderr size limits, and Codex `--version` checks are enforced.
 
+An explicitly configured Codex executable is considered usable only when `<path> --version` exits successfully and returns non-empty version information.
+
 ## Logging
 
 Operational logs must not contain source code, staged diff contents, model review content, secrets, or absolute repository paths. Reports are shown only in the dedicated VS Code OutputChannel and Problems collection for the active user session.
