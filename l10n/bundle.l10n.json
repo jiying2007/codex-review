@@ -81,5 +81,18 @@
   "Codex Review environment is ready: {0}; {1}": "Codex Review environment is ready: {0}; {1}",
   "{0}. Increase codexReview.timeoutSeconds, or check Codex network/login status.": "{0}. Increase codexReview.timeoutSeconds, or check Codex network/login status.",
   "Codex Review failed: {0}": "Codex Review failed: {0}",
-  "Codex Review environment check failed: {0}": "Codex Review environment check failed: {0}"
+  "Codex Review environment check failed: {0}": "Codex Review environment check failed: {0}",
+  "Codex CLI {0} returned no version information from --version.": "Codex CLI {0} returned no version information from --version.",
+  "Codex CLI failed to run: {0}. Make sure \"{0} --version\" succeeds. Original error: {1}": "Codex CLI failed to run: {0}. Make sure \"{0} --version\" succeeds. Original error: {1}",
+  " Original error: {0}": " Original error: {0}",
+  "No usable Codex CLI was found for: {0}. Make sure \"codex --version\" succeeds, or set codexReview.codexPath in User Settings.{1}": "No usable Codex CLI was found for: {0}. Make sure \"codex --version\" succeeds, or set codexReview.codexPath in User Settings.{1}",
+  "Verdict: {0}": "Verdict: {0}",
+  "Summary: {0}": "Summary: {0}",
+  "Review policy: {0}": "Review policy: {0}",
+  "Policy notice: {0}": "Policy notice: {0}",
+  "Findings: {0} accepted / {1} model, {2} visible, {3} hidden, {4} rejected": "Findings: {0} accepted / {1} model, {2} visible, {3} hidden, {4} rejected",
+  "Problems: {0} — {1}": "Problems: {0} — {1}",
+  "Problems: published at {0}:{1}": "Problems: published at {0}:{1}",
+  "Confidence: {0}": "Confidence: {0}",
+  "STALE": "STALE"
 }

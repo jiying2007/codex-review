@@ -2,7 +2,7 @@
   "name": "codex-review",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "jiying2007",
   "license": "MIT",
   "engines": {
@@ -21,7 +21,8 @@
     "diagnostics",
     "staged",
     "ai",
-    "scm"
+    "scm",
+    "safe"
   ],
   "activationEvents": [
     "onCommand:codexReview.reviewStaged",
@@ -171,13 +172,14 @@
     }
   },
   "scripts": {
-    "check": "node --check extension.js && node test.js",
+    "check": "node --check extension.js && npm run verify:l10n && node test.js",
     "test:unit": "node test.js",
     "test:integration": "node ./test/integration/runTest.js",
     "test": "npm run test:unit",
     "package": "vsce package --no-dependencies",
     "verify:lock": "node ./scripts/verify-lock.js",
-    "ci": "npm run verify:lock && npm ci --ignore-scripts --no-audit --no-fund && npm run check && npm run test:integration && npm run package"
+    "ci": "npm run verify:lock && npm ci --ignore-scripts --no-audit --no-fund && npm run check && npm run test:integration && npm run package",
+    "verify:l10n": "node ./scripts/verify-l10n.js"
   },
   "devDependencies": {
     "@vscode/test-electron": "3.1.0",

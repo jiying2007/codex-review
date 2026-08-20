@@ -4,6 +4,8 @@
 
 Codex Review brings a conservative, staged-only code review workflow to VS Code Source Control. It sends the Git index diff to the local Codex CLI, validates Structured Output locally, publishes only safely mappable findings to **Problems**, and keeps the full report in the **Codex Review** OutputChannel.
 
+> **Why conservative?** Like its companion [Codex Commit Safe](https://github.com/jiying2007/codex-commit), the extension deliberately keeps a narrow trust boundary: staged-only input, Structured Output, HEAD + raw-index consistency checks, minimal Codex capabilities, no automatic edits/commit/push, and fail-safe output projection.
+
 ## Highlights
 
 - Review **staged/index changes only** from the Source Control title bar or Command Palette.
@@ -134,6 +136,19 @@ CI validates:
 Release tags must use `vMAJOR.MINOR.PATCH`, match `package.json.version`, and point to a commit reachable from `main`. Only the final release job receives repository write permission.
 
 See [PUBLISHING.md](PUBLISHING.md).
+
+
+## Extension identity
+
+- Repository: `codex-review`
+- Extension name: `codex-review`
+- Display name: **Codex Review**
+- Publisher/VSIX ID: `jiying2007.codex-review`
+- Command/settings namespace: `codexReview.*`
+- Companion extension: **Codex Commit Safe** (`jiying2007.codex-commit-safe`)
+- Marketplace status: **not published yet**; GitHub Releases are the current distribution channel
+
+The technical extension ID and namespace are intentionally stable so future Marketplace publication preserves the GitHub/VSIX upgrade path.
 
 ## License
 

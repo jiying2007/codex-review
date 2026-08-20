@@ -33,6 +33,38 @@ const { __test } = require('./extension.js');
   const jsonl=[JSON.stringify({type:'thread.started'}),JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify({summary:'ok',findings:[]})}})].join('\n');
   assert.strictEqual(JSON.parse(__test.parseCodexJsonl(jsonl)).summary,'ok');
 
+  const englishPrompt=__test.buildPrompt({language:'en',extraInstructions:''},['src/a.c']);
+  assert.match(englishPrompt,/You are a strict code reviewer/);
+  assert.match(englishPrompt,/Write summary, title, description, and suggestion in English/);
+  assert.doesNotMatch(englishPrompt,/你是严格的代码审查器/);
+
+  const chinesePrompt=__test.buildPrompt({language:'zh-CN',extraInstructions:''},['src/a.c']);
+  assert.match(chinesePrompt,/Write summary, title, description, and suggestion in Simplified Chinese/);
+
+  if(process.platform!=='win32'){
+    const cliDir=fs.mkdtempSync(path.join(os.tmpdir(),'codex-review-cli-'));
+    try{
+      const good=path.join(cliDir,'codex-good');
+      fs.writeFileSync(good,'#!/bin/sh\necho "codex-cli 9.9.9"\n'); fs.chmodSync(good,0o755);
+      const resolved=await __test.resolveCodexExecutable(good);
+      assert.strictEqual(resolved.version,'codex-cli 9.9.9');
+
+      const bad=path.join(cliDir,'codex-bad');
+      fs.writeFileSync(bad,'#!/bin/sh\necho "broken" >&2\nexit 2\n'); fs.chmodSync(bad,0o755);
+      await assert.rejects(
+        () => __test.resolveCodexExecutable(bad),
+        error => error && error.code==='ECODEXUNUSABLE'
+      );
+
+      const empty=path.join(cliDir,'codex-empty');
+      fs.writeFileSync(empty,'#!/bin/sh\nexit 0\n'); fs.chmodSync(empty,0o755);
+      await assert.rejects(
+        () => __test.resolveCodexExecutable(empty),
+        error => error && error.code==='ECODEXUNUSABLE'
+      );
+    }finally{fs.rmSync(cliDir,{recursive:true,force:true});}
+  }
+
   const reportFinding={severity:'medium',category:'correctness',file:'src/a.c',line:10,endLine:10,title:'边界判断错误',description:'条件会漏掉零值。',suggestion:'显式处理零值。',confidence:0.9};
   const reportMeta=new Map([[reportFinding,{published:true,mappedLine:10,reason:'exact'}]]);
   const rendered=__test.buildReviewReport({summary:'存在一个边界问题',verdict:'needs_attention',findings:[reportFinding],rejectedFindings:[],modelFindingCount:1},{severityThreshold:'low',policySource:'head-policy'},reportMeta);
@@ -79,5 +111,5 @@ const { __test } = require('./extension.js');
     const index1=await __test.getIndexFingerprint(repo); const head1=await __test.getHeadOid(repo); assert.strictEqual(head1,'<unborn>'); git(['commit','-m','initial']); const index2=await __test.getIndexFingerprint(repo); const head2=await __test.getHeadOid(repo); assert.strictEqual(index1,index2); assert.notStrictEqual(head1,head2);
   } finally { fs.rmSync(repo,{recursive:true,force:true}); }
 
-  console.log('All Codex Review 1.1.0 unit/regression tests passed.');
+  console.log('All Codex Review unit/regression tests passed.');
 })().catch(error=>{console.error(error);process.exit(1);});

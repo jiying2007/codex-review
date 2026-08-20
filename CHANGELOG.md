@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1
+
+- Align Codex CLI executable health checks with Codex Commit Safe: `--version` must succeed and return non-empty version information.
+- Use an English control prompt for both output languages while keeping review findings independently selectable as Simplified Chinese or English.
+- Complete runtime report localization for headers, Problems status, confidence, and stale markers.
+- Add English/Simplified-Chinese localization key-parity verification to CI.
+- Strengthen lockfile verification with package-version parity.
+- Remove the unused pre-`name-status` staged-path helper and version-specific unit-test output.
+- Document the stable extension identity, Codex Commit Safe companion relationship, Marketplace status, and generic release-tag procedure.
+
 ## 1.1.0
 
 - Add English and Simplified Chinese Marketplace/manifest localization with `package.nls.json` and `package.nls.zh-cn.json`.
