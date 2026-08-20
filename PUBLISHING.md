@@ -9,9 +9,11 @@ A release requires:
 - committed `package-lock.json`;
 - `npm run verify:lock` passing, including package name/version and dev-dependency parity;
 - English/Simplified-Chinese manifest and runtime localization key parity passing via `npm run verify:l10n`;
-- unit/regression tests passing;
+- every literal runtime `t('...')` source key referenced by `extension.js` to exist in both runtime localization bundles;
+- unit/regression tests passing, including the Codex CLI argv contract (`--ask-for-approval never` before the `exec` subcommand);
 - latest VS Code Extension Host tests passing on Linux, Windows, and macOS;
 - minimum supported VS Code `1.90.0` Extension Host test passing on Ubuntu;
+- Simplified-Chinese (`zh-cn`) runtime Extension Host smoke test passing on Ubuntu;
 - official `@vscode/vsce` packaging;
 - VSIX content verification;
 - SHA-256 generation.
@@ -40,7 +42,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The `Release` workflow validates all platforms, packages the official VSIX, checks package contents, generates `SHA256SUMS`, uploads the build artifact, and creates the GitHub Release automatically.
+The `Release` workflow validates all platforms and supported locale gates, packages the official VSIX, checks package contents, generates `SHA256SUMS`, uploads the build artifact, and creates the GitHub Release automatically.
 
 ## Package contents
 
