@@ -8,6 +8,7 @@
 - Add Marketplace metadata, SCM category, free pricing metadata, and extension icon.
 - Harden CI with immutable GitHub Action SHAs and least-privilege permissions.
 - Add Linux, Windows, and macOS latest Extension Host coverage plus VS Code `1.90.0` minimum-version coverage.
+- Update `@vscode/test-electron` to `3.1.0` for current macOS VS Code executable resolution.
 - Add lockfile integrity verification and official VSIX content verification.
 - Add Dependabot for npm and GitHub Actions maintenance.
 - Harden release tags: strict SemVer, package-version match, and release commit reachability from `main`.
