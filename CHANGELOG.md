@@ -1,12 +1,21 @@
 # Changelog
 
+## 1.1.0
+
+- Add English and Simplified Chinese Marketplace/manifest localization with `package.nls.json` and `package.nls.zh-cn.json`.
+- Add English `README.md` and Simplified Chinese `README.zh-CN.md`.
+- Keep review-result language independently selectable with `codexReview.language` (`zh-CN` / `en`).
+- Add Marketplace metadata, SCM category, free pricing metadata, and extension icon.
+- Harden CI with immutable GitHub Action SHAs and least-privilege permissions.
+- Add Linux, Windows, and macOS latest Extension Host coverage plus VS Code `1.90.0` minimum-version coverage.
+- Add lockfile integrity verification and official VSIX content verification.
+- Add Dependabot for npm and GitHub Actions maintenance.
+- Harden release tags: strict SemVer, package-version match, and release commit reachability from `main`.
+- Expand security and publishing documentation with logging and release-supply-chain requirements.
+
 ## 1.0.0
 
-Initial release.
-
-- VS Code Source Control staged-change review with local Codex CLI.
-- Structured findings, local verdict calculation, Problems integration and full OutputChannel report.
-- Multi-stage HEAD/INDEX consistency checks and stale-diagnostic invalidation.
-- Fail-safe handling for unstaged/dirty files, conflicts, binary/submodule/delete/rename and unsafe paths.
-- HEAD-pinned repository review policy and User/Application-only settings.
-- Linux/Windows GitHub Actions validation and reproducible VSIX release workflow.
+- Initial release.
+- Staged-only Codex code review from VS Code Source Control.
+- Structured findings, local verdict calculation, Problems integration, report-only safety fallbacks, and multi-repository support.
+- HEAD + raw INDEX consistency checks, HEAD-pinned review policy, conflict detection, and working-tree/dirty-editor protection.

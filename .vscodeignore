@@ -1,10 +1,14 @@
 .git/**
 .github/**
-.gitlab-ci.yml
 .vscode/**
 node_modules/**
 *.vsix
 *.zip
 test.js
 test/**
+scripts/**
+package-lock.json
+PUBLISHING.md
+.gitignore
+.gitattributes
 .codex-review.example.json

@@ -4,52 +4,127 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  unit:
+    name: Unit / regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm run verify:lock
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run check
+
+  integration-latest:
+    name: Extension Host / ${{ matrix.os }} / latest
+    needs: unit
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 22
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
           cache: npm
-      - name: Require lockfile
-        shell: bash
-        run: test -f package-lock.json
-      - run: npm ci --ignore-scripts
-      - run: npm run check
-      - name: Extension Host integration (Linux)
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Ensure Linux Extension Host dependencies
         if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
+            echo 'Extension Host dependencies already available.'
+          else
+            sudo apt-get update
+            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
+          fi
+      - name: Run Extension Host integration tests
+        if: runner.os == 'Linux'
+        shell: bash
         run: xvfb-run -a npm run test:integration
-      - name: Extension Host integration (Windows)
-        if: runner.os == 'Windows'
+      - name: Run Extension Host integration tests
+        if: runner.os != 'Linux'
         run: npm run test:integration
 
+  integration-minimum:
+    name: Extension Host / Ubuntu / VS Code 1.90.0
+    needs: unit
+    runs-on: ubuntu-latest
+    env:
+      VSCODE_TEST_VERSION: '1.90.0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Ensure Linux Extension Host dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
+            echo 'Extension Host dependencies already available.'
+          else
+            sudo apt-get update
+            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
+          fi
+      - run: xvfb-run -a npm run test:integration
+
   package:
-    needs: test
+    name: Official VSIX package
+    needs: [integration-latest, integration-minimum]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 22
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
           cache: npm
-      - run: npm ci --ignore-scripts
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run package
-      - run: sha256sum *.vsix > SHA256SUMS.txt
-      - uses: actions/upload-artifact@v4
+      - name: Verify VSIX contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          vsix="codex-review-${version}.vsix"
+          unzip -Z1 "$vsix" > /tmp/vsix-files.txt
+          grep -Fx 'extension/package.nls.json' /tmp/vsix-files.txt
+          grep -Fx 'extension/package.nls.zh-cn.json' /tmp/vsix-files.txt
+          grep -Fx 'extension/README.zh-CN.md' /tmp/vsix-files.txt
+          grep -Fx 'extension/images/icon.png' /tmp/vsix-files.txt
+          if grep -E '^extension/(test|scripts|package-lock\.json|PUBLISHING\.md|\.gitignore|\.gitattributes|\.github|\.vscode)' /tmp/vsix-files.txt; then
+            echo 'VSIX contains development-only files' >&2
+            exit 1
+          fi
+          sha256sum "$vsix" > SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: codex-review-vsix
+          name: codex-review-${{ github.sha }}
           path: |
-            *.vsix
-            SHA256SUMS.txt
+            codex-review-*.vsix
+            SHA256SUMS
           if-no-files-found: error
