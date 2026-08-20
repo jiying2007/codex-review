@@ -180,7 +180,7 @@
     "ci": "npm run verify:lock && npm ci --ignore-scripts --no-audit --no-fund && npm run check && npm run test:integration && npm run package"
   },
   "devDependencies": {
-    "@vscode/test-electron": "3.0.0",
+    "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "3.9.2"
   },
   "extensionDependencies": [
