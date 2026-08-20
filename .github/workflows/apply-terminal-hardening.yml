@@ -29,8 +29,12 @@ jobs:
           cat .terminal-hardening-00 .terminal-hardening-01 .terminal-hardening-02 \
             | base64 --decode | gzip -dc > /tmp/terminal-hardening.py
           python3 /tmp/terminal-hardening.py
-          rm -f .terminal-hardening-00 .terminal-hardening-01 .terminal-hardening-02
+          rm -f .terminal-hardening-00 .terminal-hardening-01 .terminal-hardening-02 TERMINAL_RETRY
+          sed -i '1{/^\\$/d;}' scripts/verify-lock.js
+          sed -i '1{/^\\$/d;}' scripts/verify-l10n.js
           node --check extension.js
+          node --check scripts/verify-lock.js
+          node --check scripts/verify-l10n.js
           npm run verify:lock
           npm ci --ignore-scripts --no-audit --no-fund
           npm run check
