@@ -77,7 +77,7 @@ The release gate runs:
 - unit/regression tests, including the Codex CLI argv contract;
 - latest VS Code Extension Host tests on Linux, Windows, and macOS;
 - minimum supported VS Code `1.90.0` compatibility tests;
-- a Simplified-Chinese (`zh-cn`) runtime Extension Host smoke test;
+- a deterministic Simplified-Chinese localization smoke inside Extension Host, verifying the shipped zh-CN runtime bundle and critical translated report/error keys;
 - official `@vscode/vsce` packaging;
 - VSIX content checks;
 - SHA-256 generation.
