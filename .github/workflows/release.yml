@@ -132,7 +132,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${{ needs.validate.outputs.version }}"
-          vsix="codex-review-${version}.vsix"
+          vsix="codex-review-safe-${version}.vsix"
           unzip -Z1 "$vsix" > /tmp/vsix-files.txt
           grep -Fx 'extension/package.nls.json' /tmp/vsix-files.txt
           grep -Fx 'extension/package.nls.zh-cn.json' /tmp/vsix-files.txt
@@ -147,9 +147,9 @@ jobs:
           sha256sum "$vsix" > SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: codex-review-${{ needs.validate.outputs.version }}
+          name: codex-review-safe-${{ needs.validate.outputs.version }}
           path: |
-            codex-review-${{ needs.validate.outputs.version }}.vsix
+            codex-review-safe-${{ needs.validate.outputs.version }}.vsix
             SHA256SUMS
           if-no-files-found: error
       - name: Publish GitHub Release
@@ -160,8 +160,8 @@ jobs:
           set -euo pipefail
           version="${{ needs.validate.outputs.version }}"
           gh release create "$GITHUB_REF_NAME" \
-            "codex-review-${version}.vsix" \
+            "codex-review-safe-${version}.vsix" \
             SHA256SUMS \
-            --title "Codex Review ${version}" \
+            --title "Codex Review Safe ${version}" \
             --generate-notes \
             --verify-tag
