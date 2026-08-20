@@ -46,7 +46,11 @@ The release gate requires these user-facing files inside the VSIX:
 
 - `package.nls.json`
 - `package.nls.zh-cn.json`
+- `l10n/bundle.l10n.json`
+- `l10n/bundle.l10n.zh-cn.json`
 - `README.zh-CN.md`
 - `images/icon.png`
+
+The NLS files localize extension metadata, commands, and configuration. The `l10n` bundles localize runtime progress, notifications, reports, environment checks, and errors.
 
 Development-only content such as tests, scripts, lockfiles, repository metadata, and publishing documentation must not be included in the VSIX.
