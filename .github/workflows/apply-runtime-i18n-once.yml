@@ -1,0 +1,44 @@
+name: Apply runtime bilingual localization once
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'runtime-i18n-main-trigger' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: engineering-hardening
+          fetch-depth: 0
+      - name: Apply and validate runtime localization
+        shell: bash
+        run: bash .bootstrap/apply-runtime-i18n.sh
+      - name: Commit localized runtime UI to engineering branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .bootstrap
+          rm -f .github/workflows/apply-runtime-i18n.yml .github/workflows/apply-runtime-i18n-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: localize runtime UI"
+          git push origin HEAD:engineering-hardening
+      - name: Remove one-time workflow from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-runtime-i18n-once.yml
+          git commit -m "build: remove runtime localization runner"
+          git push origin HEAD:main
