@@ -16,10 +16,10 @@ if pkg.get('name') != 'codex-review-safe':
         if path.suffix not in allowed_suffixes and path.name != '.vscodeignore':
             continue
         text = path.read_text(encoding='utf-8')
+        text = text.replace('codex-review-', 'codex-review-safe-')
         text = text.replace('jiying2007.codex-review', 'jiying2007.codex-review-safe')
         text = text.replace('codexReview', 'safeCodexReview')
         text = text.replace('Codex Review', 'Codex Review Safe')
-        text = text.replace('codex-review-', 'codex-review-safe-')
         path.write_text(text, encoding='utf-8')
 
     extension_path = root / 'extension.js'
@@ -412,11 +412,11 @@ CI 会验证 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容�
 
 publishing_path = root / 'PUBLISHING.md'
 publishing = publishing_path.read_text(encoding='utf-8')
+publishing = publishing.replace('codex-review-', 'codex-review-safe-')
 publishing = publishing.replace('jiying2007.codex-review', 'jiying2007.codex-review-safe')
 publishing = publishing.replace('`codex-review`', '`codex-review-safe`')
 publishing = publishing.replace('`codexReview.*`', '`safeCodexReview.*`')
 publishing = publishing.replace('Codex Review', 'Codex Review Safe')
-publishing = publishing.replace('codex-review-', 'codex-review-safe-')
 publishing_path.write_text(publishing, encoding='utf-8')
 
 for temp in [root / 'REBRAND_TRIGGER', root / '.github/workflows/rebrand-review-safe.yml', root / '.github/rebrand-review-safe.py']:
@@ -427,7 +427,7 @@ for temp in [root / 'REBRAND_TRIGGER', root / '.github/workflows/rebrand-review-
 
 for target in [root / 'extension.js', root / 'package.json', root / 'test.js']:
     text = target.read_text(encoding='utf-8')
-    for needle in ['codexReview.', 'jiying2007.codex-review"', "createDiagnosticCollection('codex-review')"]:
+    for needle in ['codexReview.', 'codex-review-safe-safe', 'jiying2007.codex-review"', "createDiagnosticCollection('codex-review')"]:
         if needle in text:
             raise SystemExit(f'legacy identity remains in {target}: {needle}')
 
