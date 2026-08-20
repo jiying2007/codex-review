@@ -25,7 +25,7 @@ Codex Review 在 VS Code Source Control 中提供保守、可靠的 **staged-onl
 - 英文：`package.nls.json`
 - 简体中文：`package.nls.zh-cn.json`
 
-命令标题、配置说明、Capability 描述和 Marketplace 元数据会跟随 VS Code UI 语言自动切换。
+命令标题、配置说明、Capability 描述、Marketplace 元数据、进度提示、报告说明、环境检查和运行时错误都会通过 VS Code NLS 与 `vscode.l10n` 跟随 VS Code UI 语言自动切换。
 
 审查结果语言由 `codexReview.language` 独立控制：
 

@@ -39,7 +39,7 @@ const { __test } = require('./extension.js');
   assert.match(rendered,/Verdict: needs_attention/);
   assert.match(rendered,/Review policy: head-policy/);
   assert.match(rendered,/\[MEDIUM\].*src\/a\.c:10/);
-  assert.match(rendered,/Problems: 已定位到 src\/a\.c:10/);
+  assert.match(rendered,/Problems: published at src\/a\.c:10/);
 
   const thresholded=__test.buildReviewReport({summary:'',verdict:'needs_attention',findings:[reportFinding],rejectedFindings:[],modelFindingCount:1},{severityThreshold:'high',policySource:'head-default'},reportMeta);
   assert.match(thresholded,/0 visible, 1 hidden/);
@@ -79,5 +79,5 @@ const { __test } = require('./extension.js');
     const index1=await __test.getIndexFingerprint(repo); const head1=await __test.getHeadOid(repo); assert.strictEqual(head1,'<unborn>'); git(['commit','-m','initial']); const index2=await __test.getIndexFingerprint(repo); const head2=await __test.getHeadOid(repo); assert.strictEqual(index1,index2); assert.notStrictEqual(head1,head2);
   } finally { fs.rmSync(repo,{recursive:true,force:true}); }
 
-  console.log('All Codex Review 1.0.0 unit/regression tests passed.');
+  console.log('All Codex Review 1.1.0 unit/regression tests passed.');
 })().catch(error=>{console.error(error);process.exit(1);});

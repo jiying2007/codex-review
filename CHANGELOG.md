@@ -3,6 +3,7 @@
 ## 1.1.0
 
 - Add English and Simplified Chinese Marketplace/manifest localization with `package.nls.json` and `package.nls.zh-cn.json`.
+- Add English and Simplified Chinese runtime UI localization through `vscode.l10n`.
 - Add English `README.md` and Simplified Chinese `README.zh-CN.md`.
 - Keep review-result language independently selectable with `codexReview.language` (`zh-CN` / `en`).
 - Add Marketplace metadata, SCM category, free pricing metadata, and extension icon.

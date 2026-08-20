@@ -25,7 +25,7 @@ The extension manifest is localized with VS Code NLS files:
 - English: `package.nls.json`
 - Simplified Chinese: `package.nls.zh-cn.json`
 
-Command titles, configuration descriptions, capability descriptions, and Marketplace metadata follow the VS Code UI locale. Review summary/findings are controlled separately by `codexReview.language`:
+Command titles, configuration descriptions, capability descriptions, Marketplace metadata, progress notifications, reports, environment checks, and runtime errors follow the VS Code UI locale through VS Code NLS and `vscode.l10n`. Review summary/findings are controlled separately by `codexReview.language`:
 
 - `zh-CN` — Simplified Chinese review output
 - `en` — English review output

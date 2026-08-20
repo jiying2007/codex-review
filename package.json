@@ -196,5 +196,6 @@
   },
   "pricing": "Free",
   "preview": false,
-  "icon": "images/icon.png"
+  "icon": "images/icon.png",
+  "l10n": "./l10n"
 }
