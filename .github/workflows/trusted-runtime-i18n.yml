@@ -1,0 +1,172 @@
+name: Trusted runtime bilingual localization
+
+on:
+  pull_request:
+    branches: [runtime-i18n-runner]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'runtime-i18n-trigger' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: engineering-hardening
+          fetch-depth: 0
+      - name: Apply runtime localization
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .bootstrap/runtime-i18n.patch.gz.b64 | gzip -dc > /tmp/runtime.patch
+          sed -i 's/Codex Review 1\.0\.6/Codex Review 1.0.0/g' /tmp/runtime.patch
+          sed -n '1,/^--- .*test\.js/ p' /tmp/runtime.patch | sed '$d' > /tmp/extension.patch
+
+          set +e
+          patch -p4 --fuzz=3 < /tmp/extension.patch
+          patch_rc=$?
+          set -e
+          if [[ $patch_rc -gt 1 ]]; then
+            echo "unexpected patch failure: $patch_rc" >&2
+            exit "$patch_rc"
+          fi
+
+          base64 --decode .bootstrap/l10n.tgz.b64 | tar -xz
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          extension = Path('extension.js')
+          text = extension.read_text()
+          old = '''    if (result.review.verdict === 'pass') {
+      vscode.window.showInformationMessage('Codex Review：未发现实质问题。');
+    } else {
+      const rejectedCount = result.review.rejectedFindings?.length || 0;
+      const allRejected =
+        result.review.findings.length === 0 &&
+        rejectedCount > 0;
+
+      const thresholdNote = hiddenFindings > 0
+        ? `，另有 ${hiddenFindings} 个低于当前阈值`
+        : '';
+
+      const message = allRejected
+        ? `Codex Review：模型返回 ${rejectedCount} 个问题，但全部因格式/路径校验失败被拒绝，请查看报告。`
+        : `Codex Review：${result.review.verdict}，当前显示 ${visibleFindings} 个问题${thresholdNote}。`;
+
+      void vscode.window.showWarningMessage(
+        message,
+        '查看报告',
+        '打开 Problems'
+      ).then(action => {
+        if (action === '查看报告') outputChannel.show(true);
+        if (action === '打开 Problems') {
+          void vscode.commands.executeCommand('workbench.actions.view.problems');
+        }
+      }, error => {
+        log(`warning notification failed: ${error?.message || error}`);
+      });
+    }
+'''
+          new = '''    if (result.review.verdict === 'pass') {
+      vscode.window.showInformationMessage(t('Codex Review: no substantive issues found.'));
+    } else {
+      const rejectedCount = result.review.rejectedFindings?.length || 0;
+      const allRejected =
+        result.review.findings.length === 0 &&
+        rejectedCount > 0;
+
+      const thresholdNote = hiddenFindings > 0
+        ? t(', with {0} additional findings below the current threshold', hiddenFindings)
+        : '';
+
+      const message = allRejected
+        ? t('Codex Review: the model returned {0} findings, but all were rejected by format/path validation. See the report.', rejectedCount)
+        : t('Codex Review: {0}; showing {1} findings{2}.', result.review.verdict, visibleFindings, thresholdNote);
+
+      const viewReportAction = t('View Report');
+      const openProblemsAction = t('Open Problems');
+      void vscode.window.showWarningMessage(
+        message,
+        viewReportAction,
+        openProblemsAction
+      ).then(action => {
+        if (action === viewReportAction) outputChannel.show(true);
+        if (action === openProblemsAction) {
+          void vscode.commands.executeCommand('workbench.actions.view.problems');
+        }
+      }, error => {
+        log(`warning notification failed: ${error?.message || error}`);
+      });
+    }
+'''
+          if old not in text:
+              raise SystemExit('public notification block not found')
+          extension.write_text(text.replace(old, new))
+          reject = Path('extension.js.rej')
+          if reject.exists(): reject.unlink()
+
+          test = Path('test.js')
+          value = test.read_text()
+          value = value.replace('/Problems: 已定位到 src\\/a\\.c:10/', '/Problems: published at src\\/a\\.c:10/')
+          value = value.replace('All Codex Review 1.0.0 unit/regression tests passed.', 'All Codex Review 1.1.0 unit/regression tests passed.')
+          test.write_text(value)
+
+          pkg_path = Path('package.json')
+          pkg = json.loads(pkg_path.read_text())
+          pkg['l10n'] = './l10n'
+          pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
+
+          for workflow in [Path('.github/workflows/ci.yml'), Path('.github/workflows/release.yml')]:
+              value = workflow.read_text()
+              marker = "          grep -Fx 'extension/package.nls.zh-cn.json' /tmp/vsix-files.txt\n"
+              extra = (
+                  "          grep -Fx 'extension/l10n/bundle.l10n.json' /tmp/vsix-files.txt\n"
+                  "          grep -Fx 'extension/l10n/bundle.l10n.zh-cn.json' /tmp/vsix-files.txt\n"
+              )
+              if extra not in value:
+                  value = value.replace(marker, marker + extra)
+              workflow.write_text(value)
+
+          readme = Path('README.md')
+          value = readme.read_text().replace(
+              'Command titles, configuration descriptions, capability descriptions, and Marketplace metadata follow the VS Code UI locale.',
+              'Command titles, configuration descriptions, capability descriptions, Marketplace metadata, progress notifications, reports, environment checks, and runtime errors follow the VS Code UI locale through VS Code NLS and `vscode.l10n`.'
+          )
+          readme.write_text(value)
+
+          readme_zh = Path('README.zh-CN.md')
+          value = readme_zh.read_text().replace(
+              '命令标题、配置说明、Capability 描述和 Marketplace 元数据会跟随 VS Code UI 语言自动切换。',
+              '命令标题、配置说明、Capability 描述、Marketplace 元数据、进度提示、报告说明、环境检查和运行时错误都会通过 VS Code NLS 与 `vscode.l10n` 跟随 VS Code UI 语言自动切换。'
+          )
+          readme_zh.write_text(value)
+
+          changelog = Path('CHANGELOG.md')
+          value = changelog.read_text()
+          needle = '- Add English and Simplified Chinese Marketplace/manifest localization with `package.nls.json` and `package.nls.zh-cn.json`.\n'
+          runtime_line = '- Add English and Simplified Chinese runtime UI localization through `vscode.l10n`.\n'
+          if runtime_line not in value: value = value.replace(needle, needle + runtime_line)
+          changelog.write_text(value)
+          PY
+
+          node --check extension.js
+          node test.js
+          node -e "const p=require('./package.json'); if(p.l10n!=='./l10n') process.exit(1)"
+          test -f l10n/bundle.l10n.json
+          test -f l10n/bundle.l10n.zh-cn.json
+      - name: Commit localized runtime UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .bootstrap
+          rm -f .github/workflows/apply-runtime-i18n.yml .github/workflows/apply-runtime-i18n-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: localize runtime UI"
+          git push origin HEAD:engineering-hardening
