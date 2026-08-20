@@ -15,7 +15,7 @@ function initRepo(root, file) {
   fs.mkdirSync(root, { recursive: true });
   exec('git', ['init'], root);
   exec('git', ['config', 'user.email', 'test@example.com'], root);
-  exec('git', ['config', 'user.name', 'Codex Review Test'], root);
+  exec('git', ['config', 'user.name', 'Codex Review Safe Test'], root);
   fs.writeFileSync(path.join(root, file), 'int value = 0;\n');
   exec('git', ['add', file], root);
   exec('git', ['commit', '-m', 'initial'], root);
@@ -50,7 +50,7 @@ setTimeout(()=>console.log(JSON.stringify({type:'item.completed',item:{type:'age
 }
 
 async function main() {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-it-'));
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-it-'));
   const repo1 = path.join(base, 'repo1');
   const repo2 = path.join(base, 'repo2');
   initRepo(repo1, 'a.c');

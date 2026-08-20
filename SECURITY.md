@@ -2,7 +2,7 @@
 
 ## Data flow
 
-Codex Review sends only the staged Git diff and review instructions to the configured Codex service. The repository itself is not used as the Codex working directory.
+Codex Review Safe sends only the staged Git diff and review instructions to the configured Codex service. The repository itself is not used as the Codex working directory.
 
 The staged diff still leaves the local machine for model inference. Use the extension only where your organization’s source-code and data policy permits it.
 

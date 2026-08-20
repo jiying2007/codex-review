@@ -1,10 +1,10 @@
 {
-  "name": "codex-review",
+  "name": "codex-review-safe",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "1.1.1",
+  "version": "1.0.0",
   "publisher": "jiying2007",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -25,10 +25,10 @@
     "safe"
   ],
   "activationEvents": [
-    "onCommand:codexReview.reviewStaged",
-    "onCommand:codexReview.clearReview",
-    "onCommand:codexReview.checkEnvironment",
-    "onCommand:codexReview.showOutput"
+    "onCommand:safeCodexReview.reviewStaged",
+    "onCommand:safeCodexReview.clearReview",
+    "onCommand:safeCodexReview.checkEnvironment",
+    "onCommand:safeCodexReview.showOutput"
   ],
   "main": "./extension.js",
   "capabilities": {
@@ -44,24 +44,24 @@
   "contributes": {
     "commands": [
       {
-        "command": "codexReview.reviewStaged",
+        "command": "safeCodexReview.reviewStaged",
         "title": "%command.review.title%",
         "category": "%extension.displayName%",
         "icon": "$(shield)"
       },
       {
-        "command": "codexReview.clearReview",
+        "command": "safeCodexReview.clearReview",
         "title": "%command.clear.title%",
         "category": "%extension.displayName%",
         "icon": "$(clear-all)"
       },
       {
-        "command": "codexReview.showOutput",
+        "command": "safeCodexReview.showOutput",
         "title": "%command.showOutput.title%",
         "category": "%extension.displayName%"
       },
       {
-        "command": "codexReview.checkEnvironment",
+        "command": "safeCodexReview.checkEnvironment",
         "title": "%command.checkEnvironment.title%",
         "category": "%extension.displayName%"
       }
@@ -69,29 +69,29 @@
     "menus": {
       "scm/title": [
         {
-          "command": "codexReview.reviewStaged",
+          "command": "safeCodexReview.reviewStaged",
           "when": "scmProvider == git && isWorkspaceTrusted",
           "group": "navigation@7"
         },
         {
-          "command": "codexReview.clearReview",
+          "command": "safeCodexReview.clearReview",
           "when": "scmProvider == git && isWorkspaceTrusted",
           "group": "navigation@8"
         }
       ],
       "commandPalette": [
         {
-          "command": "codexReview.reviewStaged",
+          "command": "safeCodexReview.reviewStaged",
           "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
         },
         {
-          "command": "codexReview.clearReview"
+          "command": "safeCodexReview.clearReview"
         },
         {
-          "command": "codexReview.showOutput"
+          "command": "safeCodexReview.showOutput"
         },
         {
-          "command": "codexReview.checkEnvironment",
+          "command": "safeCodexReview.checkEnvironment",
           "when": "isWorkspaceTrusted"
         }
       ]
@@ -99,19 +99,19 @@
     "configuration": {
       "title": "%extension.displayName%",
       "properties": {
-        "codexReview.codexPath": {
+        "safeCodexReview.codexPath": {
           "type": "string",
           "default": "codex",
           "scope": "application",
           "description": "%config.codexPath%"
         },
-        "codexReview.model": {
+        "safeCodexReview.model": {
           "type": "string",
           "default": "",
           "scope": "application",
           "description": "%config.model%"
         },
-        "codexReview.language": {
+        "safeCodexReview.language": {
           "type": "string",
           "enum": [
             "zh-CN",
@@ -125,7 +125,7 @@
             "%config.language.en%"
           ]
         },
-        "codexReview.maxDiffBytes": {
+        "safeCodexReview.maxDiffBytes": {
           "type": "number",
           "default": 524288,
           "minimum": 4096,
@@ -133,7 +133,7 @@
           "scope": "application",
           "description": "%config.maxDiffBytes%"
         },
-        "codexReview.maxFindings": {
+        "safeCodexReview.maxFindings": {
           "type": "number",
           "default": 40,
           "minimum": 1,
@@ -141,7 +141,7 @@
           "scope": "application",
           "description": "%config.maxFindings%"
         },
-        "codexReview.severityThreshold": {
+        "safeCodexReview.severityThreshold": {
           "type": "string",
           "enum": [
             "critical",
@@ -154,7 +154,7 @@
           "scope": "application",
           "description": "%config.severityThreshold%"
         },
-        "codexReview.timeoutSeconds": {
+        "safeCodexReview.timeoutSeconds": {
           "type": "number",
           "default": 120,
           "minimum": 10,
@@ -162,7 +162,7 @@
           "scope": "application",
           "description": "%config.timeoutSeconds%"
         },
-        "codexReview.extraInstructions": {
+        "safeCodexReview.extraInstructions": {
           "type": "string",
           "default": "",
           "scope": "application",

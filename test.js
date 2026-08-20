@@ -42,7 +42,7 @@ const { __test } = require('./extension.js');
   assert.match(chinesePrompt,/Write summary, title, description, and suggestion in Simplified Chinese/);
 
   if(process.platform!=='win32'){
-    const cliDir=fs.mkdtempSync(path.join(os.tmpdir(),'codex-review-cli-'));
+    const cliDir=fs.mkdtempSync(path.join(os.tmpdir(),'codex-review-safe-cli-'));
     try{
       const good=path.join(cliDir,'codex-good');
       fs.writeFileSync(good,'#!/bin/sh\necho "codex-cli 9.9.9"\n'); fs.chmodSync(good,0o755);
@@ -94,22 +94,22 @@ const { __test } = require('./extension.js');
   assert.strictEqual(metadata.get('copy.c').status,'C');
   assert.strictEqual(metadata.get('gone.c').status,'D');
 
-  const policyRepo=fs.mkdtempSync(path.join(os.tmpdir(),'codex-review-policy-'));
+  const policyRepo=fs.mkdtempSync(path.join(os.tmpdir(),'codex-review-safe-policy-'));
   try {
     const git=args=>{const r=spawnSync('git',args,{cwd:policyRepo,encoding:'utf8'});if(r.status!==0)throw new Error(r.stderr||r.stdout);return r.stdout.trim();};
-    git(['init']); git(['config','user.email','test@example.com']); git(['config','user.name','Codex Review Test']);
+    git(['init']); git(['config','user.email','test@example.com']); git(['config','user.name','Codex Review Safe Test']);
     fs.writeFileSync(path.join(policyRepo,'.codex-review.json'),JSON.stringify({severityThreshold:'low',maxFindings:40})); fs.writeFileSync(path.join(policyRepo,'a.c'),'int a = 1;\n'); git(['add','.codex-review.json','a.c']); git(['commit','-m','base policy']);
     fs.writeFileSync(path.join(policyRepo,'.codex-review.json'),JSON.stringify({severityThreshold:'critical',maxFindings:1})); git(['add','.codex-review.json']);
     const policy=await __test.readProjectRulesAtHead(policyRepo,git(['rev-parse','HEAD']));
     assert.strictEqual(policy.rules.severityThreshold,'low'); assert.strictEqual(policy.rules.maxFindings,40);
   } finally { fs.rmSync(policyRepo,{recursive:true,force:true}); }
 
-  const repo=fs.mkdtempSync(path.join(os.tmpdir(),'codex-review-test-'));
+  const repo=fs.mkdtempSync(path.join(os.tmpdir(),'codex-review-safe-test-'));
   try {
     const git=args=>{const r=spawnSync('git',args,{cwd:repo,encoding:'utf8'});if(r.status!==0)throw new Error(r.stderr||r.stdout);};
-    git(['init']); git(['config','user.email','test@example.com']); git(['config','user.name','Codex Review Test']); fs.writeFileSync(path.join(repo,'a.c'),'int a = 1;\n'); git(['add','a.c']);
+    git(['init']); git(['config','user.email','test@example.com']); git(['config','user.name','Codex Review Safe Test']); fs.writeFileSync(path.join(repo,'a.c'),'int a = 1;\n'); git(['add','a.c']);
     const index1=await __test.getIndexFingerprint(repo); const head1=await __test.getHeadOid(repo); assert.strictEqual(head1,'<unborn>'); git(['commit','-m','initial']); const index2=await __test.getIndexFingerprint(repo); const head2=await __test.getHeadOid(repo); assert.strictEqual(index1,index2); assert.notStrictEqual(head1,head2);
   } finally { fs.rmSync(repo,{recursive:true,force:true}); }
 
-  console.log('All Codex Review unit/regression tests passed.');
+  console.log('All Codex Review Safe unit/regression tests passed.');
 })().catch(error=>{console.error(error);process.exit(1);});
