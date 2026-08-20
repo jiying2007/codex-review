@@ -56,11 +56,20 @@ setTimeout(()=>console.log(JSON.stringify({type:'item.completed',item:{type:'age
   return sh;
 }
 
-async function installLanguagePack(vscodeExecutablePath) {
-  const [cliPath, ...baseArgs] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);
+async function installLanguagePack(vscodeExecutablePath, userDataDir, extensionsDir) {
+  const [cliPath, ...baseArgs] = resolveCliArgsFromVSCodeExecutablePath(
+    vscodeExecutablePath,
+    { reuseMachineInstall: true }
+  );
   const result = spawnSync(
     cliPath,
-    [...baseArgs, '--install-extension', 'MS-CEINTL.vscode-language-pack-zh-hans', '--force'],
+    [
+      ...baseArgs,
+      `--user-data-dir=${userDataDir}`,
+      `--extensions-dir=${extensionsDir}`,
+      '--install-extension', 'MS-CEINTL.vscode-language-pack-zh-hans',
+      '--force'
+    ],
     {
       encoding: 'utf8',
       stdio: 'inherit',
@@ -99,9 +108,18 @@ async function main() {
 
   if (locale) {
     const vscodeExecutablePath = await downloadAndUnzipVSCode(process.env.VSCODE_TEST_VERSION || 'stable');
-    await installLanguagePack(vscodeExecutablePath);
+    const userDataDir = path.join(base, 'vscode-user-data');
+    const extensionsDir = path.join(base, 'vscode-extensions');
+    fs.mkdirSync(userDataDir, { recursive: true });
+    fs.mkdirSync(extensionsDir, { recursive: true });
+    fs.writeFileSync(path.join(userDataDir, 'argv.json'), JSON.stringify({ locale }, null, 2));
+    await installLanguagePack(vscodeExecutablePath, userDataDir, extensionsDir);
     runOptions.vscodeExecutablePath = vscodeExecutablePath;
-    runOptions.launchArgs.push('--locale', locale);
+    runOptions.launchArgs.push(
+      `--user-data-dir=${userDataDir}`,
+      `--extensions-dir=${extensionsDir}`,
+      '--locale', locale
+    );
   } else {
     runOptions.launchArgs.splice(1, 0, '--disable-extensions');
     if (process.env.VSCODE_TEST_VERSION) runOptions.version = process.env.VSCODE_TEST_VERSION;
