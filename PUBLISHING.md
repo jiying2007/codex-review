@@ -34,6 +34,18 @@ The tag version must match `package.json.version`, and the tagged commit must be
 
 After the version change has passed CI and is merged to `main`, the `Release` workflow detects the committed version bump automatically. It runs the full gate and, only after every validation and packaging job succeeds, creates the immutable `v<package.version>` tag and GitHub Release in the same run. Ordinary `main` pushes with no version change skip the release jobs.
 
+Use the cross-platform local release CLI as the standard entry point:
+
+```bash
+npm run release:prepare -- X.Y.Z
+git diff --check
+git diff
+npm run release:check
+npm run release:push
+```
+
+`release:prepare` updates only `package.json`, `package-lock.json`, and `CHANGELOG.md`. `release:check` requires a synchronized `main`, exactly those three unstaged changes, an unused remote tag, and successful lock, test, and VSIX packaging gates. `release:push` reruns the full gate, commits and pushes only those files, then verifies that the exact pushed commit produced a successful Release workflow, matching immutable tag, published Release, VSIX, and `SHA256SUMS`. The CLI never creates or force-moves a local tag. Every command supports `--dry-run`; `release:push` also accepts `--timeout-minutes N`. `CODEX_RELEASE_GITHUB_TOKEN` is an optional local environment variable for authenticated API polling and must never be committed.
+
 Pushing a matching tag remains a supported manual fallback:
 
 ```bash

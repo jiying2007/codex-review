@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a cross-platform local release CLI that prepares versions, enforces release gates, pushes `main`, and verifies the automated GitHub Release without creating local tags.
+
 ## 1.0.2
 
 - Automatically create the immutable version tag and GitHub Release after a committed version bump reaches `main`, while retaining the manual tag-push fallback.
