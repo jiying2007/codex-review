@@ -32,7 +32,9 @@ The tag version must match `package.json.version`, and the tagged commit must be
 
 ## Create a release
 
-After the version change has passed CI and is merged to `main`:
+After the version change has passed CI and is merged to `main`, the `Release` workflow detects the committed version bump automatically. It runs the full gate and, only after every validation and packaging job succeeds, creates the immutable `v<package.version>` tag and GitHub Release in the same run. Ordinary `main` pushes with no version change skip the release jobs.
+
+Pushing a matching tag remains a supported manual fallback:
 
 ```bash
 git checkout main
@@ -42,7 +44,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The `Release` workflow validates all platforms and localization gates, packages the official VSIX, checks package contents, generates `SHA256SUMS`, uploads the build artifact, and creates the GitHub Release automatically.
+Do not force-move release tags. A rerun safely reuses a tag only when it resolves to the same commit, and refreshes existing Release artifacts with `--clobber`.
 
 ## Package contents
 

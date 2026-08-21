@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.0.2
+
+- Automatically create the immutable version tag and GitHub Release after a committed version bump reaches `main`, while retaining the manual tag-push fallback.
+- Make release reruns idempotent and reject existing lightweight or annotated tags that resolve to a different commit.
+
 - Added review-input fingerprints, staged input size, and Codex execution metadata to reports.
 - Added explicit reporting for staged files with newer unstaged overlays.
 - Strengthened the review prompt with an internal category-coverage and false-positive challenge pass.
