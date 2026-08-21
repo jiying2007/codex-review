@@ -172,7 +172,7 @@
     }
   },
   "scripts": {
-    "check": "node --check extension.js && node --check test/trust/runTest.js && node --check test/trust/suite/index.js && node --check src/i18n.js && node --check src/core.js && node --check src/process.js && node --check src/git.js && node --check src/policy.js && node --check src/review.js && node --check src/codex.js && node --check src/safe-contract.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node --check scripts/verify-module-boundaries.js && node scripts/release.test.js && node scripts/verify-security-manifest.js && node scripts/verify-module-boundaries.js && npm run verify:l10n && node test.js",
+    "check": "node --check extension.js && node --check test/trust/runTest.js && node --check test/trust/suite/index.js && node --check src/i18n.js && node --check src/core.js && node --check src/process.js && node --check src/git.js && node --check src/policy.js && node --check src/review.js && node --check src/report.js && node --check src/receipts.js && node --check src/codex.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node --check scripts/verify-module-boundaries.js && node scripts/release.test.js && node scripts/verify-security-manifest.js && node scripts/verify-module-boundaries.js && npm run verify:l10n && node test.js",
     "test:unit": "node test.js",
     "test:integration": "node ./test/integration/runTest.js",
     "test:trust": "node ./test/trust/runTest.js",

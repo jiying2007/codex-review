@@ -4,64 +4,42 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
-const {
-  REVIEW_RECEIPT_SCHEMA_VERSION,
-  validateReviewReceipt
-} = require('./src/safe-contract');
 const { t } = require('./src/i18n');
 const {
   PROJECT_RULES_FILE,
   normalizeFsPath,
-  normalizeGitPathForComparison,
-  clampNumber,
-  validateExtraInstructions,
-  getUserOnlySetting
+  normalizeGitPathForComparison
 } = require('./src/core');
+const { runProcess } = require('./src/process');
 const {
-  prepareCommand,
-  runProcess
-} = require('./src/process');
-const {
-  git,
   getGitApi,
   getRepositories,
   chooseRepository,
   getStagedDiff,
-  getIndexFingerprint,
   getHeadOid,
   getRepositorySnapshot,
   snapshotsEqual,
   getDirtyOpenPathSet,
-  parseNameStatusZ,
   getStagedChangeMetadata,
   getBinaryPathSet,
   getSubmodulePathSet,
   getUnmergedPaths,
   getUnstagedPathSet
 } = require('./src/git');
+const { getEffectiveOptions } = require('./src/policy');
 const {
-  readProjectRulesAtHead,
-  getEffectiveOptions
-} = require('./src/policy');
-const {
-  computeVerdict,
   parseChangedLineRanges,
   lineInChangedRanges,
   nearestChangedLine,
-  outputSchema,
-  buildPrompt,
-  parseCodexJsonl,
-  normalizeFinding,
-  validateReviewResult,
   buildReviewInputMeta,
   createReviewReceipt,
-  shortFingerprint,
   severityPasses
 } = require('./src/review');
+const { buildReviewReport } = require('./src/report');
+const { createReviewReceiptStore } = require('./src/receipts');
 const {
   resolveCodexExecutable,
   probeCodexCapabilities,
-  buildCodexArgs,
   runCodexReview,
   isCliCompatibilityError
 } = require('./src/codex');
@@ -75,11 +53,8 @@ const gitInvalidationTimers = new Map();
 let fileWatcher;
 let fileWatcherSubscriptions = [];
 const activeReviews = new Map();
-const reviewReceiptsByRepo = new Map();
-let extensionContext;
+let reviewReceiptStore;
 let nextReviewId = 1;
-const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v1';
-const MAX_RECEIPTS_PER_REPO = 50;
 
 function log(message) {
   outputChannel?.appendLine(`[${new Date().toISOString()}] ${message}`);
@@ -230,96 +205,6 @@ async function setupInvalidationWatchers(context) {
   } catch (error) {
     log(`Git invalidation watcher unavailable: ${error?.message || error}`);
   }
-}
-
-async function persistReviewReceipt(repoRoot, receipt) {
-  const validated = validateReviewReceipt(receipt);
-  if (!validated) throw new Error(t('Review receipt is invalid and was not stored.'));
-  const key = normalizeFsPath(repoRoot);
-  const receipts = [validated, ...(reviewReceiptsByRepo.get(key) || [])]
-    .filter((item, index, all) => all.findIndex(other =>
-      other.headOid === item.headOid &&
-      other.indexFingerprint === item.indexFingerprint &&
-      other.diffFingerprint === item.diffFingerprint
-    ) === index)
-    .slice(0, MAX_RECEIPTS_PER_REPO);
-  reviewReceiptsByRepo.set(key, receipts);
-  if (extensionContext?.globalState) {
-    const stored = Object.fromEntries(reviewReceiptsByRepo);
-    await extensionContext.globalState.update(RECEIPT_STORAGE_KEY, stored);
-  }
-  return validated;
-}
-
-function getReviewReceipts(repoRoot) {
-  return (reviewReceiptsByRepo.get(normalizeFsPath(repoRoot)) || []).map(item => ({ ...item }));
-}
-
-function getLatestReviewReceipt(repoRoot) {
-  return getReviewReceipts(repoRoot)[0] || null;
-}
-
-function getReviewReceiptStatus(repoRoot, snapshot) {
-  const receipt = getLatestReviewReceipt(repoRoot);
-  if (!receipt) return { status: 'unavailable', receipt: null };
-  const current = Boolean(
-    snapshot &&
-    receipt.headOid === snapshot.headOid &&
-    receipt.indexFingerprint === snapshot.indexFingerprint
-  );
-  return { status: current ? 'current' : 'stale', receipt };
-}
-
-async function getReviewEvidenceForRange(repoRoot, baseRef, headRef = 'HEAD', token) {
-  for (const [name, value] of [['baseRef', baseRef], ['headRef', headRef]]) {
-    if (typeof value !== 'string' || !value || value.length > 1024 || value.startsWith('-') || /[\r\n\0]/.test(value)) {
-      throw new Error(`Invalid ${name}.`);
-    }
-  }
-  const receipts = getReviewReceipts(repoRoot);
-  const { stdout } = await git(['rev-list', '--first-parent', '--reverse', `${baseRef}..${headRef}`, '--'], repoRoot, token);
-  const commits = stdout.split(/\r?\n/).filter(Boolean);
-  const matched = [];
-
-  for (const commitOid of commits) {
-    let parentOid;
-    try {
-      parentOid = (await git(['rev-parse', `${commitOid}^`], repoRoot, token)).stdout.trim();
-    } catch (error) {
-      if (error?.code === 'ECANCELLED') throw error;
-      continue;
-    }
-    const candidates = receipts.filter(receipt => receipt.headOid === parentOid);
-    if (!candidates.length) continue;
-    const { stdout: diff } = await git([
-      '-c', 'core.quotePath=false',
-      'diff',
-      '-M',
-      '-C',
-      '--src-prefix=a/',
-      '--dst-prefix=b/',
-      '--no-color',
-      '--no-ext-diff',
-      '--no-textconv',
-      '--unified=3',
-      parentOid,
-      commitOid,
-      '--'
-    ], repoRoot, token);
-    const fingerprint = crypto.createHash('sha256').update(diff, 'utf8').digest('hex');
-    const receipt = candidates.find(item => item.diffFingerprint === fingerprint);
-    if (receipt) matched.push({ commitOid, receipt });
-  }
-
-  return {
-    schemaVersion: REVIEW_RECEIPT_SCHEMA_VERSION,
-    kind: 'codex-review-range-evidence',
-    totalCommits: commits.length,
-    reviewedCommits: matched.length,
-    blockedCommits: matched.filter(item => item.receipt.qualityVerdict === 'blocked').length,
-    needsEvidenceCommits: matched.filter(item => item.receipt.readinessVerdict !== 'ready').length,
-    matches: matched.map(item => ({ commitOid: item.commitOid, receipt: { ...item.receipt } }))
-  };
 }
 
 function severityToDiagnostic(severity) {
@@ -541,117 +426,6 @@ async function publishDiagnostics(
   return publishMeta;
 }
 
-function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
-  const visibleFindings = review.findings.filter(
-    f => severityPasses(f.severity, options.severityThreshold)
-  );
-  const hiddenCount = review.findings.length - visibleFindings.length;
-
-  const lines = [];
-  lines.push(t('Finding verdict: {0}', review.verdict));
-  lines.push(t('Quality verdict: {0}', review.qualityVerdict || 'unknown'));
-  lines.push(t('Readiness verdict: {0}', review.readinessVerdict || 'needs_evidence'));
-  lines.push(t('Mechanical gate: {0}', review.mechanicalGate || 'not_run'));
-  lines.push(t('Summary: {0}', review.summary || t('None')));
-  lines.push(t('Review policy: {0}', options.policySource));
-  lines.push(
-    t(
-      'Review input: HEAD {0}, index {1}, diff {2}, {3} staged files, {4} bytes',
-      shortFingerprint(reviewInputMeta.headOid),
-      shortFingerprint(reviewInputMeta.indexFingerprint),
-      shortFingerprint(reviewInputMeta.diffFingerprint),
-      reviewInputMeta.stagedFileCount ?? 0,
-      reviewInputMeta.diffBytes ?? 0
-    )
-  );
-  lines.push(
-    t(
-      'Review execution: model {0}, Codex CLI {1}',
-      reviewInputMeta.model || 'cli-default',
-      reviewInputMeta.codexVersion || 'unknown'
-    )
-  );
-  if (reviewInputMeta.unstagedOverlayPaths?.length) {
-    lines.push(
-      t(
-        'Working tree notice: {0} staged files also have unstaged changes; those latest edits were not reviewed: {1}',
-        reviewInputMeta.unstagedOverlayPaths.length,
-        reviewInputMeta.unstagedOverlayPaths.slice(0, 10).join(', ')
-      )
-    );
-  }
-  if (review.policyNotice) lines.push(t('Policy notice: {0}', review.policyNotice));
-  if (review.cannotVerify?.length) {
-    lines.push(t('Cannot verify from diff:'));
-    const labels = {
-      requirements: t('Requirement/spec compliance cannot be established from the staged diff alone.'),
-      tests: t('Build and test execution were not performed by Codex Review Safe.')
-    };
-    for (const item of review.cannotVerify) lines.push(`- ${labels[item] || item}`);
-  }
-  lines.push(
-    t(
-      'Findings: {0} accepted / {1} model, {2} visible, {3} hidden, {4} rejected',
-      review.findings.length,
-      review.modelFindingCount ?? review.findings.length,
-      visibleFindings.length,
-      hiddenCount,
-      review.rejectedFindings?.length || 0
-    )
-  );
-  lines.push('');
-
-  if (!visibleFindings.length) {
-    lines.push(t('No findings meet the current severity threshold.'));
-    if (hiddenCount > 0) {
-      lines.push(t('{0} lower-severity findings are hidden by the current threshold.', hiddenCount));
-    }
-  }
-
-  if (review.rejectedFindings?.length) {
-    lines.push(t('Invalid findings returned by the model were rejected individually:'));
-    for (const rejected of review.rejectedFindings.slice(0, 10)) {
-      lines.push(`- finding[${rejected.index}]: ${rejected.reason}`);
-    }
-    lines.push('');
-  }
-
-  visibleFindings.forEach((f, index) => {
-    lines.push(`${index + 1}. [${f.severity.toUpperCase()}] [${f.category}] ${f.file}:${f.line}`);
-    lines.push(`   ${f.title}`);
-    lines.push(`   ${f.description}`);
-    if (f.suggestion) lines.push(`   ${t('Suggestion:')} ${f.suggestion}`);
-
-    const meta = publishMeta?.get(f);
-    if (meta && !meta.published) {
-      const reasonText = {
-        deleted_file: t('The file is deleted in the staged version and cannot be mapped to the current working tree.'),
-        submodule_change: t('This is a submodule pointer change; it is report-only.'),
-        binary_file: t('This is a binary file change with no reliable source line; it is report-only.'),
-        dirty_editor: t('The file has unsaved editor changes; no inline Diagnostic is published to avoid line drift.'),
-        unstaged_changes: t('The file also has unstaged changes; no inline Diagnostic is published to avoid line drift.'),
-        rename_without_content_change: t('This is a pure rename with no changed post-image source line.'),
-        copy_without_content_change: t('This is a pure copy with no changed post-image source line.'),
-        no_added_or_modified_line: t('This diff has no locatable new-file line; the finding is report-only.'),
-        line_not_mappable: t('The model line cannot be mapped to a changed line; the finding is report-only.'),
-        symlink_outside_repo: t('The real file path escapes the repository through a symlink; the finding is report-only.'),
-        file_changed_during_publish: t('The file changed while the Diagnostic was being built; the finding is report-only.'),
-        unstaged_changes_after_publish: t('Final validation found new unstaged changes; the inline Diagnostic was retracted.'),
-        dirty_editor_after_publish: t('Final validation found new unsaved edits; the inline Diagnostic was retracted.'),
-        file_read_failed: t('The working-tree file could not be read; the finding is report-only.')
-      }[meta.reason] || t('Inline Diagnostic was not published.');
-      lines.push(`   ${t('Problems: {0} — {1}', t('not published'), reasonText)}`);
-    } else if (meta?.published) {
-      lines.push(`   ${t('Problems: published at {0}:{1}', f.file, meta.mappedLine)}`);
-    }
-
-    lines.push(`   ${t('Confidence: {0}', f.confidence.toFixed(2))}`);
-    lines.push('');
-  });
-
-  return lines.join('\n');
-}
-
 function renderOutput(repoRoot, review, options, publishMeta, reviewInputMeta) {
   const repoKey = normalizeFsPath(repoRoot);
   reportsByRepo.set(repoKey, {
@@ -660,10 +434,6 @@ function renderOutput(repoRoot, review, options, publishMeta, reviewInputMeta) {
     stale: false
   });
   refreshOutputChannel();
-}
-
-function getStoredReportText(repoRoot) {
-  return reportsByRepo.get(normalizeFsPath(repoRoot))?.text || '';
 }
 
 function beginReview(repoRoot) {
@@ -858,7 +628,7 @@ async function reviewStaged(commandArgs = []) {
     reviewSnapshotsByRepo.set(normalizeFsPath(repoRoot), result.snapshot);
     const receipt = createReviewReceipt(result.review, reviewInputMeta);
     try {
-      await persistReviewReceipt(repoRoot, receipt);
+      await reviewReceiptStore.persist(repoRoot, receipt);
     } catch (error) {
       log(`review receipt persistence unavailable: code=${error?.code || error?.name || 'ERROR'}`);
     }
@@ -909,13 +679,10 @@ async function clearReview() {
   diagnosticUrisByRepo.clear();
   reviewSnapshotsByRepo.clear();
   reportsByRepo.clear();
-  reviewReceiptsByRepo.clear();
-  if (extensionContext?.globalState) {
-    try {
-      await extensionContext.globalState.update(RECEIPT_STORAGE_KEY, undefined);
-    } catch (error) {
-      log(`review receipt cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`);
-    }
+  try {
+    await reviewReceiptStore?.clear();
+  } catch (error) {
+    log(`review receipt cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`);
   }
   for (const timer of gitInvalidationTimers.values()) clearTimeout(timer);
   gitInvalidationTimers.clear();
@@ -958,17 +725,12 @@ function friendlyError(error) {
 }
 
 function activate(context) {
-  extensionContext = context;
+  reviewReceiptStore = createReviewReceiptStore(context.globalState);
+  reviewReceiptStore.restore();
   outputChannel = vscode.window.createOutputChannel('Codex Review Safe');
   diagnosticCollection = vscode.languages.createDiagnosticCollection('codex-review-safe');
 
   context.subscriptions.push(outputChannel, diagnosticCollection);
-  const storedReceipts = context.globalState?.get(RECEIPT_STORAGE_KEY, {}) || {};
-  for (const [repoKey, receipts] of Object.entries(storedReceipts)) {
-    if (!Array.isArray(receipts)) continue;
-    const valid = receipts.map(validateReviewReceipt).filter(Boolean).slice(0, MAX_RECEIPTS_PER_REPO);
-    if (valid.length) reviewReceiptsByRepo.set(repoKey, valid);
-  }
   setupInvalidationWatchers(context);
 
   context.subscriptions.push(
@@ -995,10 +757,11 @@ function activate(context) {
 
   return {
     contractVersion: 1,
-    getLatestReviewReceipt,
-    getReviewReceipts,
-    getReviewReceiptStatus,
-    getReviewEvidenceForRange
+    getLatestReviewReceipt: repoRoot => reviewReceiptStore.getLatest(repoRoot),
+    getReviewReceipts: repoRoot => reviewReceiptStore.getReceipts(repoRoot),
+    getReviewReceiptStatus: (repoRoot, snapshot) => reviewReceiptStore.getStatus(repoRoot, snapshot),
+    getReviewEvidenceForRange: (repoRoot, baseRef, headRef = 'HEAD', token) =>
+      reviewReceiptStore.getEvidenceForRange(repoRoot, baseRef, headRef, token)
   };
 }
 
@@ -1011,8 +774,8 @@ function deactivate() {
   diagnosticUrisByRepo.clear();
   reviewSnapshotsByRepo.clear();
   reportsByRepo.clear();
-  reviewReceiptsByRepo.clear();
-  extensionContext = undefined;
+  reviewReceiptStore?.resetMemory();
+  reviewReceiptStore = undefined;
   for (const timer of gitInvalidationTimers.values()) clearTimeout(timer);
   gitInvalidationTimers.clear();
   for (const disposable of fileWatcherSubscriptions) { try { disposable.dispose(); } catch {} }
@@ -1020,46 +783,4 @@ function deactivate() {
   if (fileWatcher) { try { fileWatcher.dispose(); } catch {}; fileWatcher = undefined; }
 }
 
-module.exports = {
-  activate,
-  deactivate,
-  __test: {
-    clampNumber,
-    validateExtraInstructions,
-    getUserOnlySetting,
-    prepareCommand,
-    parseCodexJsonl,
-    buildPrompt,
-    buildCodexArgs,
-    isCliCompatibilityError,
-    probeCodexCapabilities,
-    resolveCodexExecutable,
-    outputSchema,
-    normalizeFinding,
-    validateReviewResult,
-    severityPasses,
-    computeVerdict,
-    buildReviewReport,
-    buildReviewInputMeta,
-    createReviewReceipt,
-    persistReviewReceipt,
-    getLatestReviewReceipt,
-    getReviewReceipts,
-    getReviewReceiptStatus,
-    getReviewEvidenceForRange,
-    shortFingerprint,
-    getStoredReportText,
-    parseChangedLineRanges,
-    parseNameStatusZ,
-    lineInChangedRanges,
-    nearestChangedLine,
-    normalizeGitPathForComparison,
-    getUnmergedPaths,
-    getStagedDiff,
-    readProjectRulesAtHead,
-    getEffectiveOptions,
-    snapshotsEqual,
-    getIndexFingerprint,
-    getHeadOid
-  }
-};
+module.exports = { activate, deactivate };

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remove the transitional `extension.__test` surface and the legacy `src/safe-contract.js` path shim; tests now consume the production modules directly.
+- Split report rendering and review-receipt storage/evidence into first-class runtime modules.
 - Add a cross-platform local release CLI that prepares versions, enforces release gates, pushes `main`, and verifies the automated GitHub Release without creating local tags.
 
 ## 1.0.2

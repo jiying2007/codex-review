@@ -11,7 +11,7 @@ const {
   validateExtraInstructions,
   getUserOnlySetting
 } = require('./core');
-const { fingerprintPolicy } = require('./safe-contract');
+const { fingerprintPolicy } = require('./codex-safe-core/safe-contract');
 const { t } = require('./i18n');
 
 async function readProjectRulesAtHead(repoRoot, headOid, token) {

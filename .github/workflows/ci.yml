@@ -170,7 +170,7 @@ jobs:
           grep -Fx 'extension/l10n/bundle.l10n.zh-cn.json' /tmp/vsix-files.txt
           grep -Fx 'extension/README.zh-CN.md' /tmp/vsix-files.txt
           grep -Fx 'extension/images/icon.png' /tmp/vsix-files.txt
-          for module in safe-contract i18n core process git policy review codex; do
+          for module in i18n core process git policy review report receipts codex; do
             grep -Fx "extension/src/${module}.js" /tmp/vsix-files.txt
           done
           grep -Fx 'extension/src/codex-safe-core/codex-cli.js' /tmp/vsix-files.txt

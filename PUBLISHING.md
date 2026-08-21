@@ -11,6 +11,7 @@ A release requires:
 - English/Simplified-Chinese manifest and runtime localization key parity passing via `npm run verify:l10n`;
 - every literal runtime `t('...')` source key referenced by `extension.js` or runtime `src/*.js` modules to exist in both runtime localization bundles;
 - unit/regression tests passing, including the Codex CLI argv contract (`--ask-for-approval never` before the `exec` subcommand);
+- tests exercising production modules and the public extension API directly, with no private `extension.__test` compatibility surface;
 - Safe Core vendored-file integrity and canonical-upstream drift gates passing;
 - latest VS Code Extension Host tests passing on Linux, Windows, and macOS;
 - minimum supported VS Code `1.90.0` Extension Host test passing on Ubuntu;
@@ -70,13 +71,14 @@ The release gate requires these user-facing/runtime files inside the VSIX:
 - `l10n/bundle.l10n.zh-cn.json`
 - `README.zh-CN.md`
 - `images/icon.png`
-- `src/safe-contract.js`
 - `src/i18n.js`
 - `src/core.js`
 - `src/process.js`
 - `src/git.js`
 - `src/policy.js`
 - `src/review.js`
+- `src/report.js`
+- `src/receipts.js`
 - `src/codex.js`
 - `src/codex-safe-core/codex-cli.js`
 - `src/codex-safe-core/safe-contract.js`
