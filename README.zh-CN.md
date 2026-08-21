@@ -23,7 +23,7 @@
 - 生成绑定 HEAD/index/diff/策略指纹的版本化审查凭据，并通过只读配套扩展 API 提供
 - dirty editor、unstaged changes、删除文件、binary、submodule、symlink 越界、纯 rename/copy、无法安全定位的行号全部 fail-safe 为 report-only
 - Windows `.exe` / `.cmd` / `.bat`、Linux、macOS 均由 CI 覆盖
-- Restricted Mode（未信任工作区）行为由独立 Extension Host 集成门禁覆盖
+- Workspace Trust 声明、可信菜单条件、application-scoped 安全设置和运行时 trust guard 均有回归门禁
 - 永远不会自动修改源码、Commit、Push 或创建 PR
 
 ## 中英文支持
@@ -179,7 +179,7 @@ npm run test:integration
 npm run package
 ```
 
-`npm run test:integration` 同时运行正常可信工作区测试和 Restricted Mode 测试。CI 会验证 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容、Restricted Mode 行为、Extension Host 中的简体中文本地化 smoke、源码与双语 l10n key 一致性、官方 VSIX 内容和 SHA-256。
+`npm run check` 包含 Workspace Trust / security manifest 回归门禁。CI 会验证 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容、Extension Host 中的简体中文本地化 smoke、源码与双语 l10n key 一致性、官方 VSIX 内容和 SHA-256。真正的 trusted/untrusted Extension Host 双矩阵需要迁移到 trust-aware VS Code 测试运行器，已作为后续任务跟踪。
 
 贡献约束见 [CONTRIBUTING.md](CONTRIBUTING.md)，发布流程见 [PUBLISHING.md](PUBLISHING.md)。
 
