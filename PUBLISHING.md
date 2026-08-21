@@ -54,6 +54,7 @@ The release gate requires these user-facing files inside the VSIX:
 - `l10n/bundle.l10n.zh-cn.json`
 - `README.zh-CN.md`
 - `images/icon.png`
+- `src/safe-contract.js`
 
 The NLS files localize extension metadata, commands, and configuration. The `l10n` bundles localize runtime progress, notifications, reports, environment checks, and errors.
 

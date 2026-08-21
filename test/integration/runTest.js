@@ -30,6 +30,8 @@ const fs=require('fs');
 const args=process.argv.slice(2);
 if(process.env.CODEX_REVIEW_IT_FAKE_LOG)fs.appendFileSync(process.env.CODEX_REVIEW_IT_FAKE_LOG,'NODE '+JSON.stringify(args)+'\\n');
 if(args.includes('--version')){console.log('codex-cli fake');process.exit(0);}
+if(args.length===1&&args[0]==='--help'){console.log('--ask-for-approval --config --model');process.exit(0);}
+if(args.length===2&&args[0]==='exec'&&args[1]==='--help'){console.log('--json --ephemeral --skip-git-repo-check --ignore-user-config --ignore-rules --sandbox --output-schema --config --model');process.exit(0);}
 const execIndex=args.indexOf('exec');
 const approvalIndex=args.indexOf('--ask-for-approval');
 if(execIndex<0||approvalIndex<0||approvalIndex>execIndex||args[approvalIndex+1]!=='never'){console.error("error: unexpected argument '--ask-for-approval'");process.exit(2);}

@@ -38,6 +38,9 @@ The snapshot is checked before and after input collection, after Codex returns, 
 
 Reports expose shortened HEAD, raw-index, and staged-diff fingerprints, staged input size, and Codex execution metadata so users can distinguish model variance from input changes. These identifiers contain no source content. If a staged path also has unstaged edits, the report warns that the newer working-tree version was outside the reviewed snapshot.
 
+Successful reviews create a bounded, versioned receipt containing fingerprints and verdict metadata but no source diff or generated finding text. Receipts are stored in local VS Code extension global state and exposed only through a read-only Extension API. A receipt is AI review evidence, not human approval, spec compliance, build success, or test success.
+The Clear Review Results command removes both visible results and the locally persisted receipt history.
+
 Unresolved merge conflicts stop review before Codex is called. A newer request also supersedes any older in-flight review for the same repository.
 
 ## Diagnostic safety

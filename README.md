@@ -19,6 +19,8 @@ Review safe, structured findings from **staged Git changes only** in VS Code usi
 - HEAD-pinned `.codex-review.json` policy, so a staged policy change cannot weaken its own review
 - Review reports identify the exact HEAD, raw-index, and staged-diff fingerprints plus Codex execution metadata
 - Explicit working-tree notice when staged files also contain newer unstaged edits that were not reviewed
+- Separate quality and readiness verdicts: no diff finding is not presented as proof of spec, build, or test readiness
+- Versioned review receipts bound to HEAD/index/diff/policy fingerprints, exposed through a read-only companion-extension API
 - Dirty editors, unstaged changes, deleted/binary/submodule files, symlink escapes, pure rename/copy changes, and unsafe line mappings fall back to report-only
 - Windows `.exe` / `.cmd` / `.bat`, Linux, and macOS execution paths covered by CI
 - Never automatically modifies source files, commits, pushes, or opens pull requests
@@ -131,6 +133,10 @@ Ctrl+Shift+P → Codex Review Safe: Check Codex Environment
 6. Fix issues, stage again, rerun the review, and commit manually.
 
 The report describes the staged snapshot only. If a staged file also has unstaged edits, the report lists that overlay and makes clear that the latest working-tree version was not reviewed. Stage the intended fix before rerunning Review.
+
+`qualityVerdict=no_findings` means only that no substantive issue was found in the supplied diff. `readinessVerdict` remains `needs_evidence` until requirements, builds, and tests are verified independently. Receipts are stored locally in VS Code extension state and never commit, push, publish, or modify source files.
+
+Running **Codex Review Safe: Clear Review Results** also deletes the locally persisted receipt history.
 
 ## Project configuration
 

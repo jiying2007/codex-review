@@ -19,6 +19,8 @@
 - `.codex-review.json` 固定读取捕获到的 HEAD，因此 staged 规则修改不能降低对自身的审查
 - 报告展示精确 HEAD、raw index、staged diff 指纹以及 Codex 执行元数据
 - staged 文件同时存在更新的 unstaged 修改时，明确提示这些最新修改尚未被审查
+- 分离质量结论与交付就绪结论：diff 无发现不等于需求、构建或测试就绪
+- 生成绑定 HEAD/index/diff/策略指纹的版本化审查凭据，并通过只读配套扩展 API 提供
 - dirty editor、unstaged changes、删除文件、binary、submodule、symlink 越界、纯 rename/copy、无法安全定位的行号全部 fail-safe 为 report-only
 - Windows `.exe` / `.cmd` / `.bat`、Linux、macOS 均由 CI 覆盖
 - 永远不会自动修改源码、Commit、Push 或创建 PR
@@ -131,6 +133,10 @@ Ctrl+Shift+P → Codex Review Safe: 检查 Codex 环境
 6. 修复问题、重新 Stage，再重新 Review，最后手动 Commit。
 
 报告只描述 staged 快照。如果已暂存文件同时还有未暂存修改，报告会列出该 overlay，并明确最新 working-tree 版本尚未被审查。重新 Review 前应先 Stage 准备提交的修复。
+
+`qualityVerdict=no_findings` 仅表示在输入 diff 中未发现实质问题；在需求、构建和测试获得独立证据前，`readinessVerdict` 仍为 `needs_evidence`。凭据只保存在本机 VS Code 扩展状态中，不会 Commit、Push、发布或修改源码。
+
+运行 **Codex Review Safe: 清除审查结果** 也会删除本机持久化的凭据历史。
 
 ## 项目配置
 

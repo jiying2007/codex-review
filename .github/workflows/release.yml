@@ -167,6 +167,7 @@ jobs:
           grep -Fx 'extension/l10n/bundle.l10n.zh-cn.json' /tmp/vsix-files.txt
           grep -Fx 'extension/README.zh-CN.md' /tmp/vsix-files.txt
           grep -Fx 'extension/images/icon.png' /tmp/vsix-files.txt
+          grep -Fx 'extension/src/safe-contract.js' /tmp/vsix-files.txt
           if grep -E '^extension/(test|scripts|package-lock\.json|PUBLISHING\.md|\.gitignore|\.gitattributes|\.github|\.vscode)' /tmp/vsix-files.txt; then
             echo 'VSIX contains development-only files' >&2
             exit 1

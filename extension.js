@@ -6,6 +6,16 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const {
+  REVIEW_RECEIPT_SCHEMA_VERSION,
+  REQUIRED_CODEX_TOP_LEVEL_FLAGS,
+  REQUIRED_CODEX_EXEC_FLAGS,
+  buildSafeCodexArgs,
+  missingHelpFlags,
+  isCliCompatibilityError,
+  fingerprintPolicy,
+  validateReviewReceipt
+} = require('./src/safe-contract');
 
 function t(message, ...args) {
   if (vscode.l10n?.t) return vscode.l10n.t(message, ...args);
@@ -41,7 +51,12 @@ const gitInvalidationTimers = new Map();
 let fileWatcher;
 let fileWatcherSubscriptions = [];
 const activeReviews = new Map();
+const capabilityCache = new Map();
+const reviewReceiptsByRepo = new Map();
+let extensionContext;
 let nextReviewId = 1;
+const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v1';
+const MAX_RECEIPTS_PER_REPO = 50;
 
 function log(message) {
   outputChannel?.appendLine(`[${new Date().toISOString()}] ${message}`);
@@ -883,7 +898,7 @@ async function setupInvalidationWatchers(context) {
 
 async function readProjectRulesAtHead(repoRoot, headOid, token) {
   if (headOid === '<unborn>') {
-    return { rules: {}, source: 'unborn-default' };
+    return { rules: {}, source: 'unborn-default', fingerprint: '<none>' };
   }
 
   const { stdout: listed } = await git(
@@ -893,7 +908,7 @@ async function readProjectRulesAtHead(repoRoot, headOid, token) {
   );
 
   if (!listed.split('\0').filter(Boolean).includes(PROJECT_RULES_FILE)) {
-    return { rules: {}, source: 'head-default' };
+    return { rules: {}, source: 'head-default', fingerprint: '<none>' };
   }
 
   let stdout;
@@ -938,7 +953,11 @@ async function readProjectRulesAtHead(repoRoot, headOid, token) {
     );
   }
 
-  return { rules: parsed, source: 'head-policy' };
+  return {
+    rules: parsed,
+    source: 'head-policy',
+    fingerprint: crypto.createHash('sha256').update(stdout, 'utf8').digest('hex')
+  };
 }
 
 async function getEffectiveOptions(repoRoot, headOid, token) {
@@ -947,7 +966,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     vscode.Uri.file(repoRoot)
   );
 
-  const { rules: project, source: policySource } =
+  const { rules: project, source: policySource, fingerprint: policyFingerprint } =
     await readProjectRulesAtHead(repoRoot, headOid, token);
 
   const codexPath = String(
@@ -996,7 +1015,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     );
   }
 
-  return {
+  const options = {
     codexPath,
     model,
     language,
@@ -1017,8 +1036,19 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
       120, 10, 300, 'timeoutSeconds'
     ),
     extraInstructions,
-    policySource
+    policySource,
+    projectPolicyFingerprint: policyFingerprint
   };
+  options.policyFingerprint = fingerprintPolicy({
+    language: options.language,
+    maxDiffBytes: options.maxDiffBytes,
+    maxFindings: options.maxFindings,
+    severityThreshold: options.severityThreshold,
+    timeoutSeconds: options.timeoutSeconds,
+    extraInstructions: options.extraInstructions,
+    projectPolicyFingerprint: options.projectPolicyFingerprint
+  });
+  return options;
 }
 
 function outputSchema(options) {
@@ -1255,10 +1285,20 @@ function validateReviewResult(value, options, stagedPaths) {
     : rejectedFindings.length
       ? 'needs_attention'
       : 'pass';
+  const qualityVerdict = verdict === 'pass'
+    ? 'no_findings'
+    : verdict === 'block'
+      ? 'blocked'
+      : 'findings_open';
+  const readinessVerdict = qualityVerdict === 'blocked' ? 'blocked' : 'needs_evidence';
 
   return {
     summary,
     verdict,
+    qualityVerdict,
+    readinessVerdict,
+    mechanicalGate: 'not_run',
+    cannotVerify: ['requirements', 'tests'],
     findings,
     rejectedFindings,
     modelFindingCount: value.findings.length
@@ -1344,44 +1384,45 @@ async function resolveCodexExecutable(codexPath) {
   throw error;
 }
 
-function isCliCompatibilityError(error) {
-  const text = `${error?.stderr || ''}\n${error?.stdout || ''}\n${error?.message || ''}`.toLowerCase();
-  return (
-    text.includes('unexpected argument') ||
-    text.includes('unknown argument') ||
-    text.includes('unrecognized option') ||
-    text.includes('unknown option')
-  );
+async function probeCodexCapabilities(resolved, model = '') {
+  const cacheKey = `${resolved.executable}\n${resolved.version}\n${model ? 'model' : 'default'}`;
+  if (capabilityCache.has(cacheKey)) return capabilityCache.get(cacheKey);
+
+  let topHelp;
+  let execHelp;
+  try {
+    const [top, exec] = await Promise.all([
+      runProcess(resolved.executable, ['--help'], { timeoutMs: 10000, maxStdoutBytes: 512 * 1024, maxStderrBytes: 256 * 1024 }),
+      runProcess(resolved.executable, ['exec', '--help'], { timeoutMs: 10000, maxStdoutBytes: 512 * 1024, maxStderrBytes: 256 * 1024 })
+    ]);
+    topHelp = `${top.stdout}\n${top.stderr}`;
+    execHelp = `${exec.stdout}\n${exec.stderr}`;
+  } catch (error) {
+    const wrapped = new Error(t('Unable to inspect Codex CLI capabilities for {0}. Make sure "codex --help" and "codex exec --help" succeed.', resolved.version));
+    wrapped.code = 'ECODEXCAPABILITY';
+    wrapped.cause = error;
+    throw wrapped;
+  }
+
+  const missing = [
+    ...missingHelpFlags(topHelp, REQUIRED_CODEX_TOP_LEVEL_FLAGS).map(flag => `top-level ${flag}`),
+    ...missingHelpFlags(execHelp, REQUIRED_CODEX_EXEC_FLAGS).map(flag => `exec ${flag}`)
+  ];
+  if (model && !`${topHelp}\n${execHelp}`.includes('--model')) missing.push('--model');
+  if (missing.length) {
+    const error = new Error(t('Codex CLI {0} does not expose required capabilities: {1}.', resolved.version, missing.join(', ')));
+    error.code = 'ECODEXCAPABILITY';
+    error.missingFlags = missing;
+    throw error;
+  }
+
+  const result = { ...resolved, capabilitiesVerified: true };
+  capabilityCache.set(cacheKey, result);
+  return result;
 }
 
-
 function buildCodexArgs(schemaPath, model) {
-  const args = [
-    '--ask-for-approval', 'never',
-    'exec',
-    '--json',
-    '--ephemeral',
-    '--skip-git-repo-check',
-    '--ignore-user-config',
-    '--ignore-rules',
-    '--sandbox', 'read-only',
-    '--output-schema', schemaPath,
-    '--config', 'web_search="disabled"',
-    '--config', 'features.shell_tool=false',
-    '--config', 'features.unified_exec=false',
-    '--config', 'features.shell_snapshot=false',
-    '--config', 'features.apps=false',
-    '--config', 'features.multi_agent=false',
-    '--config', 'features.remote_plugin=false',
-    '--config', 'features.hooks=false',
-    '--config', 'features.goals=false',
-    '--config', 'features.memories=false',
-    '--config', 'features.skill_mcp_dependency_install=false'
-  ];
-
-  if (model) args.push('--model', model);
-  args.push('-');
-  return args;
+  return buildSafeCodexArgs(schemaPath, model);
 }
 
 async function withTemporaryDirectory(fn) {
@@ -1395,6 +1436,7 @@ async function withTemporaryDirectory(fn) {
 
 async function runCodexReview(diff, stagedPaths, options, token) {
   const resolved = await resolveCodexExecutable(options.codexPath);
+  await probeCodexCapabilities(resolved, options.model);
   const prompt = buildPrompt(options, stagedPaths);
   const stdin = [
     prompt,
@@ -1468,7 +1510,117 @@ function buildReviewInputMeta(snapshot, diffFingerprint, diffBytes, stagedPaths,
     stagedFileCount: stagedPaths.length,
     unstagedOverlayPaths: overlays,
     codexVersion: executionMeta.codexVersion || 'unknown',
-    model: executionMeta.model || 'cli-default'
+    model: executionMeta.model || 'cli-default',
+    policySource: executionMeta.policySource || 'head-default',
+    policyFingerprint: executionMeta.policyFingerprint || '<none>'
+  };
+}
+
+function createReviewReceipt(review, reviewInputMeta, now = new Date()) {
+  return validateReviewReceipt({
+    schemaVersion: REVIEW_RECEIPT_SCHEMA_VERSION,
+    kind: 'codex-review-safe',
+    headOid: reviewInputMeta.headOid,
+    indexFingerprint: reviewInputMeta.indexFingerprint,
+    diffFingerprint: reviewInputMeta.diffFingerprint,
+    policyFingerprint: reviewInputMeta.policyFingerprint,
+    stagedFileCount: reviewInputMeta.stagedFileCount,
+    qualityVerdict: review.qualityVerdict,
+    readinessVerdict: review.readinessVerdict,
+    mechanicalGate: review.mechanicalGate,
+    model: reviewInputMeta.model || 'cli-default',
+    codexVersion: reviewInputMeta.codexVersion || 'unknown',
+    createdAt: now.toISOString()
+  });
+}
+
+async function persistReviewReceipt(repoRoot, receipt) {
+  const validated = validateReviewReceipt(receipt);
+  if (!validated) throw new Error(t('Review receipt is invalid and was not stored.'));
+  const key = normalizeFsPath(repoRoot);
+  const receipts = [validated, ...(reviewReceiptsByRepo.get(key) || [])]
+    .filter((item, index, all) => all.findIndex(other =>
+      other.headOid === item.headOid &&
+      other.indexFingerprint === item.indexFingerprint &&
+      other.diffFingerprint === item.diffFingerprint
+    ) === index)
+    .slice(0, MAX_RECEIPTS_PER_REPO);
+  reviewReceiptsByRepo.set(key, receipts);
+  if (extensionContext?.globalState) {
+    const stored = Object.fromEntries(reviewReceiptsByRepo);
+    await extensionContext.globalState.update(RECEIPT_STORAGE_KEY, stored);
+  }
+  return validated;
+}
+
+function getReviewReceipts(repoRoot) {
+  return (reviewReceiptsByRepo.get(normalizeFsPath(repoRoot)) || []).map(item => ({ ...item }));
+}
+
+function getLatestReviewReceipt(repoRoot) {
+  return getReviewReceipts(repoRoot)[0] || null;
+}
+
+function getReviewReceiptStatus(repoRoot, snapshot) {
+  const receipt = getLatestReviewReceipt(repoRoot);
+  if (!receipt) return { status: 'unavailable', receipt: null };
+  const current = Boolean(
+    snapshot &&
+    receipt.headOid === snapshot.headOid &&
+    receipt.indexFingerprint === snapshot.indexFingerprint
+  );
+  return { status: current ? 'current' : 'stale', receipt };
+}
+
+async function getReviewEvidenceForRange(repoRoot, baseRef, headRef = 'HEAD', token) {
+  for (const [name, value] of [['baseRef', baseRef], ['headRef', headRef]]) {
+    if (typeof value !== 'string' || !value || value.length > 1024 || value.startsWith('-') || /[\r\n\0]/.test(value)) {
+      throw new Error(`Invalid ${name}.`);
+    }
+  }
+  const receipts = getReviewReceipts(repoRoot);
+  const { stdout } = await git(['rev-list', '--first-parent', '--reverse', `${baseRef}..${headRef}`, '--'], repoRoot, token);
+  const commits = stdout.split(/\r?\n/).filter(Boolean);
+  const matched = [];
+
+  for (const commitOid of commits) {
+    let parentOid;
+    try {
+      parentOid = (await git(['rev-parse', `${commitOid}^`], repoRoot, token)).stdout.trim();
+    } catch (error) {
+      if (error?.code === 'ECANCELLED') throw error;
+      continue;
+    }
+    const candidates = receipts.filter(receipt => receipt.headOid === parentOid);
+    if (!candidates.length) continue;
+    const { stdout: diff } = await git([
+      '-c', 'core.quotePath=false',
+      'diff',
+      '-M',
+      '-C',
+      '--src-prefix=a/',
+      '--dst-prefix=b/',
+      '--no-color',
+      '--no-ext-diff',
+      '--no-textconv',
+      '--unified=3',
+      parentOid,
+      commitOid,
+      '--'
+    ], repoRoot, token);
+    const fingerprint = crypto.createHash('sha256').update(diff, 'utf8').digest('hex');
+    const receipt = candidates.find(item => item.diffFingerprint === fingerprint);
+    if (receipt) matched.push({ commitOid, receipt });
+  }
+
+  return {
+    schemaVersion: REVIEW_RECEIPT_SCHEMA_VERSION,
+    kind: 'codex-review-range-evidence',
+    totalCommits: commits.length,
+    reviewedCommits: matched.length,
+    blockedCommits: matched.filter(item => item.receipt.qualityVerdict === 'blocked').length,
+    needsEvidenceCommits: matched.filter(item => item.receipt.readinessVerdict !== 'ready').length,
+    matches: matched.map(item => ({ commitOid: item.commitOid, receipt: { ...item.receipt } }))
   };
 }
 
@@ -1722,7 +1874,10 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   const hiddenCount = review.findings.length - visibleFindings.length;
 
   const lines = [];
-  lines.push(t('Verdict: {0}', review.verdict));
+  lines.push(t('Finding verdict: {0}', review.verdict));
+  lines.push(t('Quality verdict: {0}', review.qualityVerdict || 'unknown'));
+  lines.push(t('Readiness verdict: {0}', review.readinessVerdict || 'needs_evidence'));
+  lines.push(t('Mechanical gate: {0}', review.mechanicalGate || 'not_run'));
   lines.push(t('Summary: {0}', review.summary || t('None')));
   lines.push(t('Review policy: {0}', options.policySource));
   lines.push(
@@ -1752,6 +1907,14 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
     );
   }
   if (review.policyNotice) lines.push(t('Policy notice: {0}', review.policyNotice));
+  if (review.cannotVerify?.length) {
+    lines.push(t('Cannot verify from diff:'));
+    const labels = {
+      requirements: t('Requirement/spec compliance cannot be established from the staged diff alone.'),
+      tests: t('Build and test execution were not performed by Codex Review Safe.')
+    };
+    for (const item of review.cannotVerify) lines.push(`- ${labels[item] || item}`);
+  }
   lines.push(
     t(
       'Findings: {0} accepted / {1} model, {2} visible, {3} hidden, {4} rejected',
@@ -2023,9 +2186,19 @@ async function reviewStaged(commandArgs = []) {
       result.diffBytes,
       [...result.stagedChangeMetadata.keys()],
       currentUnstagedPathSet,
-      result.review.executionMeta
+      {
+        ...result.review.executionMeta,
+        policySource: result.options.policySource,
+        policyFingerprint: result.options.policyFingerprint
+      }
     );
     reviewSnapshotsByRepo.set(normalizeFsPath(repoRoot), result.snapshot);
+    const receipt = createReviewReceipt(result.review, reviewInputMeta);
+    try {
+      await persistReviewReceipt(repoRoot, receipt);
+    } catch (error) {
+      log(`review receipt persistence unavailable: code=${error?.code || error?.name || 'ERROR'}`);
+    }
     renderOutput(repoRoot, result.review, result.options, publishMeta, reviewInputMeta);
 
     const visibleFindings = result.review.findings.filter(
@@ -2035,7 +2208,7 @@ async function reviewStaged(commandArgs = []) {
     const hiddenFindings = result.review.findings.length - visibleFindings;
 
     if (result.review.verdict === 'pass') {
-      vscode.window.showInformationMessage(t('Codex Review Safe: no substantive issues found.'));
+      vscode.window.showInformationMessage(t('Codex Review Safe: no substantive diff issues found; delivery readiness still needs independent evidence.'));
     } else {
       const rejectedCount = result.review.rejectedFindings?.length || 0;
       const allRejected =
@@ -2072,11 +2245,19 @@ async function reviewStaged(commandArgs = []) {
   }
 }
 
-function clearReview() {
+async function clearReview() {
   diagnosticCollection.clear();
   diagnosticUrisByRepo.clear();
   reviewSnapshotsByRepo.clear();
   reportsByRepo.clear();
+  reviewReceiptsByRepo.clear();
+  if (extensionContext?.globalState) {
+    try {
+      await extensionContext.globalState.update(RECEIPT_STORAGE_KEY, undefined);
+    } catch (error) {
+      log(`review receipt cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`);
+    }
+  }
   for (const timer of gitInvalidationTimers.values()) clearTimeout(timer);
   gitInvalidationTimers.clear();
   for (const disposable of fileWatcherSubscriptions) { try { disposable.dispose(); } catch {} }
@@ -2097,6 +2278,7 @@ async function checkEnvironment() {
   const headOid = await getHeadOid(repoRoot);
   const options = await getEffectiveOptions(repoRoot, headOid);
   const resolved = await resolveCodexExecutable(options.codexPath);
+  await probeCodexCapabilities(resolved, options.model);
   const { stdout: gitVersion } = await runProcess(
     'git',
     ['--version'],
@@ -2104,7 +2286,7 @@ async function checkEnvironment() {
   );
 
   vscode.window.showInformationMessage(
-    t('Codex Review Safe environment is ready: {0}; {1}', resolved.version || resolved.executable, gitVersion.trim())
+    t('Codex Review Safe environment is ready: {0}; {1}; required CLI capabilities OK', resolved.version || resolved.executable, gitVersion.trim())
   );
 }
 
@@ -2117,10 +2299,17 @@ function friendlyError(error) {
 }
 
 function activate(context) {
+  extensionContext = context;
   outputChannel = vscode.window.createOutputChannel('Codex Review Safe');
   diagnosticCollection = vscode.languages.createDiagnosticCollection('codex-review-safe');
 
   context.subscriptions.push(outputChannel, diagnosticCollection);
+  const storedReceipts = context.globalState?.get(RECEIPT_STORAGE_KEY, {}) || {};
+  for (const [repoKey, receipts] of Object.entries(storedReceipts)) {
+    if (!Array.isArray(receipts)) continue;
+    const valid = receipts.map(validateReviewReceipt).filter(Boolean).slice(0, MAX_RECEIPTS_PER_REPO);
+    if (valid.length) reviewReceiptsByRepo.set(repoKey, valid);
+  }
   setupInvalidationWatchers(context);
 
   context.subscriptions.push(
@@ -2144,6 +2333,14 @@ function activate(context) {
       }
     })
   );
+
+  return {
+    contractVersion: 1,
+    getLatestReviewReceipt,
+    getReviewReceipts,
+    getReviewReceiptStatus,
+    getReviewEvidenceForRange
+  };
 }
 
 function deactivate() {
@@ -2155,6 +2352,8 @@ function deactivate() {
   diagnosticUrisByRepo.clear();
   reviewSnapshotsByRepo.clear();
   reportsByRepo.clear();
+  reviewReceiptsByRepo.clear();
+  extensionContext = undefined;
   for (const timer of gitInvalidationTimers.values()) clearTimeout(timer);
   gitInvalidationTimers.clear();
   for (const disposable of fileWatcherSubscriptions) { try { disposable.dispose(); } catch {} }
@@ -2174,6 +2373,7 @@ module.exports = {
     buildPrompt,
     buildCodexArgs,
     isCliCompatibilityError,
+    probeCodexCapabilities,
     resolveCodexExecutable,
     outputSchema,
     normalizeFinding,
@@ -2182,6 +2382,12 @@ module.exports = {
     computeVerdict,
     buildReviewReport,
     buildReviewInputMeta,
+    createReviewReceipt,
+    persistReviewReceipt,
+    getLatestReviewReceipt,
+    getReviewReceipts,
+    getReviewReceiptStatus,
+    getReviewEvidenceForRange,
     shortFingerprint,
     getStoredReportText,
     parseChangedLineRanges,
@@ -2190,6 +2396,7 @@ module.exports = {
     nearestChangedLine,
     normalizeGitPathForComparison,
     getUnmergedPaths,
+    getStagedDiff,
     readProjectRulesAtHead,
     getEffectiveOptions,
     snapshotsEqual,

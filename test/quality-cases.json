@@ -1,0 +1,20 @@
+[
+  {
+    "name": "no findings is not delivery readiness",
+    "value": { "summary": "未发现问题", "findings": [] },
+    "expectedQuality": "no_findings",
+    "expectedReadiness": "needs_evidence"
+  },
+  {
+    "name": "high finding blocks quality",
+    "value": { "summary": "存在高风险问题", "findings": [{ "severity": "high", "category": "correctness", "file": "src/a.c", "line": 1, "endLine": 1, "title": "越界", "description": "边界检查缺失。", "suggestion": "增加边界检查。", "confidence": 0.95 }] },
+    "expectedQuality": "blocked",
+    "expectedReadiness": "blocked"
+  },
+  {
+    "name": "invalid path remains needs attention",
+    "value": { "summary": "路径异常", "findings": [{ "severity": "medium", "category": "correctness", "file": "../outside.c", "line": 1, "endLine": 1, "title": "越界路径", "description": "路径不属于 staged 输入。", "suggestion": "忽略该 finding。", "confidence": 0.9 }] },
+    "expectedQuality": "findings_open",
+    "expectedReadiness": "needs_evidence"
+  }
+]

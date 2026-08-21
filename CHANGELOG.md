@@ -5,6 +5,10 @@
 - Added review-input fingerprints, staged input size, and Codex execution metadata to reports.
 - Added explicit reporting for staged files with newer unstaged overlays.
 - Strengthened the review prompt with an internal category-coverage and false-positive challenge pass.
+- Added cached Codex CLI capability probing to environment checks and actual reviews.
+- Split quality findings from delivery readiness and record explicit cannot-verify/mechanical-gate state.
+- Persist versioned, snapshot-bound review receipts and expose a read-only companion-extension API.
+- Added offline quality fixtures and the shared Codex Safe argv/compatibility contract.
 
 ## 1.0.1
 
