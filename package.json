@@ -185,6 +185,7 @@
     "verify:l10n": "node ./scripts/verify-l10n.js"
   },
   "devDependencies": {
+    "@vscode/test-cli": "0.0.15",
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "3.9.2"
   },
