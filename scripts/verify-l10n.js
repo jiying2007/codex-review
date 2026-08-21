@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 
 function load(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -55,19 +56,30 @@ if (pkg.l10n !== './l10n') {
   process.exit(5);
 }
 
-const extensionText = fs.readFileSync('extension.js', 'utf8');
-const runtimeReferenced = [...extensionText.matchAll(/\bt\(\s*'((?:\\.|[^'\\])*)'/g)]
-  .map(match => match[1]
-    .replace(/\\'/g, "'")
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\\\/g, '\\'));
-for (const key of runtimeReferenced) {
-  if (!(key in runtimeEn) || !(key in runtimeZh)) {
-    console.error(`extension.js references missing runtime l10n key: ${key}`);
-    process.exit(6);
+const runtimeSourceFiles = [
+  'extension.js',
+  ...fs.readdirSync('src')
+    .filter(name => name.endsWith('.js'))
+    .sort()
+    .map(name => path.join('src', name))
+];
+
+for (const sourceFile of runtimeSourceFiles) {
+  const sourceText = fs.readFileSync(sourceFile, 'utf8');
+  const runtimeReferenced = [...sourceText.matchAll(/\bt\(\s*'((?:\\.|[^'\\])*)'/g)]
+    .map(match => match[1]
+      .replace(/\\'/g, "'")
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\\\/g, '\\'));
+
+  for (const key of runtimeReferenced) {
+    if (!(key in runtimeEn) || !(key in runtimeZh)) {
+      console.error(`${sourceFile} references missing runtime l10n key: ${key}`);
+      process.exit(6);
+    }
   }
 }
 
-console.log('English/Simplified-Chinese localization bundles and runtime source references verified.');
+console.log('English/Simplified-Chinese localization bundles and runtime module source references verified.');
