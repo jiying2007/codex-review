@@ -173,6 +173,9 @@ jobs:
           for module in safe-contract i18n core process git policy review codex; do
             grep -Fx "extension/src/${module}.js" /tmp/vsix-files.txt
           done
+          grep -Fx 'extension/src/codex-safe-core/codex-cli.js' /tmp/vsix-files.txt
+          grep -Fx 'extension/src/codex-safe-core/safe-contract.js' /tmp/vsix-files.txt
+          grep -Fx 'extension/src/codex-safe-core/manifest.json' /tmp/vsix-files.txt
           if grep -E '^extension/(test|scripts|package-lock\.json|PUBLISHING\.md|CONTRIBUTING\.md|\.gitignore|\.gitattributes|\.github|\.vscode|\.vscode-test)' /tmp/vsix-files.txt; then
             echo 'VSIX contains development-only files' >&2
             exit 1

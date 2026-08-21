@@ -11,12 +11,13 @@ A release requires:
 - English/Simplified-Chinese manifest and runtime localization key parity passing via `npm run verify:l10n`;
 - every literal runtime `t('...')` source key referenced by `extension.js` or runtime `src/*.js` modules to exist in both runtime localization bundles;
 - unit/regression tests passing, including the Codex CLI argv contract (`--ask-for-approval never` before the `exec` subcommand);
+- Safe Core vendored-file integrity and canonical-upstream drift gates passing;
 - latest VS Code Extension Host tests passing on Linux, Windows, and macOS;
 - minimum supported VS Code `1.90.0` Extension Host test passing on Ubuntu;
 - Simplified-Chinese localization smoke passing inside an Ubuntu Extension Host, validating the shipped zh-CN runtime bundle and critical report/error translations;
 - isolated trusted and Restricted Mode Extension Test Hosts proving the expected `vscode.workspace.isTrusted` states, plus static enforcement that protected command handlers enter through `assertTrustedWorkspace()` before Git/Codex work;
 - official `@vscode/vsce` packaging;
-- VSIX content verification, including all runtime `src` modules and exclusion of development/test files;
+- VSIX content verification, including all local runtime modules, all vendored Safe Core runtime files, and exclusion of development/test files;
 - SHA-256 generation.
 
 Validation jobs use read-only repository permissions. Only the final package/publish job receives `contents: write`.
@@ -77,8 +78,11 @@ The release gate requires these user-facing/runtime files inside the VSIX:
 - `src/policy.js`
 - `src/review.js`
 - `src/codex.js`
+- `src/codex-safe-core/codex-cli.js`
+- `src/codex-safe-core/safe-contract.js`
+- `src/codex-safe-core/manifest.json`
 
-The NLS files localize extension metadata, commands, and configuration. The `l10n` bundles localize runtime progress, notifications, reports, environment checks, and errors.
+The NLS files localize extension metadata, commands, and configuration. The `l10n` bundles localize runtime progress, notifications, reports, environment checks, and errors. The vendored Safe Core files are runtime dependencies and are separately hash-locked by `safe-core.lock.json` / `src/codex-safe-core/manifest.json`; the lock itself remains development/repository metadata and is not shipped in the VSIX.
 
 Development-only content such as tests, scripts, lockfiles, repository metadata, contribution guidance, and publishing documentation must not be included in the VSIX.
 
