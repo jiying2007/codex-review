@@ -8,50 +8,31 @@ const { t } = require('./src/i18n');
 const {
   PROJECT_RULES_FILE,
   normalizeFsPath,
-  normalizeGitPathForComparison,
-  clampNumber,
-  validateExtraInstructions,
-  getUserOnlySetting
+  normalizeGitPathForComparison
 } = require('./src/core');
+const { runProcess } = require('./src/process');
 const {
-  prepareCommand,
-  runProcess
-} = require('./src/process');
-const {
-  git,
   getGitApi,
   getRepositories,
   chooseRepository,
   getStagedDiff,
-  getIndexFingerprint,
   getHeadOid,
   getRepositorySnapshot,
   snapshotsEqual,
   getDirtyOpenPathSet,
-  parseNameStatusZ,
   getStagedChangeMetadata,
   getBinaryPathSet,
   getSubmodulePathSet,
   getUnmergedPaths,
   getUnstagedPathSet
 } = require('./src/git');
+const { getEffectiveOptions } = require('./src/policy');
 const {
-  readProjectRulesAtHead,
-  getEffectiveOptions
-} = require('./src/policy');
-const {
-  computeVerdict,
   parseChangedLineRanges,
   lineInChangedRanges,
   nearestChangedLine,
-  outputSchema,
-  buildPrompt,
-  parseCodexJsonl,
-  normalizeFinding,
-  validateReviewResult,
   buildReviewInputMeta,
   createReviewReceipt,
-  shortFingerprint,
   severityPasses
 } = require('./src/review');
 const { buildReviewReport } = require('./src/report');
@@ -59,7 +40,6 @@ const { createReviewReceiptStore } = require('./src/receipts');
 const {
   resolveCodexExecutable,
   probeCodexCapabilities,
-  buildCodexArgs,
   runCodexReview,
   isCliCompatibilityError
 } = require('./src/codex');
