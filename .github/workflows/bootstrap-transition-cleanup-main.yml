@@ -1,0 +1,147 @@
+name: Bootstrap transition cleanup branch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bootstrap-transition-cleanup-main.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refactor/remove-transition-residue
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Remove compatibility transition surfaces
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, name):
+              if old not in text:
+                  raise SystemExit(f'missing expected block: {name}')
+              return text.replace(old, new, 1)
+
+          p = Path('extension.js')
+          text = p.read_text()
+          text = replace_once(text, "const {\n  REVIEW_RECEIPT_SCHEMA_VERSION,\n  validateReviewReceipt\n} = require('./src/safe-contract');\n", '', 'legacy safe-contract import')
+          text = replace_once(text, "} = require('./src/review');\nconst {\n  resolveCodexExecutable,", "} = require('./src/review');\nconst { buildReviewReport } = require('./src/report');\nconst { createReviewReceiptStore } = require('./src/receipts');\nconst {\n  resolveCodexExecutable,", 'report/receipt imports')
+          text = replace_once(text, "const reviewReceiptsByRepo = new Map();\nlet extensionContext;\nlet nextReviewId = 1;\nconst RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v1';\nconst MAX_RECEIPTS_PER_REPO = 50;\n", "let reviewReceiptStore;\nlet nextReviewId = 1;\n", 'receipt state')
+          start = text.index('async function persistReviewReceipt')
+          end = text.index('function severityToDiagnostic', start)
+          text = text[:start] + text[end:]
+          start = text.index('function buildReviewReport')
+          end = text.index('function renderOutput', start)
+          text = text[:start] + text[end:]
+          start = text.index('function getStoredReportText')
+          end = text.index('function beginReview', start)
+          text = text[:start] + text[end:]
+          text = replace_once(text, "  reviewReceiptsByRepo.clear();\n  if (extensionContext?.globalState) {\n    try {\n      await extensionContext.globalState.update(RECEIPT_STORAGE_KEY, undefined);\n    } catch (error) {\n      log(`review receipt cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`);\n    }\n  }\n", "  try {\n    await reviewReceiptStore?.clear();\n  } catch (error) {\n    log(`review receipt cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`);\n  }\n", 'clear receipt state')
+          text = replace_once(text, '      await persistReviewReceipt(repoRoot, receipt);', '      await reviewReceiptStore.persist(repoRoot, receipt);', 'persist receipt')
+          text = replace_once(text, "function activate(context) {\n  extensionContext = context;\n", "function activate(context) {\n  reviewReceiptStore = createReviewReceiptStore(context.globalState);\n  reviewReceiptStore.restore();\n", 'activate receipt store')
+          start = text.index('  const storedReceipts = context.globalState?.get(')
+          end = text.index('  setupInvalidationWatchers(context);', start)
+          text = text[:start] + text[end:]
+          text = replace_once(text, "    getLatestReviewReceipt,\n    getReviewReceipts,\n    getReviewReceiptStatus,\n    getReviewEvidenceForRange\n", "    getLatestReviewReceipt: repoRoot => reviewReceiptStore.getLatest(repoRoot),\n    getReviewReceipts: repoRoot => reviewReceiptStore.getReceipts(repoRoot),\n    getReviewReceiptStatus: (repoRoot, snapshot) => reviewReceiptStore.getStatus(repoRoot, snapshot),\n    getReviewEvidenceForRange: (repoRoot, baseRef, headRef = 'HEAD', token) =>\n      reviewReceiptStore.getEvidenceForRange(repoRoot, baseRef, headRef, token)\n", 'public receipt api')
+          text = replace_once(text, "  reviewReceiptsByRepo.clear();\n  extensionContext = undefined;\n", "  reviewReceiptStore?.resetMemory();\n  reviewReceiptStore = undefined;\n", 'deactivate receipt store')
+          export_start = text.index('\nmodule.exports = {')
+          text = text[:export_start] + "\nmodule.exports = { activate, deactivate };\n"
+          p.write_text(text)
+
+          for path in ['src/review.js', 'src/codex.js']:
+              p = Path(path)
+              text = replace_once(p.read_text(), "require('./safe-contract')", "require('./codex-safe-core/safe-contract')", f'{path} canonical safe-contract import')
+              p.write_text(text)
+
+          p = Path('test.js')
+          text = replace_once(p.read_text(), "const { __test } = require('./extension.js');\n", "const { createReviewReceiptStore } = require('./src/receipts');\nconst receiptStore = createReviewReceiptStore();\nconst unit = {\n  ...require('./src/core'),\n  ...require('./src/process'),\n  ...require('./src/git'),\n  ...require('./src/policy'),\n  ...require('./src/review'),\n  ...require('./src/report'),\n  ...require('./src/codex'),\n  persistReviewReceipt: receiptStore.persist,\n  getReviewEvidenceForRange: receiptStore.getEvidenceForRange\n};\n", 'test direct module imports')
+          p.write_text(text.replace('__test.', 'unit.'))
+
+          p = Path('package.json')
+          text = replace_once(p.read_text(), 'node --check src/review.js && node --check src/codex.js && node --check src/safe-contract.js', 'node --check src/review.js && node --check src/report.js && node --check src/receipts.js && node --check src/codex.js', 'package check modules')
+          p.write_text(text)
+
+          for path in ['.github/workflows/ci.yml', '.github/workflows/release.yml']:
+              p = Path(path)
+              p.write_text(p.read_text().replace('for module in safe-contract i18n core process git policy review codex; do', 'for module in i18n core process git policy review report receipts codex; do'))
+
+          p = Path('PUBLISHING.md')
+          text = replace_once(p.read_text(), '- `src/safe-contract.js`\n- `src/i18n.js`\n', '- `src/i18n.js`\n', 'remove shim from package docs')
+          text = replace_once(text, '- `src/review.js`\n- `src/codex.js`\n', '- `src/review.js`\n- `src/report.js`\n- `src/receipts.js`\n- `src/codex.js`\n', 'document runtime modules')
+          p.write_text(text)
+
+          p = Path('CHANGELOG.md')
+          p.write_text(replace_once(p.read_text(), '## Unreleased\n\n', '## Unreleased\n\n- Remove the transitional `extension.__test` surface and the legacy `src/safe-contract.js` path shim; tests now consume the production modules directly.\n- Split report rendering and review-receipt storage/evidence into first-class runtime modules.\n', 'changelog cleanup entry'))
+
+          Path('src/safe-contract.js').unlink()
+          PY
+
+          cat > scripts/verify-module-boundaries.js <<'EOF'
+          'use strict';
+
+          const assert = require('assert');
+          const fs = require('fs');
+
+          const extension = fs.readFileSync('extension.js', 'utf8');
+          const processModule = fs.readFileSync('src/process.js', 'utf8');
+          const reviewModule = fs.readFileSync('src/review.js', 'utf8');
+          const codexModule = fs.readFileSync('src/codex.js', 'utf8');
+
+          for (const modulePath of [
+            './src/i18n', './src/core', './src/process', './src/git', './src/policy',
+            './src/review', './src/report', './src/receipts', './src/codex'
+          ]) {
+            assert.match(extension, new RegExp(`require\\(['\"]${modulePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['\"]\\)`), `extension.js must import ${modulePath}`);
+          }
+
+          assert.strictEqual(fs.existsSync('src/safe-contract.js'), false, 'legacy src/safe-contract.js shim must not return');
+          assert.doesNotMatch(extension, /\b__test\b/, 'extension.js must not expose a transitional private test surface');
+          assert.doesNotMatch(extension, /require\(['\"]child_process['\"]\)/, 'extension.js must not own subprocess execution');
+          assert.doesNotMatch(extension, /require\(['\"]os['\"]\)/, 'extension.js must not own temporary-directory execution');
+          assert.match(processModule, /require\(['\"]child_process['\"]\)/, 'src/process.js must own subprocess execution');
+          assert.match(reviewModule, /require\(['\"]\.\/codex-safe-core\/safe-contract['\"]\)/, 'src/review.js must import the canonical Safe Core contract directly');
+          assert.match(codexModule, /require\(['\"]\.\/codex-safe-core\/safe-contract['\"]\)/, 'src/codex.js must import the canonical Safe Core contract directly');
+
+          for (const functionName of [
+            'runProcess', 'runProcessBuffer', 'getStagedDiff', 'readProjectRulesAtHead',
+            'getEffectiveOptions', 'outputSchema', 'buildPrompt', 'parseCodexJsonl',
+            'validateReviewResult', 'buildReviewReport', 'createReviewReceiptStore',
+            'resolveCodexExecutable', 'probeCodexCapabilities', 'runCodexReview'
+          ]) {
+            assert.doesNotMatch(extension, new RegExp(`(?:async\\s+)?function\\s+${functionName}\\s*\\(`), `${functionName} must stay outside extension.js`);
+          }
+
+          console.log('Runtime module boundaries verified without transition shims.');
+          EOF
+
+          node --check extension.js
+          node --check test.js
+          node --check src/report.js
+          node --check src/receipts.js
+          node --check scripts/verify-module-boundaries.js
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check
+          git diff --check
+      - name: Commit cleanup branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -- .github/workflows/bootstrap-remove-transition-residue.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- extension.js test.js package.json CHANGELOG.md PUBLISHING.md scripts/verify-module-boundaries.js src/review.js src/codex.js src/report.js src/receipts.js src/safe-contract.js .github/workflows/ci.yml .github/workflows/release.yml
+          git diff --cached --check
+          git commit -m 'refactor: remove transition compatibility surfaces'
+          git push origin HEAD:refactor/remove-transition-residue
