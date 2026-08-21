@@ -1,6 +1,7 @@
 .git/**
 .github/**
 .vscode/**
+.vscode-test.js
 node_modules/**
 *.vsix
 *.zip
