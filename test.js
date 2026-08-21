@@ -36,6 +36,8 @@ const pkg = require('./package.json');
 
   const englishPrompt=__test.buildPrompt({language:'en',extraInstructions:''},['src/a.c']);
   assert.match(englishPrompt,/You are a strict code reviewer/);
+  assert.match(englishPrompt,/do not stop after finding the first issue/);
+  assert.match(englishPrompt,/remove duplicates or findings that depend on unseen contracts/);
   assert.match(englishPrompt,/Write summary, title, description, and suggestion in English/);
   assert.doesNotMatch(englishPrompt,/你是严格的代码审查器/);
 
@@ -79,9 +81,22 @@ const pkg = require('./package.json');
 
   const reportFinding={severity:'medium',category:'correctness',file:'src/a.c',line:10,endLine:10,title:'边界判断错误',description:'条件会漏掉零值。',suggestion:'显式处理零值。',confidence:0.9};
   const reportMeta=new Map([[reportFinding,{published:true,mappedLine:10,reason:'exact'}]]);
-  const rendered=__test.buildReviewReport({summary:'存在一个边界问题',verdict:'needs_attention',findings:[reportFinding],rejectedFindings:[],modelFindingCount:1},{severityThreshold:'low',policySource:'head-policy'},reportMeta);
+  const inputMeta=__test.buildReviewInputMeta(
+    {headOid:'1234567890abcdef',indexFingerprint:'abcdef1234567890'},
+    'fedcba0987654321',
+    321,
+    ['src/a.c','src/b.c'],
+    new Set(['src/a.c']),
+    {model:'gpt-test',codexVersion:'codex-cli 9.9.9'}
+  );
+  assert.deepStrictEqual(inputMeta.unstagedOverlayPaths,['src/a.c']);
+  assert.strictEqual(__test.shortFingerprint(inputMeta.headOid),'1234567890ab');
+  const rendered=__test.buildReviewReport({summary:'存在一个边界问题',verdict:'needs_attention',findings:[reportFinding],rejectedFindings:[],modelFindingCount:1},{severityThreshold:'low',policySource:'head-policy'},reportMeta,inputMeta);
   assert.match(rendered,/Verdict: needs_attention/);
   assert.match(rendered,/Review policy: head-policy/);
+  assert.match(rendered,/Review input: HEAD 1234567890ab, index abcdef123456, diff fedcba098765, 2 staged files, 321 bytes/);
+  assert.match(rendered,/Review execution: model gpt-test, Codex CLI codex-cli 9.9.9/);
+  assert.match(rendered,/Working tree notice: 1 staged files also have unstaged changes/);
   assert.match(rendered,/\[MEDIUM\].*src\/a\.c:10/);
   assert.match(rendered,/Problems: published at src\/a\.c:10/);
 

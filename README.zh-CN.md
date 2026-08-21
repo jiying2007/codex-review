@@ -17,6 +17,8 @@
 - Problems 保守发布：只有能安全映射到当前 working tree 的问题才发布 inline Diagnostic
 - 使用 HEAD + raw Git index snapshot 防止 stale result 和 TOCTOU
 - `.codex-review.json` 固定读取捕获到的 HEAD，因此 staged 规则修改不能降低对自身的审查
+- 报告展示精确 HEAD、raw index、staged diff 指纹以及 Codex 执行元数据
+- staged 文件同时存在更新的 unstaged 修改时，明确提示这些最新修改尚未被审查
 - dirty editor、unstaged changes、删除文件、binary、submodule、symlink 越界、纯 rename/copy、无法安全定位的行号全部 fail-safe 为 report-only
 - Windows `.exe` / `.cmd` / `.bat`、Linux、macOS 均由 CI 覆盖
 - 永远不会自动修改源码、Commit、Push 或创建 PR
@@ -127,6 +129,8 @@ Ctrl+Shift+P → Codex Review Safe: 检查 Codex 环境
 4. 能安全定位的问题会出现在 **Problems**。
 5. 使用 **Codex Review Safe: 显示审查报告** 查看完整报告，包括 report-only 问题和原因。
 6. 修复问题、重新 Stage，再重新 Review，最后手动 Commit。
+
+报告只描述 staged 快照。如果已暂存文件同时还有未暂存修改，报告会列出该 overlay，并明确最新 working-tree 版本尚未被审查。重新 Review 前应先 Stage 准备提交的修复。
 
 ## 项目配置
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added review-input fingerprints, staged input size, and Codex execution metadata to reports.
+- Added explicit reporting for staged files with newer unstaged overlays.
+- Strengthened the review prompt with an internal category-coverage and false-positive challenge pass.
+
 ## 1.0.1
 
 - Fixed current Codex CLI compatibility by placing the global approval policy before the `exec` subcommand.

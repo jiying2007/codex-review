@@ -1123,6 +1123,12 @@ function buildPrompt(options, stagedPaths) {
     '4. robustness/performance/API: crash risks, clear performance regressions, and compatibility breaks.',
     '5. test/maintainability: report only concrete, actionable issues that materially affect long-term quality.',
     '',
+    'Coverage procedure (perform internally before producing the JSON result):',
+    '1. Identify every changed behavior and the invariants it can affect.',
+    '2. Scan all review priority categories; do not stop after finding the first issue.',
+    '3. Challenge each candidate finding against the visible diff and remove duplicates or findings that depend on unseen contracts.',
+    '4. Return the consolidated findings ordered by severity and confidence.',
+    '',
     'Rules:',
     '- Report only issues introduced or exposed by this diff and reasonably supported by evidence in the diff.',
     '- Do not report pure style, naming, or formatting nitpicks.',
@@ -1440,8 +1446,35 @@ async function runCodexReview(diff, stagedPaths, options, token) {
       throw new Error(t('Codex final agent_message is not JSON matching the output schema.'));
     }
 
-    return validateReviewResult(parsed, options, stagedPaths);
+    const review = validateReviewResult(parsed, options, stagedPaths);
+    review.executionMeta = {
+      codexVersion: resolved.version || 'unknown',
+      model: options.model || 'cli-default'
+    };
+    return review;
   });
+}
+
+function buildReviewInputMeta(snapshot, diffFingerprint, diffBytes, stagedPaths, unstagedPathSet, executionMeta = {}) {
+  const overlays = stagedPaths.filter(file =>
+    unstagedPathSet?.has(normalizeGitPathForComparison(file))
+  );
+
+  return {
+    headOid: snapshot?.headOid || '<unknown>',
+    indexFingerprint: snapshot?.indexFingerprint || '<unknown>',
+    diffFingerprint: diffFingerprint || '<unknown>',
+    diffBytes: Number(diffBytes) || 0,
+    stagedFileCount: stagedPaths.length,
+    unstagedOverlayPaths: overlays,
+    codexVersion: executionMeta.codexVersion || 'unknown',
+    model: executionMeta.model || 'cli-default'
+  };
+}
+
+function shortFingerprint(value) {
+  const text = String(value || '<unknown>');
+  return text.startsWith('<') ? text : text.slice(0, 12);
 }
 
 function severityToDiagnostic(severity) {
@@ -1682,7 +1715,7 @@ async function publishDiagnostics(
   return publishMeta;
 }
 
-function buildReviewReport(review, options, publishMeta) {
+function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   const visibleFindings = review.findings.filter(
     f => severityPasses(f.severity, options.severityThreshold)
   );
@@ -1692,6 +1725,32 @@ function buildReviewReport(review, options, publishMeta) {
   lines.push(t('Verdict: {0}', review.verdict));
   lines.push(t('Summary: {0}', review.summary || t('None')));
   lines.push(t('Review policy: {0}', options.policySource));
+  lines.push(
+    t(
+      'Review input: HEAD {0}, index {1}, diff {2}, {3} staged files, {4} bytes',
+      shortFingerprint(reviewInputMeta.headOid),
+      shortFingerprint(reviewInputMeta.indexFingerprint),
+      shortFingerprint(reviewInputMeta.diffFingerprint),
+      reviewInputMeta.stagedFileCount ?? 0,
+      reviewInputMeta.diffBytes ?? 0
+    )
+  );
+  lines.push(
+    t(
+      'Review execution: model {0}, Codex CLI {1}',
+      reviewInputMeta.model || 'cli-default',
+      reviewInputMeta.codexVersion || 'unknown'
+    )
+  );
+  if (reviewInputMeta.unstagedOverlayPaths?.length) {
+    lines.push(
+      t(
+        'Working tree notice: {0} staged files also have unstaged changes; those latest edits were not reviewed: {1}',
+        reviewInputMeta.unstagedOverlayPaths.length,
+        reviewInputMeta.unstagedOverlayPaths.slice(0, 10).join(', ')
+      )
+    );
+  }
   if (review.policyNotice) lines.push(t('Policy notice: {0}', review.policyNotice));
   lines.push(
     t(
@@ -1758,11 +1817,11 @@ function buildReviewReport(review, options, publishMeta) {
   return lines.join('\n');
 }
 
-function renderOutput(repoRoot, review, options, publishMeta) {
+function renderOutput(repoRoot, review, options, publishMeta, reviewInputMeta) {
   const repoKey = normalizeFsPath(repoRoot);
   reportsByRepo.set(repoKey, {
     repoLabel: path.basename(repoRoot),
-    text: buildReviewReport(review, options, publishMeta),
+    text: buildReviewReport(review, options, publishMeta, reviewInputMeta),
     stale: false
   });
   refreshOutputChannel();
@@ -1890,6 +1949,7 @@ async function reviewStaged(commandArgs = []) {
           }
 
           const changedLineRanges = parseChangedLineRanges(diff);
+          const diffFingerprint = crypto.createHash('sha256').update(diff, 'utf8').digest('hex');
 
           log(`input prepared: files=${stagedPaths.length}, diffBytes=${diffBytes}`);
           const review = await runCodexReview(diff, stagedPaths, options, token);
@@ -1901,6 +1961,8 @@ async function reviewStaged(commandArgs = []) {
             binaryPathSet,
             submodulePathSet,
             stagedPolicyChange,
+            diffFingerprint,
+            diffBytes,
             options
           };
         } finally {
@@ -1955,8 +2017,16 @@ async function reviewStaged(commandArgs = []) {
     if (result.stagedPolicyChange) {
       result.review.policyNotice = t('{0} is modified in the staged changes. This review still uses the policy from HEAD; the new policy takes effect after commit.', PROJECT_RULES_FILE);
     }
+    const reviewInputMeta = buildReviewInputMeta(
+      result.snapshot,
+      result.diffFingerprint,
+      result.diffBytes,
+      [...result.stagedChangeMetadata.keys()],
+      currentUnstagedPathSet,
+      result.review.executionMeta
+    );
     reviewSnapshotsByRepo.set(normalizeFsPath(repoRoot), result.snapshot);
-    renderOutput(repoRoot, result.review, result.options, publishMeta);
+    renderOutput(repoRoot, result.review, result.options, publishMeta, reviewInputMeta);
 
     const visibleFindings = result.review.findings.filter(
       f => severityPasses(f.severity, result.options.severityThreshold)
@@ -2111,6 +2181,8 @@ module.exports = {
     severityPasses,
     computeVerdict,
     buildReviewReport,
+    buildReviewInputMeta,
+    shortFingerprint,
     getStoredReportText,
     parseChangedLineRanges,
     parseNameStatusZ,

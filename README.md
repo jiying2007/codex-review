@@ -17,6 +17,8 @@ Review safe, structured findings from **staged Git changes only** in VS Code usi
 - Conservative Problems publishing: only safely mappable findings become inline diagnostics
 - HEAD + raw Git index snapshot protection against stale results and TOCTOU races
 - HEAD-pinned `.codex-review.json` policy, so a staged policy change cannot weaken its own review
+- Review reports identify the exact HEAD, raw-index, and staged-diff fingerprints plus Codex execution metadata
+- Explicit working-tree notice when staged files also contain newer unstaged edits that were not reviewed
 - Dirty editors, unstaged changes, deleted/binary/submodule files, symlink escapes, pure rename/copy changes, and unsafe line mappings fall back to report-only
 - Windows `.exe` / `.cmd` / `.bat`, Linux, and macOS execution paths covered by CI
 - Never automatically modifies source files, commits, pushes, or opens pull requests
@@ -127,6 +129,8 @@ Ctrl+Shift+P → Codex Review Safe: Check Codex Environment
 4. Safely locatable findings appear in **Problems**.
 5. Open **Codex Review Safe: Show Review Report** for the complete report, including report-only findings and reasons.
 6. Fix issues, stage again, rerun the review, and commit manually.
+
+The report describes the staged snapshot only. If a staged file also has unstaged edits, the report lists that overlay and makes clear that the latest working-tree version was not reviewed. Stage the intended fix before rerunning Review.
 
 ## Project configuration
 

@@ -36,6 +36,8 @@ A review must describe the exact staged state that was analyzed. The extension s
 
 The snapshot is checked before and after input collection, after Codex returns, and again after inline diagnostics are published. Any mismatch fails safe and stale Problems are removed.
 
+Reports expose shortened HEAD, raw-index, and staged-diff fingerprints, staged input size, and Codex execution metadata so users can distinguish model variance from input changes. These identifiers contain no source content. If a staged path also has unstaged edits, the report warns that the newer working-tree version was outside the reviewed snapshot.
+
 Unresolved merge conflicts stop review before Codex is called. A newer request also supersedes any older in-flight review for the same repository.
 
 ## Diagnostic safety
