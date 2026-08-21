@@ -1,11 +1,17 @@
 'use strict';
 
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { defineConfig } = require('@vscode/test-cli');
 
 const root = __dirname;
 const runId = `${process.pid}-${Date.now()}`;
+const untrustedWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-untrusted-workspace-'));
+fs.writeFileSync(path.join(untrustedWorkspace, 'README.md'), '# Untrusted Workspace Trust fixture\n');
+process.on('exit', () => {
+  try { fs.rmSync(untrustedWorkspace, { recursive: true, force: true }); } catch {}
+});
 
 function userData(name) {
   return path.join(os.tmpdir(), `codex-review-safe-${name}-${runId}`);
@@ -34,7 +40,7 @@ module.exports = defineConfig([
     label: 'workspace-trust-untrusted',
     files: 'test/trust/**/*.test.js',
     extensionDevelopmentPath: root,
-    workspaceFolder: path.join(root, 'test', 'trust', 'untrusted-workspace'),
+    workspaceFolder: untrustedWorkspace,
     launchArgs: [
       '--disable-extensions',
       '--user-data-dir',
