@@ -3,7 +3,7 @@
 const {
   REVIEW_RECEIPT_SCHEMA_VERSION,
   validateReviewReceipt
-} = require('./safe-contract');
+} = require('./codex-safe-core/safe-contract');
 const {
   SEVERITY_ORDER,
   normalizeGitPathForComparison

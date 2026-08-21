@@ -1,7 +1,7 @@
 'use strict';
 
 const { runProcess } = require('./process');
-const { isCliCompatibilityError } = require('./safe-contract');
+const { isCliCompatibilityError } = require('./codex-safe-core/safe-contract');
 const { createCodexCli } = require('./codex-safe-core/codex-cli');
 const { outputSchema, buildPrompt, validateReviewResult } = require('./review');
 

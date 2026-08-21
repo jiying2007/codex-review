@@ -70,13 +70,14 @@ The release gate requires these user-facing/runtime files inside the VSIX:
 - `l10n/bundle.l10n.zh-cn.json`
 - `README.zh-CN.md`
 - `images/icon.png`
-- `src/safe-contract.js`
 - `src/i18n.js`
 - `src/core.js`
 - `src/process.js`
 - `src/git.js`
 - `src/policy.js`
 - `src/review.js`
+- `src/report.js`
+- `src/receipts.js`
 - `src/codex.js`
 - `src/codex-safe-core/codex-cli.js`
 - `src/codex-safe-core/safe-contract.js`
