@@ -174,15 +174,16 @@
   "scripts": {
     "check": "node --check extension.js && node --check src/safe-contract.js && node --check scripts/release.js && node scripts/release.test.js && npm run verify:l10n && node test.js",
     "test:unit": "node test.js",
-    "test:integration": "node ./test/integration/runTest.js",
+    "test:integration:trusted": "node ./test/integration/runTest.js",
     "test:integration:untrusted": "node ./test/integration/runUntrustedTest.js",
+    "test:integration": "npm run test:integration:trusted && npm run test:integration:untrusted",
     "test": "npm run test:unit",
     "package": "vsce package --no-dependencies",
     "verify:lock": "node ./scripts/verify-lock.js",
     "release:prepare": "node ./scripts/release.js prepare",
     "release:check": "node ./scripts/release.js check",
     "release:push": "node ./scripts/release.js push",
-    "ci": "npm run verify:lock && npm ci --ignore-scripts --no-audit --no-fund && npm run check && npm run test:integration && npm run test:integration:untrusted && npm run package",
+    "ci": "npm run verify:lock && npm ci --ignore-scripts --no-audit --no-fund && npm run check && npm run test:integration && npm run package",
     "verify:l10n": "node ./scripts/verify-l10n.js"
   },
   "devDependencies": {
