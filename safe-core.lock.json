@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "safeCoreVersion": 1,
+  "source": {
+    "repository": "jiying2007/codex-commit",
+    "ref": "safe-core-v1",
+    "path": "src/codex-safe-core"
+  },
+  "manifestSha256": "293e07ebcf10eca841973a055e34c877526ed8120b3494a3d2926275e95b9f12",
+  "files": {
+    "safe-contract.js": "35179be24e5ad9dc898d8de8b4f6cdbd0cbe603664a29230b96d90f303457c28",
+    "codex-cli.js": "843bf1a29d499b920ff7da79c17b2c44f05bc27235990509483566c97f4d27bd"
+  }
+}
