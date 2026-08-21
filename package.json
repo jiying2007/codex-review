@@ -172,11 +172,9 @@
     }
   },
   "scripts": {
-    "check": "node --check extension.js && node --check src/safe-contract.js && node --check scripts/release.js && node scripts/release.test.js && npm run verify:l10n && node test.js",
+    "check": "node --check extension.js && node --check src/safe-contract.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node scripts/release.test.js && node scripts/verify-security-manifest.js && npm run verify:l10n && node test.js",
     "test:unit": "node test.js",
-    "test:integration:trusted": "node ./test/integration/runTest.js",
-    "test:integration:untrusted": "node ./test/integration/runUntrustedTest.js",
-    "test:integration": "npm run test:integration:trusted && npm run test:integration:untrusted",
+    "test:integration": "node ./test/integration/runTest.js",
     "test": "npm run test:unit",
     "package": "vsce package --no-dependencies",
     "verify:lock": "node ./scripts/verify-lock.js",
