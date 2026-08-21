@@ -3,7 +3,7 @@
   "safeCoreVersion": 1,
   "source": {
     "repository": "jiying2007/codex-commit",
-    "ref": "safe-core-v1",
+    "ref": "main",
     "path": "src/codex-safe-core"
   },
   "files": {
