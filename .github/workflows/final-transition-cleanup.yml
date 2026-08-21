@@ -1,0 +1,71 @@
+name: Final Transition Cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: final-transition-cleanup-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node scripts/final-transition-cleanup.js
+      - name: Verify final product tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e src/safe-contract.js
+          ! grep -R --line-number --fixed-strings 'src/safe-contract' extension.js src test scripts package.json .github/workflows/ci.yml .github/workflows/release.yml PUBLISHING.md
+          ! grep -R --line-number --fixed-strings "require('./safe-contract')" src test scripts
+          ! grep -R --line-number --fixed-strings 'safe-core-v1' src/codex-safe-core safe-core.lock.json
+          node scripts/safe-core.js verify
+          npm run check
+          npm run test:integration
+          npm run test:trust
+          npm run package
+      - name: Remove one-time cleanup machinery
+        run: rm -f scripts/final-transition-cleanup.js .github/workflows/final-transition-cleanup.yml .github/workflows/bootstrap-transition-cleanup-main.yml
+      - name: Commit terminal tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- extension.js package.json PUBLISHING.md safe-core.lock.json src/codex.js src/review.js src/codex-safe-core/manifest.json src/safe-contract.js test.js test scripts/final-transition-cleanup.js .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/final-transition-cleanup.yml .github/workflows/bootstrap-transition-cleanup-main.yml
+          git diff --cached --check
+          git commit -m 'chore: remove compatibility transition residue'
+          git push origin HEAD:main
+      - name: Delete obsolete branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          for branch in \
+            codex/adopt-safe-core-v1 \
+            codex/remove-transition-residue \
+            cleanup/final-transition-removal \
+            feat/review-hardening-20260821 \
+            refactor/remove-transition-residue \
+            refactor/remove-transition-residue-2 \
+            refactor/split-review-modules \
+            test/package-safe-core-runtime \
+            test/workspace-trust-cli \
+            tmp-placeholder; do
+            git push origin --delete "$branch" || true
+          done
