@@ -23,6 +23,7 @@ Review safe, structured findings from **staged Git changes only** in VS Code usi
 - Versioned review receipts bound to HEAD/index/diff/policy fingerprints, exposed through a read-only companion-extension API
 - Dirty editors, unstaged changes, deleted/binary/submodule files, symlink escapes, pure rename/copy changes, and unsafe line mappings fall back to report-only
 - Windows `.exe` / `.cmd` / `.bat`, Linux, and macOS execution paths covered by CI
+- Restricted Mode behavior is covered by a dedicated Extension Host integration gate
 - Never automatically modifies source files, commits, pushes, or opens pull requests
 
 ## Language support
@@ -105,10 +106,10 @@ codex --version
 
 ## Installation
 
-Download the VSIX from a GitHub Release and install it:
+Download the VSIX from the matching GitHub Release and install it (replace `<version>` with the release version):
 
 ```bash
-code --install-extension codex-review-safe-1.0.1.vsix
+code --install-extension codex-review-safe-<version>.vsix
 ```
 
 Or in VS Code:
@@ -178,9 +179,9 @@ npm run test:integration
 npm run package
 ```
 
-CI validates latest VS Code on Linux/Windows/macOS, VS Code `1.90.0` minimum compatibility, a Simplified-Chinese localization smoke inside Extension Host, localization source/bundle parity, official VSIX contents, and SHA-256 generation.
+`npm run test:integration` runs both the normal trusted-workspace suite and the Restricted Mode suite. CI validates latest VS Code on Linux/Windows/macOS, VS Code `1.90.0` minimum compatibility, Restricted Mode behavior, a Simplified-Chinese localization smoke inside Extension Host, localization source/bundle parity, official VSIX contents, and SHA-256 generation.
 
-See [PUBLISHING.md](PUBLISHING.md) for release details.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations and [PUBLISHING.md](PUBLISHING.md) for release details.
 
 ## License
 
