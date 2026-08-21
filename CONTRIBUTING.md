@@ -14,7 +14,7 @@ npm run test:integration
 npm run package
 ```
 
-`npm run test:integration` covers both a normal trusted workspace and Restricted Mode.
+`npm run check` includes static regression checks for the Workspace Trust manifest, application-scoped safety settings, trusted menu guards, and runtime trust guards. A true trusted/untrusted Extension Host matrix is tracked separately because the current direct `@vscode/test-electron` runner does not reliably create Restricted Mode.
 
 ## Safety invariants
 
