@@ -23,7 +23,7 @@
 - 生成绑定 HEAD/index/diff/策略指纹的版本化审查凭据，并通过只读配套扩展 API 提供
 - dirty editor、unstaged changes、删除文件、binary、submodule、symlink 越界、纯 rename/copy、无法安全定位的行号全部 fail-safe 为 report-only
 - Windows `.exe` / `.cmd` / `.bat`、Linux、macOS 均由 CI 覆盖
-- Workspace Trust 声明、可信菜单条件、application-scoped 安全设置和运行时 trust guard 均有回归门禁
+- Workspace Trust 由真实 trusted / Restricted Mode Extension Host 门禁 + 命令入口首语句 trust guard 回归检查共同覆盖
 - 永远不会自动修改源码、Commit、Push 或创建 PR
 
 ## 中英文支持
@@ -176,10 +176,11 @@ npm run verify:lock
 npm ci --ignore-scripts --no-audit --no-fund
 npm run check
 npm run test:integration
+npm run test:trust
 npm run package
 ```
 
-`npm run check` 包含 Workspace Trust / security manifest 回归门禁。CI 会验证 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容、Extension Host 中的简体中文本地化 smoke、源码与双语 l10n key 一致性、官方 VSIX 内容和 SHA-256。真正的 trusted/untrusted Extension Host 双矩阵需要迁移到 trust-aware VS Code 测试运行器，已作为后续任务跟踪。
+`npm run test:trust` 会用隔离 profile 分别启动 trusted 与 Restricted Mode Extension Test Host，并断言真实的 `vscode.workspace.isTrusted` 状态。由于 Extension Development Host 对开发扩展的加载可能比正常安装场景更宽松，`npm run check` 会额外强制 `reviewStaged()` 和 `checkEnvironment()` 把 `assertTrustedWorkspace()` 保持为第一条可执行语句。CI 会把这套 trust 门禁与 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容、简体中文 Extension Host smoke、源码与双语 l10n key 一致性、官方 VSIX 内容及 SHA-256 一并验证。
 
 贡献约束见 [CONTRIBUTING.md](CONTRIBUTING.md)，发布流程见 [PUBLISHING.md](PUBLISHING.md)。
 

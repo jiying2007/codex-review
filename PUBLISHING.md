@@ -9,13 +9,14 @@ A release requires:
 - committed `package-lock.json`;
 - `npm run verify:lock` passing, including package name/version and dev-dependency parity;
 - English/Simplified-Chinese manifest and runtime localization key parity passing via `npm run verify:l10n`;
-- every literal runtime `t('...')` source key referenced by `extension.js` to exist in both runtime localization bundles;
+- every literal runtime `t('...')` source key referenced by `extension.js` or runtime `src/*.js` modules to exist in both runtime localization bundles;
 - unit/regression tests passing, including the Codex CLI argv contract (`--ask-for-approval never` before the `exec` subcommand);
 - latest VS Code Extension Host tests passing on Linux, Windows, and macOS;
 - minimum supported VS Code `1.90.0` Extension Host test passing on Ubuntu;
 - Simplified-Chinese localization smoke passing inside an Ubuntu Extension Host, validating the shipped zh-CN runtime bundle and critical report/error translations;
+- isolated trusted and Restricted Mode Extension Test Hosts proving the expected `vscode.workspace.isTrusted` states, plus static enforcement that protected command handlers enter through `assertTrustedWorkspace()` before Git/Codex work;
 - official `@vscode/vsce` packaging;
-- VSIX content verification;
+- VSIX content verification, including all runtime `src` modules and exclusion of development/test files;
 - SHA-256 generation.
 
 Validation jobs use read-only repository permissions. Only the final package/publish job receives `contents: write`.
@@ -60,7 +61,7 @@ Do not force-move release tags. A rerun safely reuses a tag only when it resolve
 
 ## Package contents
 
-The release gate requires these user-facing files inside the VSIX:
+The release gate requires these user-facing/runtime files inside the VSIX:
 
 - `package.nls.json`
 - `package.nls.zh-cn.json`
@@ -69,10 +70,17 @@ The release gate requires these user-facing files inside the VSIX:
 - `README.zh-CN.md`
 - `images/icon.png`
 - `src/safe-contract.js`
+- `src/i18n.js`
+- `src/core.js`
+- `src/process.js`
+- `src/git.js`
+- `src/policy.js`
+- `src/review.js`
+- `src/codex.js`
 
 The NLS files localize extension metadata, commands, and configuration. The `l10n` bundles localize runtime progress, notifications, reports, environment checks, and errors.
 
-Development-only content such as tests, scripts, lockfiles, repository metadata, and publishing documentation must not be included in the VSIX.
+Development-only content such as tests, scripts, lockfiles, repository metadata, contribution guidance, and publishing documentation must not be included in the VSIX.
 
 ## Future VS Code Marketplace publication
 

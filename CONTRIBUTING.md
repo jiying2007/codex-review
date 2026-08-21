@@ -11,10 +11,11 @@ npm run verify:lock
 npm ci --ignore-scripts --no-audit --no-fund
 npm run check
 npm run test:integration
+npm run test:trust
 npm run package
 ```
 
-`npm run check` includes static regression checks for the Workspace Trust manifest, application-scoped safety settings, trusted menu guards, and runtime trust guards. A true trusted/untrusted Extension Host matrix is tracked separately because the current direct `@vscode/test-electron` runner does not reliably create Restricted Mode.
+`npm run test:trust` launches isolated trusted and Restricted Mode Extension Test Hosts and verifies the actual `vscode.workspace.isTrusted` state. `npm run check` complements that runtime gate with static regression checks for the Workspace Trust manifest, application-scoped safety settings, trusted menu guards, and first-statement runtime trust guards.
 
 ## Safety invariants
 
@@ -28,7 +29,7 @@ A contribution must not weaken these invariants without an explicit security des
 - Model output remains structured and locally validated before it can become a VS Code Diagnostic.
 - Findings for paths or locations that cannot be mapped safely remain report-only.
 - HEAD/index snapshot checks and stale-review cancellation must remain fail-closed.
-- Restricted Mode must not activate review execution.
+- Restricted Mode must not reach Git/Codex review execution; runtime trust guards remain the first executable statement of protected commands.
 - The extension must not automatically edit source code, commit, push, publish, or open pull requests.
 - Operational logs must not contain source code, staged diff contents, review content, secrets, or absolute repository paths.
 

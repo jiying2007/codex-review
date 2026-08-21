@@ -37,7 +37,15 @@ requireTrustedWhen(paletteItems, 'safeCodexReview.reviewStaged');
 requireTrustedWhen(paletteItems, 'safeCodexReview.checkEnvironment');
 
 assert.match(source, /function assertTrustedWorkspace\(\)[\s\S]*?!vscode\.workspace\.isTrusted/, 'runtime Workspace Trust guard is missing');
-assert.match(source, /async function reviewStaged[\s\S]*?assertTrustedWorkspace\(\)/, 'reviewStaged must enforce Workspace Trust');
-assert.match(source, /async function checkEnvironment[\s\S]*?assertTrustedWorkspace\(\)/, 'checkEnvironment must enforce Workspace Trust');
+assert.match(
+  source,
+  /async function reviewStaged\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/,
+  'reviewStaged must enforce Workspace Trust as its first executable statement'
+);
+assert.match(
+  source,
+  /async function checkEnvironment\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/,
+  'checkEnvironment must enforce Workspace Trust as its first executable statement'
+);
 
 console.log('Security manifest/trust-boundary regression checks passed.');
