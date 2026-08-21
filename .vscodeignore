@@ -13,3 +13,4 @@ CONTRIBUTING.md
 .gitignore
 .gitattributes
 .codex-review.example.json
+safe-core.lock.json
