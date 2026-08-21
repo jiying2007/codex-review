@@ -5,7 +5,6 @@ const path = require('path');
 const { defineConfig } = require('@vscode/test-cli');
 
 const root = __dirname;
-const workspaceFolder = path.join(root, 'test', 'trust', 'workspace');
 const runId = `${process.pid}-${Date.now()}`;
 
 function userData(name) {
@@ -17,11 +16,10 @@ module.exports = defineConfig([
     label: 'workspace-trust-trusted',
     files: 'test/trust/**/*.test.js',
     extensionDevelopmentPath: root,
-    workspaceFolder,
+    workspaceFolder: path.join(root, 'test', 'trust', 'trusted-workspace'),
     launchArgs: [
       '--disable-extensions',
       '--disable-workspace-trust',
-      `--user-data-dir=${userData('trusted')}`,
       '--skip-welcome',
       '--skip-release-notes'
     ],
@@ -36,10 +34,11 @@ module.exports = defineConfig([
     label: 'workspace-trust-untrusted',
     files: 'test/trust/**/*.test.js',
     extensionDevelopmentPath: root,
-    workspaceFolder,
+    workspaceFolder: path.join(root, 'test', 'trust', 'untrusted-workspace'),
     launchArgs: [
       '--disable-extensions',
-      `--user-data-dir=${userData('untrusted')}`,
+      '--user-data-dir',
+      userData('untrusted'),
       '--skip-welcome',
       '--skip-release-notes'
     ],
