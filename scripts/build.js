@@ -6,7 +6,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const dist = path.join(root, 'dist');
 const runtimeModules = [
-  'i18n.js', 'core.js', 'process.js', 'git.js', 'policy.js',
+  'i18n.js', 'review-support.js', 'process.js', 'git.js', 'policy.js',
   'review.js', 'report.js', 'receipts.js', 'codex.js'
 ];
 const coreModules = [

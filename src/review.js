@@ -7,7 +7,7 @@ const {
 const {
   SEVERITY_ORDER,
   normalizeGitPathForComparison
-} = require('./core');
+} = require('./review-support');
 const { t } = require('./i18n');
 
 function computeVerdict(findings) {

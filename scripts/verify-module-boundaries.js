@@ -12,12 +12,13 @@ const reviewModule = fs.readFileSync('src/review.js', 'utf8');
 const codexModule = fs.readFileSync('src/codex.js', 'utf8');
 
 for (const modulePath of [
-  './src/i18n', './src/core', './src/process', './src/git', './src/policy',
+  './src/i18n', './src/review-support', './src/process', './src/git', './src/policy',
   './src/review', './src/report', './src/receipts', './src/codex'
 ]) {
   assert.match(extension, new RegExp(`require\\(['\"]${modulePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['\"]\\)`), `extension.js must import ${modulePath}`);
 }
 
+assert.strictEqual(fs.existsSync('src/core.js'), false, 'ambiguous Review src/core.js must not return');
 assert.strictEqual(fs.existsSync('src/safe-contract.js'), false, 'legacy src/safe-contract.js shim must not return');
 assert.strictEqual(fs.existsSync('safe-core.lock.json'), false, 'legacy Safe Core lock must not return');
 assert.strictEqual(fs.existsSync('scripts/safe-core.js'), false, 'legacy Safe Core sync script must not return');

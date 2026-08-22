@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { normalizeFsPath } = require('./core');
+const { normalizeFsPath } = require('./review-support');
 const { git } = require('./git');
 const {
   REVIEW_RECEIPT_SCHEMA_VERSION,

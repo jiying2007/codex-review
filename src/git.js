@@ -7,7 +7,7 @@ const { createGitRepository } = require('./codex-safe-core/git-repository');
 const {
   normalizeFsPath,
   normalizeGitPathForComparison
-} = require('./core');
+} = require('./review-support');
 const { t } = require('./i18n');
 
 const coreGit = createGitRepository({

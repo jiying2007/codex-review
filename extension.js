@@ -9,7 +9,7 @@ const {
   PROJECT_RULES_FILE,
   normalizeFsPath,
   normalizeGitPathForComparison
-} = require('./src/core');
+} = require('./src/review-support');
 const { runProcess } = require('./src/process');
 const {
   getGitApi,

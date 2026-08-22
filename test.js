@@ -22,7 +22,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { createReviewReceiptStore, RECEIPT_STORAGE_KEY } = require('./src/receipts');
 const unit = {
-  ...require('./src/core'),
+  ...require('./src/review-support'),
   ...require('./src/process'),
   ...require('./src/git'),
   ...require('./src/policy'),
