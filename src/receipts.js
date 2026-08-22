@@ -8,7 +8,7 @@ const {
   validateReviewReceipt
 } = require('./codex-safe-core/safe-contract');
 
-const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v1';
+const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v2';
 const MAX_RECEIPTS_PER_REPO = 50;
 
 function createReviewReceiptStore(globalState) {
@@ -19,10 +19,7 @@ function createReviewReceiptStore(globalState) {
     const stored = globalState?.get(RECEIPT_STORAGE_KEY, {}) || {};
     for (const [repoKey, receipts] of Object.entries(stored)) {
       if (!Array.isArray(receipts)) continue;
-      const valid = receipts
-        .map(validateReviewReceipt)
-        .filter(Boolean)
-        .slice(0, MAX_RECEIPTS_PER_REPO);
+      const valid = receipts.map(validateReviewReceipt).filter(Boolean).slice(0, MAX_RECEIPTS_PER_REPO);
       if (valid.length) receiptsByRepo.set(repoKey, valid);
     }
   }
@@ -39,36 +36,23 @@ function createReviewReceiptStore(globalState) {
       ) === index)
       .slice(0, MAX_RECEIPTS_PER_REPO);
     receiptsByRepo.set(key, receipts);
-    if (globalState) {
-      await globalState.update(RECEIPT_STORAGE_KEY, Object.fromEntries(receiptsByRepo));
-    }
+    if (globalState) await globalState.update(RECEIPT_STORAGE_KEY, Object.fromEntries(receiptsByRepo));
     return validated;
   }
 
-  function getReceipts(repoRoot) {
-    return (receiptsByRepo.get(normalizeFsPath(repoRoot)) || []).map(item => ({ ...item }));
-  }
-
-  function getLatest(repoRoot) {
-    return getReceipts(repoRoot)[0] || null;
-  }
+  function getReceipts(repoRoot) { return (receiptsByRepo.get(normalizeFsPath(repoRoot)) || []).map(item => ({ ...item })); }
+  function getLatest(repoRoot) { return getReceipts(repoRoot)[0] || null; }
 
   function getStatus(repoRoot, snapshot) {
     const receipt = getLatest(repoRoot);
     if (!receipt) return { status: 'unavailable', receipt: null };
-    const current = Boolean(
-      snapshot &&
-      receipt.headOid === snapshot.headOid &&
-      receipt.indexFingerprint === snapshot.indexFingerprint
-    );
+    const current = Boolean(snapshot && receipt.headOid === snapshot.headOid && receipt.indexFingerprint === snapshot.indexFingerprint);
     return { status: current ? 'current' : 'stale', receipt };
   }
 
   async function getEvidenceForRange(repoRoot, baseRef, headRef = 'HEAD', token) {
     for (const [name, value] of [['baseRef', baseRef], ['headRef', headRef]]) {
-      if (typeof value !== 'string' || !value || value.length > 1024 || value.startsWith('-') || /[\r\n\0]/.test(value)) {
-        throw new Error(`Invalid ${name}.`);
-      }
+      if (typeof value !== 'string' || !value || value.length > 1024 || value.startsWith('-') || /[\r\n\0]/.test(value)) throw new Error(`Invalid ${name}.`);
     }
 
     const receipts = getReceipts(repoRoot);
@@ -78,28 +62,13 @@ function createReviewReceiptStore(globalState) {
 
     for (const commitOid of commits) {
       let parentOid;
-      try {
-        parentOid = (await git(['rev-parse', `${commitOid}^`], repoRoot, token)).stdout.trim();
-      } catch (error) {
-        if (error?.code === 'ECANCELLED') throw error;
-        continue;
-      }
+      try { parentOid = (await git(['rev-parse', `${commitOid}^`], repoRoot, token)).stdout.trim(); }
+      catch (error) { if (error?.code === 'ECANCELLED') throw error; continue; }
       const candidates = receipts.filter(receipt => receipt.headOid === parentOid);
       if (!candidates.length) continue;
       const { stdout: diff } = await git([
-        '-c', 'core.quotePath=false',
-        'diff',
-        '-M',
-        '-C',
-        '--src-prefix=a/',
-        '--dst-prefix=b/',
-        '--no-color',
-        '--no-ext-diff',
-        '--no-textconv',
-        '--unified=3',
-        parentOid,
-        commitOid,
-        '--'
+        '-c', 'core.quotePath=false', 'diff', '-M', '-C', '--src-prefix=a/', '--dst-prefix=b/',
+        '--no-color', '--no-ext-diff', '--no-textconv', '--unified=3', parentOid, commitOid, '--'
       ], repoRoot, token);
       const fingerprint = crypto.createHash('sha256').update(diff, 'utf8').digest('hex');
       const receipt = candidates.find(item => item.diffFingerprint === fingerprint);
@@ -121,25 +90,9 @@ function createReviewReceiptStore(globalState) {
     receiptsByRepo.clear();
     if (globalState) await globalState.update(RECEIPT_STORAGE_KEY, undefined);
   }
+  function resetMemory() { receiptsByRepo.clear(); }
 
-  function resetMemory() {
-    receiptsByRepo.clear();
-  }
-
-  return {
-    restore,
-    persist,
-    getReceipts,
-    getLatest,
-    getStatus,
-    getEvidenceForRange,
-    clear,
-    resetMemory
-  };
+  return { restore, persist, getReceipts, getLatest, getStatus, getEvidenceForRange, clear, resetMemory };
 }
 
-module.exports = {
-  RECEIPT_STORAGE_KEY,
-  MAX_RECEIPTS_PER_REPO,
-  createReviewReceiptStore
-};
+module.exports = { RECEIPT_STORAGE_KEY, MAX_RECEIPTS_PER_REPO, createReviewReceiptStore };
