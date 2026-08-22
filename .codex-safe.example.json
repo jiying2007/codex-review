@@ -1,7 +1,19 @@
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/eadca528e4d5470014fdb76c0138a299ff2119f4/codex-safe.schema.json",
-  "schemaVersion": 2,
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/e6e25b502aa35a079f660346785cf283fe293b6d/codex-safe.schema.json",
+  "schemaVersion": 3,
   "commit": { "language": "zh-CN", "scopePolicy": "flexible", "autoInferScope": true, "styleHistoryLimit": 12 },
-  "review": { "language": "zh-CN", "severityThreshold": "low", "confidenceThreshold": 0.7, "maxFindings": 40 },
+  "review": {
+    "language": "zh-CN",
+    "severityThreshold": "low",
+    "confidenceThreshold": 0.7,
+    "maxFindings": 40,
+    "rules": {
+      "requireTestsForCodeChanges": false,
+      "codePathPrefixes": ["src/"],
+      "testPathPrefixes": ["test/", "tests/"],
+      "forbiddenPathPrefixes": []
+    }
+  },
+  "reviewService": { "maxContextBytes": 262144, "maxContextFiles": 12, "contextLines": 20, "skipGeneratedFiles": true, "blockUnreviewableFiles": false },
   "pr": { "language": "zh-CN", "includePullRequestTemplate": true }
 }
