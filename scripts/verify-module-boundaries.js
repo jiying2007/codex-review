@@ -6,6 +6,7 @@ const path = require('path');
 
 const extension = fs.readFileSync('extension.js', 'utf8');
 const processModule = fs.readFileSync('src/process.js', 'utf8');
+const gitModule = fs.readFileSync('src/git.js', 'utf8');
 const policyModule = fs.readFileSync('src/policy.js', 'utf8');
 const reviewModule = fs.readFileSync('src/review.js', 'utf8');
 const codexModule = fs.readFileSync('src/codex.js', 'utf8');
@@ -18,13 +19,18 @@ for (const modulePath of [
 }
 
 assert.strictEqual(fs.existsSync('src/safe-contract.js'), false, 'legacy src/safe-contract.js shim must not return');
+assert.strictEqual(fs.existsSync('safe-core.lock.json'), false, 'legacy Safe Core lock must not return');
+assert.strictEqual(fs.existsSync('scripts/safe-core.js'), false, 'legacy Safe Core sync script must not return');
 assert.doesNotMatch(extension, /\b__test\b/, 'extension.js must not expose a transitional private test surface');
 assert.doesNotMatch(extension, /require\(['\"]child_process['\"]\)/, 'extension.js must not own subprocess execution');
-assert.doesNotMatch(extension, /require\(['\"]os['\"]\)/, 'extension.js must not own temporary-directory execution');
-assert.match(processModule, /require\(['\"]child_process['\"]\)/, 'src/process.js must own subprocess execution');
+assert.doesNotMatch(processModule, /require\(['\"]child_process['\"]\)/, 'Review must not own subprocess execution');
+assert.match(processModule, /\.\/codex-safe-core\/process-runner/, 'Review process adapter must delegate to Core');
+assert.match(gitModule, /\.\/codex-safe-core\/git-repository/, 'Review Git primitives must delegate to Core');
+assert.match(policyModule, /\.\/codex-safe-core\/policy/, 'Review policy must delegate to Core');
+
 for (const [name, source] of [['src/policy.js', policyModule], ['src/review.js', reviewModule], ['src/codex.js', codexModule]]) {
   assert.match(source, /require\(['\"]\.\/codex-safe-core\/safe-contract['\"]\)/, `${name} must import the canonical Safe Core contract directly`);
-  assert.doesNotMatch(source, /require\(['\"]\.\/safe-contract['\"]\)/, `${name} must not reintroduce the legacy contract shim`);
+  assert.doesNotMatch(source, /require\(['\"]\.\/safe-contract['\"]\)/, `${name} must not reintroduce a contract shim`);
 }
 
 for (const functionName of [
@@ -48,8 +54,8 @@ function collectJsFiles(root) {
 
 for (const file of ['test.js', ...collectJsFiles('test')]) {
   const source = fs.readFileSync(file, 'utf8');
-  assert.doesNotMatch(source, /\b__test\b/, `${file} must not depend on the removed private test surface`);
-  assert.doesNotMatch(source, /src[\\/]safe-contract\.js|require\(['\"]\.\/src\/safe-contract['\"]\)/, `${file} must not depend on the removed contract shim`);
+  assert.doesNotMatch(source, /\b__test\b/, `${file} must not depend on removed private test surfaces`);
+  assert.doesNotMatch(source, /src[\\/]safe-contract\.js|require\(['\"]\.\/src\/safe-contract['\"]\)/, `${file} must not depend on a removed contract shim`);
 }
 
-console.log('Runtime module boundaries verified without transition shims.');
+console.log('Review runtime boundaries verified against Codex Safe Core v2.');
