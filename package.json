@@ -8,6 +8,9 @@
   "engines": {
     "vscode": "^1.90.0"
   },
+  "extensionKind": [
+    "workspace"
+  ],
   "categories": [
     "SCM Providers",
     "Other"
@@ -32,174 +35,66 @@
   ],
   "main": "./extension.js",
   "capabilities": {
-    "untrustedWorkspaces": {
-      "supported": false,
-      "description": "%capability.untrusted%"
-    },
-    "virtualWorkspaces": {
-      "supported": false,
-      "description": "%capability.virtual%"
-    }
+    "untrustedWorkspaces": { "supported": false, "description": "%capability.untrusted%" },
+    "virtualWorkspaces": { "supported": false, "description": "%capability.virtual%" }
   },
   "contributes": {
     "commands": [
-      {
-        "command": "safeCodexReview.reviewStaged",
-        "title": "%command.review.title%",
-        "category": "%extension.displayName%",
-        "icon": "$(shield)"
-      },
-      {
-        "command": "safeCodexReview.clearReview",
-        "title": "%command.clear.title%",
-        "category": "%extension.displayName%",
-        "icon": "$(clear-all)"
-      },
-      {
-        "command": "safeCodexReview.showOutput",
-        "title": "%command.showOutput.title%",
-        "category": "%extension.displayName%"
-      },
-      {
-        "command": "safeCodexReview.checkEnvironment",
-        "title": "%command.checkEnvironment.title%",
-        "category": "%extension.displayName%"
-      }
+      { "command": "safeCodexReview.reviewStaged", "title": "%command.review.title%", "category": "%extension.displayName%", "icon": "$(shield)" },
+      { "command": "safeCodexReview.clearReview", "title": "%command.clear.title%", "category": "%extension.displayName%", "icon": "$(clear-all)" },
+      { "command": "safeCodexReview.showOutput", "title": "%command.showOutput.title%", "category": "%extension.displayName%" },
+      { "command": "safeCodexReview.checkEnvironment", "title": "%command.checkEnvironment.title%", "category": "%extension.displayName%" }
     ],
     "menus": {
       "scm/title": [
-        {
-          "command": "safeCodexReview.reviewStaged",
-          "when": "scmProvider == git && isWorkspaceTrusted",
-          "group": "navigation@7"
-        },
-        {
-          "command": "safeCodexReview.clearReview",
-          "when": "scmProvider == git && isWorkspaceTrusted",
-          "group": "navigation@8"
-        }
+        { "command": "safeCodexReview.reviewStaged", "when": "scmProvider == git && isWorkspaceTrusted", "group": "navigation@7" }
       ],
       "commandPalette": [
-        {
-          "command": "safeCodexReview.reviewStaged",
-          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
-        },
-        {
-          "command": "safeCodexReview.clearReview"
-        },
-        {
-          "command": "safeCodexReview.showOutput"
-        },
-        {
-          "command": "safeCodexReview.checkEnvironment",
-          "when": "isWorkspaceTrusted"
-        }
+        { "command": "safeCodexReview.reviewStaged", "when": "workspaceFolderCount > 0 && isWorkspaceTrusted" },
+        { "command": "safeCodexReview.clearReview" },
+        { "command": "safeCodexReview.showOutput" },
+        { "command": "safeCodexReview.checkEnvironment", "when": "isWorkspaceTrusted" }
       ]
     },
     "configuration": {
       "title": "%extension.displayName%",
       "properties": {
-        "safeCodexReview.codexPath": {
-          "type": "string",
-          "default": "codex",
-          "scope": "application",
-          "description": "%config.codexPath%"
-        },
-        "safeCodexReview.model": {
-          "type": "string",
-          "default": "",
-          "scope": "application",
-          "description": "%config.model%"
-        },
-        "safeCodexReview.language": {
-          "type": "string",
-          "enum": [
-            "zh-CN",
-            "en"
-          ],
-          "default": "zh-CN",
-          "scope": "application",
-          "description": "%config.language%",
-          "enumDescriptions": [
-            "%config.language.zhCN%",
-            "%config.language.en%"
-          ]
-        },
-        "safeCodexReview.maxDiffBytes": {
-          "type": "number",
-          "default": 524288,
-          "minimum": 4096,
-          "maximum": 2097152,
-          "scope": "application",
-          "description": "%config.maxDiffBytes%"
-        },
-        "safeCodexReview.maxFindings": {
-          "type": "number",
-          "default": 40,
-          "minimum": 1,
-          "maximum": 100,
-          "scope": "application",
-          "description": "%config.maxFindings%"
-        },
-        "safeCodexReview.severityThreshold": {
-          "type": "string",
-          "enum": [
-            "critical",
-            "high",
-            "medium",
-            "low",
-            "info"
-          ],
-          "default": "low",
-          "scope": "application",
-          "description": "%config.severityThreshold%"
-        },
-        "safeCodexReview.timeoutSeconds": {
-          "type": "number",
-          "default": 120,
-          "minimum": 10,
-          "maximum": 300,
-          "scope": "application",
-          "description": "%config.timeoutSeconds%"
-        },
-        "safeCodexReview.extraInstructions": {
-          "type": "string",
-          "default": "",
-          "scope": "application",
-          "description": "%config.extraInstructions%"
-        }
+        "safeCodexReview.codexPath": { "type": "string", "default": "codex", "scope": "machine", "description": "%config.codexPath%" },
+        "safeCodexReview.model": { "type": "string", "default": "", "scope": "application", "description": "%config.model%" },
+        "safeCodexReview.language": { "type": "string", "enum": ["zh-CN", "en"], "default": "zh-CN", "scope": "application", "description": "%config.language%", "enumDescriptions": ["%config.language.zhCN%", "%config.language.en%"] },
+        "safeCodexReview.maxDiffBytes": { "type": "number", "default": 524288, "minimum": 4096, "maximum": 2097152, "scope": "application", "description": "%config.maxDiffBytes%" },
+        "safeCodexReview.maxFindings": { "type": "number", "default": 40, "minimum": 1, "maximum": 100, "scope": "application", "description": "%config.maxFindings%" },
+        "safeCodexReview.severityThreshold": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"], "default": "low", "scope": "application", "description": "%config.severityThreshold%" },
+        "safeCodexReview.timeoutSeconds": { "type": "number", "default": 120, "minimum": 10, "maximum": 300, "scope": "application", "description": "%config.timeoutSeconds%" },
+        "safeCodexReview.extraInstructions": { "type": "string", "default": "", "scope": "application", "description": "%config.extraInstructions%" }
       }
     }
   },
   "scripts": {
-    "check": "node --check extension.js && node --check test/trust/runTest.js && node --check test/trust/suite/index.js && node --check src/i18n.js && node --check src/core.js && node --check src/process.js && node --check src/git.js && node --check src/policy.js && node --check src/review.js && node --check src/report.js && node --check src/receipts.js && node --check src/codex.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node --check scripts/verify-module-boundaries.js && node scripts/release.test.js && node scripts/verify-security-manifest.js && node scripts/verify-module-boundaries.js && npm run verify:l10n && node test.js",
+    "check": "node --check extension.js && node --check test/trust/runTest.js && node --check test/trust/suite/index.js && node --check src/i18n.js && node --check src/core.js && node --check src/process.js && node --check src/git.js && node --check src/policy.js && node --check src/review.js && node --check src/report.js && node --check src/receipts.js && node --check src/codex.js && node --check scripts/safe-core.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node --check scripts/verify-module-boundaries.js && node scripts/safe-core.js verify && node scripts/release.test.js && node scripts/verify-security-manifest.js && node scripts/verify-module-boundaries.js && npm run verify:l10n && node test.js",
     "test:unit": "node test.js",
     "test:integration": "node ./test/integration/runTest.js",
     "test:trust": "node ./test/trust/runTest.js",
     "test": "npm run test:unit",
     "package": "vsce package --no-dependencies",
     "verify:lock": "node ./scripts/verify-lock.js",
+    "safe-core:verify": "node ./scripts/safe-core.js verify",
+    "safe-core:upstream": "node ./scripts/safe-core.js upstream",
+    "safe-core:sync": "node ./scripts/safe-core.js sync",
     "release:prepare": "node ./scripts/release.js prepare",
     "release:check": "node ./scripts/release.js check",
     "release:push": "node ./scripts/release.js push",
-    "ci": "npm run verify:lock && npm ci --ignore-scripts --no-audit --no-fund && npm run check && npm run test:integration && npm run test:trust && npm run package",
+    "ci": "npm run verify:lock && npm ci --ignore-scripts --no-audit --no-fund && npm run check && npm run safe-core:upstream && npm run test:integration && npm run test:trust && npm run package",
     "verify:l10n": "node ./scripts/verify-l10n.js"
   },
   "devDependencies": {
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "3.9.2"
   },
-  "extensionDependencies": [
-    "vscode.git"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/jiying2007/codex-review.git"
-  },
+  "extensionDependencies": ["vscode.git"],
+  "repository": { "type": "git", "url": "https://github.com/jiying2007/codex-review.git" },
   "homepage": "https://github.com/jiying2007/codex-review#readme",
-  "bugs": {
-    "url": "https://github.com/jiying2007/codex-review/issues"
-  },
+  "bugs": { "url": "https://github.com/jiying2007/codex-review/issues" },
   "pricing": "Free",
   "preview": false,
   "icon": "images/icon.png",
