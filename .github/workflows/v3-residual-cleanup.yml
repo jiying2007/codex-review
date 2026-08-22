@@ -1,0 +1,63 @@
+name: Review v3 residual cleanup
+
+on:
+  push:
+    branches: [feat/family-v3-review]
+    paths: [.github/workflows/v3-residual-cleanup.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - name: Remove v2 nearest-line residue
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          let review=fs.readFileSync('src/review.js','utf8');
+          const fn="function nearestChangedLine(line, ranges) { return lineInChangedRanges(line, ranges) ? line : undefined; }\n";
+          if(!review.includes(fn))throw new Error('nearestChangedLine residue not found');
+          review=review.replace(fn,'');
+          review=review.replace('parseChangedLineRanges, lineInChangedRanges, nearestChangedLine,','parseChangedLineRanges, lineInChangedRanges,');
+          fs.writeFileSync('src/review.js',review);
+
+          let test=fs.readFileSync('test.js','utf8');
+          test=test.replace("  assert.strictEqual(unit.nearestChangedLine(11, changed.get('src/a.c')), undefined, 'v3 must not relocate to a nearby changed line');\n",'');
+          fs.writeFileSync('test.js',test);
+
+          const obsolete='Location note: the model line was outside the changed lines and was mapped to the nearest changed line {0}.';
+          for(const file of ['l10n/bundle.l10n.json','l10n/bundle.l10n.zh-cn.json']){
+            if(!fs.existsSync(file))continue;
+            const obj=JSON.parse(fs.readFileSync(file,'utf8'));
+            delete obj[obsolete];
+            fs.writeFileSync(file,JSON.stringify(obj,null,2)+'\n');
+          }
+          const manifests=[
+            ['package.nls.json','Per-review evidence chunk budget in bytes. Changed hunks that cannot fit are explicit fail-closed coverage gaps.'],
+            ['package.nls.zh-cn.json','单次 Review Evidence 分块预算（字节）。无法装入预算的 changed hunk 会形成明确的 fail-closed coverage gap。']
+          ];
+          for(const [file,text] of manifests){
+            if(!fs.existsSync(file))continue;
+            const obj=JSON.parse(fs.readFileSync(file,'utf8'));
+            obj['config.maxDiffBytes']=text;
+            fs.writeFileSync(file,JSON.stringify(obj,null,2)+'\n');
+          }
+          NODE
+          git rm .github/workflows/v3-residual-cleanup.yml
+          npm run verify:lock
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/review.js test.js l10n package.nls*.json
+          git diff --cached --check
+          git commit -m 'refactor!: remove Review v2 nearest-line residue'
+          git push origin HEAD:feat/family-v3-review
