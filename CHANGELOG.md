@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Pin the final Codex Safe Core 2.1 baseline with canonical repository-policy validation, closed receipt contracts, hardened process execution, Git token validation, deep-frozen policy values, and Semantic Context budgeting.
+- Remove the ambiguous Review product `src/core.js` boundary in favor of `src/review-support.js`; `codex-safe-core` is now the only Core.
+- Keep Review-specific adapters only where they add localization or domain semantics while delegating shared safety/runtime behavior to Safe Core.
+- Preserve confidence-gated findings, Review Receipt v2, HEAD-pinned `.codex-safe.json`, dist-only packaging, Trust/localization gates, SHA-256, and provenance attestation as the long-term baseline.
+
 ## 2.0.0
 
 - Breaking: hard-switch to Codex Safe Core v2 through a commit-pinned Git submodule; remove copied vendoring, sync locks, compatibility shims, and legacy Core ownership from the Review repository.
@@ -39,7 +44,7 @@
 - Initial public baseline as **Codex Review Safe**.
 - Staged-only code review with Structured Output and local validation.
 - Conservative Problems publishing with report-only safety fallbacks.
-- HEAD + raw INDEX consistency checks and HEAD-pinned `.codex-review.json` policy.
+- HEAD + raw INDEX consistency checks and HEAD-pinned repository policy.
 - Complete English/Simplified-Chinese manifest and runtime localization.
 - Linux/Windows/macOS Extension Host coverage plus VS Code `1.90.0` minimum compatibility.
 - Reproducible lockfile, official VSIX content verification, immutable GitHub Actions, Dependabot, and SHA-256 release artifacts.
