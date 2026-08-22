@@ -14,6 +14,7 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   lines.push(t('Quality verdict: {0}', review.qualityVerdict || 'unknown'));
   lines.push(t('Readiness verdict: {0}', review.readinessVerdict || 'needs_evidence'));
   lines.push(t('Mechanical gate: {0}', review.mechanicalGate || 'not_run'));
+  lines.push(`Coverage verdict: ${review.coverageVerdict || reviewInputMeta.coverageVerdict || 'incomplete'}`);
   lines.push(t('Summary: {0}', review.summary || t('None')));
   lines.push(t('Review policy: {0}', options.policySource));
   lines.push(
@@ -43,6 +44,18 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
     );
   }
   if (review.policyNotice) lines.push(t('Policy notice: {0}', review.policyNotice));
+  if (review.coverageGaps?.length) {
+    lines.push('Coverage gaps:');
+    for (const gap of review.coverageGaps.slice(0, 20)) lines.push(`- ${gap}`);
+  }
+  if (review.mechanicalViolations?.length) {
+    lines.push('Deterministic review-rule violations:');
+    for (const violation of review.mechanicalViolations.slice(0, 20)) {
+      if (violation.rule === 'forbiddenPathPrefix') lines.push(`- forbiddenPathPrefix: ${violation.path} under ${violation.prefix}`);
+      else if (violation.rule === 'requireTestsForCodeChanges') lines.push(`- requireTestsForCodeChanges: ${violation.codePaths?.join(', ') || violation.path}`);
+      else lines.push(`- ${violation.rule}: ${violation.path || ''}`);
+    }
+  }
   if (review.cannotVerify?.length) {
     lines.push(t('Cannot verify from diff:'));
     const labels = {
@@ -61,6 +74,7 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
       review.rejectedFindings?.length || 0
     )
   );
+  if (review.truncatedFindingCount) lines.push(`Validated findings omitted by maxFindings: ${review.truncatedFindingCount}`);
   lines.push('');
 
   if (!visibleFindings.length) {
@@ -83,6 +97,7 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
     lines.push(`   ${finding.title}`);
     lines.push(`   ${finding.description}`);
     if (finding.suggestion) lines.push(`   ${t('Suggestion:')} ${finding.suggestion}`);
+    if (finding.deterministic) lines.push('   Source: deterministic repository review rule');
 
     const meta = publishMeta?.get(finding);
     if (meta && !meta.published) {
