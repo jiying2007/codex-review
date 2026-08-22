@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/c86e3e8dfceeaf73375d0ca29e1050d8cae2a7c8/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/eadca528e4d5470014fdb76c0138a299ff2119f4/codex-safe.schema.json",
   "schemaVersion": 2,
   "commit": { "language": "zh-CN", "scopePolicy": "flexible", "autoInferScope": true, "styleHistoryLimit": 12 },
   "review": { "language": "zh-CN", "severityThreshold": "low", "confidenceThreshold": 0.7, "maxFindings": 40 },
