@@ -1,6 +1,6 @@
 # Security
 
-Codex Review Safe follows the **Codex Safe Core v2** contract. Security-sensitive shared primitives are owned by the pinned `codex-safe-core` submodule; this repository owns Review-specific finding, diagnostic and receipt logic only.
+Codex Review Safe 3.x follows the **Codex Safe Core v3** implementation line while keeping **Safe Contract v2** unchanged. Security-sensitive shared primitives are owned by the pinned `codex-safe-core` submodule; this repository owns Review-specific finding, diagnostic and report behavior only.
 
 ## Trust boundaries
 
@@ -22,7 +22,7 @@ A review is bound to the exact staged snapshot:
 
 Snapshots are checked before/after collection, after model execution and after diagnostic publication. Stale diagnostics are retracted.
 
-The complete staged diff remains local for fingerprints and line mapping. Raw diff has a fixed 8 MiB safety ceiling.
+The complete staged diff remains local for fingerprints and changed-line mapping. Raw diff has a fixed 8 MiB safety ceiling.
 
 ### 3. Codex executable
 
@@ -44,61 +44,58 @@ Codex executes from a temporary directory rather than the repository.
 
 ### 4. Repository policy
 
-The only repository policy is `.codex-safe.json` schema v2. Review consumes only its `review` section from the exact captured HEAD.
+The only repository policy is `.codex-safe.json` **Policy Schema v3**. Review consumes the `review` section from the exact captured HEAD. Policy v2 is intentionally rejected.
 
 A staged policy modification cannot change the policy used to review itself; it becomes effective only after commit.
 
-Repository policy cannot configure:
-
-- Codex executable;
-- model;
-- environment variables;
-- working directory;
-- arbitrary commands.
+Repository policy cannot configure Codex executable/model, environment variables, working directory, or arbitrary commands.
 
 `safeCodexReview.codexPath` is machine-scoped. Remaining user preferences are application-scoped.
 
-### 5. Model output
+### 5. Review Evidence coverage
 
-AI output is untrusted structured data. Each finding must pass local validation for:
+`maxDiffBytes` is a bounded Review Evidence budget, not the raw-diff limit.
+
+Safe Core v3 parses unified diff hunks into **coverage-preserving Review Evidence Chunks**:
+
+- changed hunks are never silently middle-truncated;
+- every hunk is either included in one chunk or emitted as an explicit coverage gap;
+- exceeding a per-hunk or total chunk budget produces `coverageVerdict=incomplete`;
+- incomplete coverage blocks the review verdict.
+
+Fingerprints and changed-line mapping still use the complete original diff.
+
+### 6. Model output
+
+AI output is untrusted structured data. Each model finding must pass local validation for:
 
 - closed schema;
 - severity/category allow-lists;
 - staged relative path membership;
-- post-change line/range validity;
+- exact **post-change added/modified changed-line** location;
 - bounded title/description/suggestion;
 - confidence in `[0, 1]`.
 
-Findings below `confidenceThreshold` are suppressed before they can affect Problems, quality verdicts or Review Receipt state.
+The previous ±3 nearest-changed-line relocation is removed. A finding that cannot prove an exact post-change changed line is rejected; rejected locations make coverage incomplete rather than being silently relocated.
 
-## Semantic Context Budget
+Findings below `confidenceThreshold` are suppressed before they can affect Problems or quality verdicts.
 
-`maxDiffBytes` is the model-context budget, not the raw-diff limit.
+### 7. Deterministic repository rules
 
-Safe Core parses the unified diff by file:
+`.codex-safe.json.review.rules` is evaluated by the canonical Safe Core rule evaluator. Review Safe does not maintain a separate interpretation of:
 
-- source files receive a fair per-file allocation;
-- generated/lock files are metadata-only;
-- binary files are metadata-only;
-- oversized source files retain bounded head/tail context.
+- `forbiddenPathPrefixes`;
+- `requireTestsForCodeChanges`;
+- `codePathPrefixes`;
+- `testPathPrefixes`.
 
-Fingerprints, changed-line mapping and receipts still use the complete original diff.
+Rule violations remain part of the mechanical gate even when a local Problems diagnostic cannot safely map to a current working-tree line.
 
 ## Diagnostic safety
 
 Problems is a conservative projection of a staged snapshot onto the current working tree.
 
-A valid finding becomes report-only when inline publication cannot be proven safe, including:
-
-- deleted files;
-- binary files;
-- submodules;
-- dirty editors;
-- unstaged overlays;
-- repository symlink escape;
-- pure rename/copy without content change;
-- unmappable line locations;
-- file mutation during publication.
+A validated finding becomes report-only when inline publication cannot be proven safe, including deleted/binary/submodule changes, dirty editors, unstaged overlays, repository symlink escape, pure rename/copy without content change, or file mutation during publication.
 
 Paths are normalized and realpath containment is checked before file content is read for diagnostic placement.
 
@@ -106,13 +103,14 @@ Paths are normalized and realpath containment is checked before file content is 
 
 Review Safe separates:
 
-- `qualityVerdict`: what the supplied diff review found;
-- `readinessVerdict`: whether independent delivery evidence exists;
-- `mechanicalGate`: separately tracked mechanical verification state.
+- `qualityVerdict`: what the reviewed evidence found;
+- `readinessVerdict`: whether delivery evidence is sufficient;
+- `mechanicalGate`: deterministic repository-rule state;
+- `coverageVerdict`: whether all required changed hunks were reviewed.
 
 `qualityVerdict=no_findings` is never treated as proof of requirement, build or test success.
 
-Review Receipt v2 contains fingerprints/verdict metadata, not source diff or generated finding text. Receipt history is stored in VS Code extension global state and exposed only through a read-only companion API.
+**Review Receipt v3** uses a `git-index` subject and binds HEAD/index/diff/policy fingerprints with quality/readiness/mechanical/coverage verdicts. It contains provenance metadata, not source diff or finding text. Receipt history is stored in VS Code extension global state and exposed only through a read-only companion API.
 
 Range evidence recomputes committed first-parent diffs before associating historical receipts with real commits.
 
@@ -124,29 +122,19 @@ Process execution is delegated to Safe Core. Native processes run without an unr
 
 ## Logging
 
-Operational logs must not persist:
-
-- source code;
-- staged diff content;
-- finding/report text beyond the user-facing in-session report;
-- secrets;
-- absolute repository paths.
+Operational logs must not persist source code, staged diff content, finding/report text beyond the user-facing in-session report, secrets, or absolute repository paths.
 
 ## Data flow
 
-Semantic review context leaves the local machine for the configured Codex service. Use the extension only when allowed by the organization's source-code/data policy.
+Review evidence leaves the local machine for the configured Codex service. Use the extension only when allowed by the organization's source-code/data policy.
 
 Organization-managed Codex policy, managed hooks, MDM or cloud controls may still apply; the extension does not attempt to bypass them.
 
 ## Release supply chain
 
-Marketplace/Release runtime is `dist/extension.js`; the canonical policy schema is `dist/codex-safe.schema.json`. CI rejects source, tests, scripts and submodule metadata in the VSIX.
+Marketplace/Release runtime is `dist/extension.js`; the canonical Policy v3 schema is `dist/codex-safe.schema.json`. CI rejects source, tests, scripts and submodule metadata in the VSIX.
 
-Validation jobs use read-only repository permissions. Only the final release job receives:
-
-- `contents: write`;
-- `id-token: write`;
-- `attestations: write`.
+Validation jobs use read-only repository permissions. Only the final release job receives `contents: write`, `id-token: write`, and `attestations: write`.
 
 Release validation covers lock integrity, module/security boundaries, unit/regression tests, Workspace Trust, Simplified-Chinese localization, latest Linux/Windows/macOS Extension Host, minimum VS Code `1.90.0`, VSIX boundary audit and SHA-256 generation.
 

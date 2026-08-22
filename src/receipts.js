@@ -8,8 +8,12 @@ const {
   validateReviewReceipt
 } = require('./codex-safe-core/safe-contract');
 
-const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v2';
+const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v3';
 const MAX_RECEIPTS_PER_REPO = 50;
+
+function localSubject(receipt) {
+  return receipt?.subject?.type === 'git-index' ? receipt.subject : null;
+}
 
 function createReviewReceiptStore(globalState) {
   const receiptsByRepo = new Map();
@@ -19,34 +23,41 @@ function createReviewReceiptStore(globalState) {
     const stored = globalState?.get(RECEIPT_STORAGE_KEY, {}) || {};
     for (const [repoKey, receipts] of Object.entries(stored)) {
       if (!Array.isArray(receipts)) continue;
-      const valid = receipts.map(validateReviewReceipt).filter(Boolean).slice(0, MAX_RECEIPTS_PER_REPO);
+      const valid = receipts.map(validateReviewReceipt).filter(receipt => localSubject(receipt)).slice(0, MAX_RECEIPTS_PER_REPO);
       if (valid.length) receiptsByRepo.set(repoKey, valid);
     }
   }
 
   async function persist(repoRoot, receipt) {
     const validated = validateReviewReceipt(receipt);
-    if (!validated) throw new Error('Review receipt is invalid and was not stored.');
+    const subject = localSubject(validated);
+    if (!validated || !subject) throw new Error('Local Review Receipt v3 is invalid and was not stored.');
     const key = normalizeFsPath(repoRoot);
     const receipts = [validated, ...(receiptsByRepo.get(key) || [])]
-      .filter((item, index, all) => all.findIndex(other =>
-        other.headOid === item.headOid &&
-        other.indexFingerprint === item.indexFingerprint &&
-        other.diffFingerprint === item.diffFingerprint
-      ) === index)
+      .filter((item, index, all) => {
+        const itemSubject = localSubject(item);
+        return itemSubject && all.findIndex(other => {
+          const otherSubject = localSubject(other);
+          return otherSubject &&
+            otherSubject.headOid === itemSubject.headOid &&
+            otherSubject.indexFingerprint === itemSubject.indexFingerprint &&
+            other.diffFingerprint === item.diffFingerprint;
+        }) === index;
+      })
       .slice(0, MAX_RECEIPTS_PER_REPO);
     receiptsByRepo.set(key, receipts);
     if (globalState) await globalState.update(RECEIPT_STORAGE_KEY, Object.fromEntries(receiptsByRepo));
     return validated;
   }
 
-  function getReceipts(repoRoot) { return (receiptsByRepo.get(normalizeFsPath(repoRoot)) || []).map(item => ({ ...item })); }
+  function getReceipts(repoRoot) { return (receiptsByRepo.get(normalizeFsPath(repoRoot)) || []).map(item => ({ ...item, subject: { ...item.subject } })); }
   function getLatest(repoRoot) { return getReceipts(repoRoot)[0] || null; }
 
   function getStatus(repoRoot, snapshot) {
     const receipt = getLatest(repoRoot);
-    if (!receipt) return { status: 'unavailable', receipt: null };
-    const current = Boolean(snapshot && receipt.headOid === snapshot.headOid && receipt.indexFingerprint === snapshot.indexFingerprint);
+    const subject = localSubject(receipt);
+    if (!receipt || !subject) return { status: 'unavailable', receipt: null };
+    const current = Boolean(snapshot && subject.headOid === snapshot.headOid && subject.indexFingerprint === snapshot.indexFingerprint);
     return { status: current ? 'current' : 'stale', receipt };
   }
 
@@ -54,7 +65,6 @@ function createReviewReceiptStore(globalState) {
     for (const [name, value] of [['baseRef', baseRef], ['headRef', headRef]]) {
       if (typeof value !== 'string' || !value || value.length > 1024 || value.startsWith('-') || /[\r\n\0]/.test(value)) throw new Error(`Invalid ${name}.`);
     }
-
     const receipts = getReceipts(repoRoot);
     const { stdout } = await git(['rev-list', '--first-parent', '--reverse', `${baseRef}..${headRef}`, '--'], repoRoot, token);
     const commits = stdout.split(/\r?\n/).filter(Boolean);
@@ -64,7 +74,7 @@ function createReviewReceiptStore(globalState) {
       let parentOid;
       try { parentOid = (await git(['rev-parse', `${commitOid}^`], repoRoot, token)).stdout.trim(); }
       catch (error) { if (error?.code === 'ECANCELLED') throw error; continue; }
-      const candidates = receipts.filter(receipt => receipt.headOid === parentOid);
+      const candidates = receipts.filter(receipt => localSubject(receipt)?.headOid === parentOid);
       if (!candidates.length) continue;
       const { stdout: diff } = await git([
         '-c', 'core.quotePath=false', 'diff', '-M', '-C', '--src-prefix=a/', '--dst-prefix=b/',
@@ -81,8 +91,9 @@ function createReviewReceiptStore(globalState) {
       totalCommits: commits.length,
       reviewedCommits: matched.length,
       blockedCommits: matched.filter(item => item.receipt.qualityVerdict === 'blocked').length,
+      incompleteCommits: matched.filter(item => item.receipt.coverageVerdict !== 'complete').length,
       needsEvidenceCommits: matched.filter(item => item.receipt.readinessVerdict !== 'ready').length,
-      matches: matched.map(item => ({ commitOid: item.commitOid, receipt: { ...item.receipt } }))
+      matches: matched.map(item => ({ commitOid: item.commitOid, receipt: { ...item.receipt, subject: { ...item.receipt.subject } } }))
     };
   }
 

@@ -30,7 +30,6 @@ const { getEffectiveOptions } = require('./src/policy');
 const {
   parseChangedLineRanges,
   lineInChangedRanges,
-  nearestChangedLine,
   buildReviewInputMeta,
   createReviewReceipt,
   severityPasses
@@ -245,7 +244,6 @@ async function publishDiagnostics(repoRoot, review, options, changedLineRanges, 
     const isSubmodule = submodulePathSet.has(normalizedFile);
     const ranges = changedLineRanges.get(normalizedFile) || [];
     const exactChangedLine = lineInChangedRanges(finding.line, ranges);
-    const nearestLine = nearestChangedLine(finding.line, ranges);
     const meta = { published: false, reason: '', mappedLine: finding.line };
     if (isDeleted) meta.reason = 'deleted_file';
     else if (isSubmodule) meta.reason = 'submodule_change';
@@ -253,7 +251,7 @@ async function publishDiagnostics(repoRoot, review, options, changedLineRanges, 
     else if (hasDirtyEditor) meta.reason = 'dirty_editor';
     else if (hasUnstagedChanges) meta.reason = 'unstaged_changes';
     else if (!ranges.length) meta.reason = changeMeta?.status === 'R' ? 'rename_without_content_change' : changeMeta?.status === 'C' ? 'copy_without_content_change' : 'no_added_or_modified_line';
-    else if (!exactChangedLine && nearestLine === undefined) meta.reason = 'line_not_mappable';
+    else if (!exactChangedLine) meta.reason = 'line_not_mappable';
     else if (!realPathContainedInRepo(repoRoot, uri.fsPath)) meta.reason = 'symlink_outside_repo';
     if (meta.reason) { publishMeta.set(finding, meta); continue; }
 
@@ -261,15 +259,14 @@ async function publishDiagnostics(repoRoot, review, options, changedLineRanges, 
     let lines;
     try { lines = fs.readFileSync(uri.fsPath, 'utf8').split(/\r?\n/); }
     catch { meta.reason = 'file_read_failed'; publishMeta.set(finding, meta); continue; }
-    const lineNumber = exactChangedLine ? finding.line : nearestLine;
+    const lineNumber = finding.line;
     const startIndex = Math.min(Math.max(1, lineNumber), Math.max(1, lines.length)) - 1;
     const endRequested = Math.max(finding.endLine, lineNumber);
     const endIndex = Math.min(Math.max(lineNumber, endRequested), Math.max(1, lines.length)) - 1;
     const range = new vscode.Range(new vscode.Position(startIndex, 0), new vscode.Position(endIndex, (lines[endIndex] || '').length));
-    const locationNote = exactChangedLine ? '' : `\n\n${t('Location note: the model line was outside the changed lines and was mapped to the nearest changed line {0}.', lineNumber)}`;
     const message = finding.suggestion
-      ? `${finding.title}\n\n${finding.description}\n\n${t('Suggestion:')} ${finding.suggestion}${locationNote}`
-      : `${finding.title}\n\n${finding.description}${locationNote}`;
+      ? `${finding.title}\n\n${finding.description}\n\n${t('Suggestion:')} ${finding.suggestion}`
+      : `${finding.title}\n\n${finding.description}`;
     const diagnostic = new vscode.Diagnostic(range, message, severityToDiagnostic(finding.severity));
     diagnostic.source = 'Codex Review Safe';
     diagnostic.code = `${finding.category}/${finding.severity}`;
@@ -279,7 +276,7 @@ async function publishDiagnostics(repoRoot, review, options, changedLineRanges, 
     perFile.get(key).diagnostics.push(diagnostic);
     meta.published = true;
     meta.mappedLine = lineNumber;
-    meta.reason = exactChangedLine ? 'exact' : 'nearest_changed_line';
+    meta.reason = 'exact';
     publishMeta.set(finding, meta);
   }
   const repoKey = normalizeFsPath(repoRoot);

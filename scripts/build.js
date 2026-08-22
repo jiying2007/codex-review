@@ -11,7 +11,7 @@ const runtimeModules = [
 ];
 const coreModules = [
   'index.js', 'safe-contract.js', 'codex-cli.js', 'process-runner.js',
-  'git-repository.js', 'context-builder.js', 'policy.js'
+  'git-repository.js', 'context-builder.js', 'policy.js', 'review-rules.js'
 ];
 
 function copy(source, target) {
