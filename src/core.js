@@ -1,14 +1,16 @@
 'use strict';
 
 const path = require('path');
+const { POLICY_FILE } = require('./codex-safe-core/policy');
 const { t } = require('./i18n');
 
-const PROJECT_RULES_FILE = '.codex-review.json';
+const PROJECT_RULES_FILE = POLICY_FILE;
 const PROJECT_RULE_KEYS = new Set([
   'language',
   'maxDiffBytes',
   'maxFindings',
   'severityThreshold',
+  'confidenceThreshold',
   'timeoutSeconds',
   'extraInstructions'
 ]);
@@ -37,7 +39,7 @@ function clampNumber(value, fallback, min, max, name) {
   if (n < min || n > max) {
     throw new Error(t('{0} is outside the allowed range: {1} (allowed {2}–{3}).', name, n, min, max));
   }
-  return Math.round(n);
+  return n;
 }
 
 function validateExtraInstructions(value) {
