@@ -27,6 +27,7 @@ for (const name of ['safe-contract.js','codex-cli.js','process-runner.js','git-r
 }
 assert.doesNotMatch(extension, /\b__test\b/, 'extension.js must not expose a transitional private test surface');
 assert.doesNotMatch(extension, /require\(['\"]child_process['\"]\)/, 'extension.js must not own subprocess execution');
+assert.doesNotMatch(extension, /nearestChangedLine|nearest_changed_line|mapped to the nearest changed line/i, 'extension.js must enforce exact changed-line publication only');
 assert.doesNotMatch(processModule, /require\(['\"]child_process['\"]\)/, 'Review must not own subprocess execution');
 assert.match(processModule, /\.\/codex-safe-core\/process-runner/, 'Review process adapter must delegate to Core');
 assert.match(gitModule, /\.\/codex-safe-core\/git-repository/, 'Review Git primitives must delegate to Core');
@@ -69,4 +70,4 @@ for (const file of ['test.js', ...collectJsFiles('test')]) {
   assert.doesNotMatch(source, /src[\\/]safe-contract\.js|require\(['\"]\.\/src\/safe-contract['\"]\)/, `${file} must not depend on a removed contract shim`);
 }
 
-console.log('Review runtime boundaries verified against Codex Safe Core v3 with no nearest-line compatibility residue.');
+console.log('Review runtime boundaries verified against Codex Safe Core v3 with exact-line-only publication.');
