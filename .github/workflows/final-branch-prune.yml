@@ -1,6 +1,8 @@
 name: Final Branch Prune
 
 on:
+  push:
+    branches: [cleanup/final-branch-prune]
   pull_request:
     branches: [main]
 
@@ -9,7 +11,7 @@ permissions:
 
 jobs:
   prune:
-    if: github.head_ref == 'cleanup/final-branch-prune'
+    if: github.event_name == 'push' || github.head_ref == 'cleanup/final-branch-prune'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
