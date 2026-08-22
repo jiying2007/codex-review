@@ -13,9 +13,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  unit:
-    name: Unit / regression
+  static:
+    name: Static / unit / contract
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,7 +31,8 @@ jobs:
 
   integration-latest:
     name: Extension Host / ${{ matrix.os }} / latest
-    needs: unit
+    needs: static
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -47,18 +49,9 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Ensure Linux Extension Host dependencies
         if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
-            echo 'Extension Host dependencies already available.'
-          else
-            sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
-          fi
+        run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
       - name: Run Extension Host integration tests
         if: runner.os == 'Linux'
-        shell: bash
         run: xvfb-run -a npm run test:integration
       - name: Run Extension Host integration tests
         if: runner.os != 'Linux'
@@ -66,7 +59,7 @@ jobs:
 
   integration-minimum:
     name: Extension Host / Ubuntu / VS Code 1.90.0
-    needs: unit
+    needs: static
     runs-on: ubuntu-latest
     env:
       VSCODE_TEST_VERSION: '1.90.0'
@@ -79,24 +72,15 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Ensure Linux Extension Host dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
-            echo 'Extension Host dependencies already available.'
-          else
-            sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
-          fi
+      - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
       - run: xvfb-run -a npm run test:integration
 
   integration-zh-cn:
-    name: Extension Host / Ubuntu / zh-CN localization
-    needs: unit
+    name: Extension Host / Ubuntu / zh-CN
+    needs: static
     runs-on: ubuntu-latest
     env:
-      CODEX_REVIEW_IT_ZH_SMOKE: '1'
+      VSCODE_TEST_LOCALE: zh-cn
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -106,21 +90,12 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Ensure Linux Extension Host dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
-            echo 'Extension Host dependencies already available.'
-          else
-            sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
-          fi
+      - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
       - run: xvfb-run -a npm run test:integration
 
   integration-trust:
     name: Extension Host / Ubuntu / Workspace Trust
-    needs: unit
+    needs: static
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -131,20 +106,11 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Ensure Linux Extension Host dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
-            echo 'Extension Host dependencies already available.'
-          else
-            sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
-          fi
+      - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
       - run: xvfb-run -a npm run test:trust
 
   package:
-    name: Official VSIX package
+    name: Official VSIX / dist boundary
     needs: [integration-latest, integration-minimum, integration-zh-cn, integration-trust]
     runs-on: ubuntu-latest
     steps:
@@ -158,7 +124,6 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run package
       - name: Verify VSIX contents
-        shell: bash
         run: |
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
@@ -170,13 +135,11 @@ jobs:
           grep -Fx 'extension/l10n/bundle.l10n.zh-cn.json' /tmp/vsix-files.txt
           grep -Fx 'extension/README.zh-CN.md' /tmp/vsix-files.txt
           grep -Fx 'extension/images/icon.png' /tmp/vsix-files.txt
-          for module in i18n core process git policy review report receipts codex; do
-            grep -Fx "extension/src/${module}.js" /tmp/vsix-files.txt
-          done
-          grep -Fx 'extension/src/codex-safe-core/codex-cli.js' /tmp/vsix-files.txt
-          grep -Fx 'extension/src/codex-safe-core/safe-contract.js' /tmp/vsix-files.txt
-          grep -Fx 'extension/src/codex-safe-core/manifest.json' /tmp/vsix-files.txt
-          if grep -E '^extension/(test|scripts|package-lock\.json|PUBLISHING\.md|CONTRIBUTING\.md|\.gitignore|\.gitattributes|\.github|\.vscode|\.vscode-test)' /tmp/vsix-files.txt; then
+          grep -Fx 'extension/dist/extension.js' /tmp/vsix-files.txt
+          grep -Fx 'extension/dist/codex-safe.schema.json' /tmp/vsix-files.txt
+          grep -Fx 'extension/dist/src/codex.js' /tmp/vsix-files.txt
+          grep -Fx 'extension/dist/src/codex-safe-core/safe-contract.js' /tmp/vsix-files.txt
+          if grep -E '^extension/(extension\.js|src/|test|scripts|package-lock\.json|\.gitmodules|PUBLISHING\.md|CONTRIBUTING\.md|\.gitignore|\.gitattributes|\.github|\.vscode)' /tmp/vsix-files.txt; then
             echo 'VSIX contains development-only files' >&2
             exit 1
           fi
