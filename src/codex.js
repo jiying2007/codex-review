@@ -3,6 +3,7 @@
 const { runProcess } = require('./process');
 const { isCliCompatibilityError } = require('./codex-safe-core/safe-contract');
 const { createCodexCli } = require('./codex-safe-core/codex-cli');
+const { buildSemanticContext } = require('./codex-safe-core/context-builder');
 const { outputSchema, buildPrompt, validateReviewResult } = require('./review');
 
 const capabilityCache = new Map();
@@ -20,12 +21,17 @@ const withTemporaryDirectory = sharedCodexCli.withTemporaryDirectory;
 
 async function runCodexReview(diff, stagedPaths, options, token) {
   const prompt = buildPrompt(options, stagedPaths);
+  const semantic = buildSemanticContext({
+    files: stagedPaths,
+    diff,
+    maxBytes: options.contextBudgetBytes || options.maxDiffBytes
+  });
   const input = [
     prompt,
     '',
-    '--- STAGED GIT DIFF START ---',
-    diff,
-    '--- STAGED GIT DIFF END ---',
+    '--- STAGED CHANGE CONTEXT START ---',
+    semantic.text,
+    '--- STAGED CHANGE CONTEXT END ---',
     ''
   ].join('\n');
 
@@ -45,7 +51,11 @@ async function runCodexReview(diff, stagedPaths, options, token) {
   const review = validateReviewResult(parsed, options, stagedPaths);
   review.executionMeta = {
     codexVersion: resolved.version || 'unknown',
-    model: options.model || 'cli-default'
+    model: options.model || 'cli-default',
+    contextTruncated: semantic.truncated,
+    contextBudgetBytes: semantic.budgetBytes,
+    inputDiffBytes: semantic.inputDiffBytes,
+    truncatedSourceFiles: semantic.truncatedSourceFiles
   };
   return review;
 }
