@@ -16,6 +16,7 @@
 - [ ] Restricted Mode behavior remains safe.
 - [ ] Operational logs do not expose source/diff/review contents, secrets, or absolute repository paths.
 - [ ] Family v4 boundary remains pinned: Safe Core 4.0.0, Receipt v4/Prompt Contract provenance, and immutable release assets must not drift.
+- [ ] No obsolete vendored/copied Safe Core maintenance path or compatibility documentation is reintroduced.
 
 ## Verification
 
