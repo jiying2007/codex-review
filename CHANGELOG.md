@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.0.0
+
 - Breaking: hard-switch to Codex Safe Core v2 through a commit-pinned Git submodule; remove copied vendoring, sync locks, compatibility shims, and legacy Core ownership from the Review repository.
 - Replace `.codex-review.json` with the unified `.codex-safe.json` schema v2 `review` section; v1 policy and Receipt v1 are intentionally unsupported.
 - Add confidence-aware quality gating with configurable `confidenceThreshold` (default `0.70`); low-confidence findings are suppressed before diagnostics, verdicts, and receipts.
