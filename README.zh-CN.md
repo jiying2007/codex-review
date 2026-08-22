@@ -2,177 +2,154 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-在 VS Code 中使用本地 Codex CLI，仅针对 **Git 暂存区变更**生成安全、结构化的代码审查结果。
+在 VS Code 中只审查 **Git 暂存区变更**，把经过本地严格校验的 findings 转换为版本化质量凭据，同时不把仓库控制权交给模型。
 
-> **为什么叫 “Safe”？** Codex Review Safe 是 [Codex Commit Safe](https://github.com/jiying2007/codex-commit) 的代码审查配套扩展。两者统一采用 staged-only 输入、Structured Output、HEAD + raw index 一致性校验、最小 Codex 能力集、fail-closed 行为，并且都不会自动修改源码、Commit 或 Push。
-
-## 主要能力
-
-- VS Code Source Control 一键审查 staged changes
-- **只审查 Git 暂存区**（`git diff --cached`）
-- 审查结果支持 **简体中文 / 英文**
-- 命令、设置、进度、警告、报告、错误完整支持 **中英文 UI**
-- VS Code UI 语言与审查结果语言相互独立
-- Codex Structured Output + 本地严格 schema / path 校验
-- Problems 保守发布：只有能安全映射到当前 working tree 的问题才发布 inline Diagnostic
-- 使用 HEAD + raw Git index snapshot 防止 stale result 和 TOCTOU
-- `.codex-review.json` 固定读取捕获到的 HEAD，因此 staged 规则修改不能降低对自身的审查
-- 报告展示精确 HEAD、raw index、staged diff 指纹以及 Codex 执行元数据
-- staged 文件同时存在更新的 unstaged 修改时，明确提示这些最新修改尚未被审查
-- 分离质量结论与交付就绪结论：diff 无发现不等于需求、构建或测试就绪
-- 生成绑定 HEAD/index/diff/策略指纹的版本化审查凭据，并通过只读配套扩展 API 提供
-- dirty editor、unstaged changes、删除文件、binary、submodule、symlink 越界、纯 rename/copy、无法安全定位的行号全部 fail-safe 为 report-only
-- Windows `.exe` / `.cmd` / `.bat`、Linux、macOS 均由 CI 覆盖
-- Workspace Trust 由真实 trusted / Restricted Mode Extension Host 门禁 + 命令入口首语句 trust guard 回归检查共同覆盖
-- 永远不会自动修改源码、Commit、Push 或创建 PR
-
-## 中英文支持
-
-VS Code UI 自动跟随编辑器语言：
-
-- 英文 VS Code → 英文命令/提示/报告
-- 简体中文 VS Code → 中文命令/提示/报告
-
-审查结果语言独立配置：
-
-```json
-{
-  "safeCodexReview.language": "zh-CN"
-}
-```
-
-或：
-
-```json
-{
-  "safeCodexReview.language": "en"
-}
-```
-
-因此中文 VS Code 可以输出英文 Review，英文 VS Code 也可以输出中文 Review。
-
-## 工作流
+Codex Review Safe 是 **Codex Safe Git Workflow** 产品族的质量门禁阶段：
 
 ```text
-Stage changes
-    ↓
-VS Code Source Control
-    ↓
 Codex Review Safe
-    ↓
-本地 Codex CLI
-    ↓
-Structured review result
-    ↓
-本地安全校验
-    ↓
-Problems + 完整审查报告
+      ↓ Review Receipt v2
+Codex Commit Safe
+      ↓ Commit Receipt v2
+Codex PR Safe
+      ↓ 可验证 PR provenance
 ```
 
-## 安全模型
+所有共享安全与运行时基础设施只来自固定 commit 的 [`codex-safe-core`](https://github.com/jiying2007/codex-safe-core) Git submodule。
 
-Codex Review Safe 有意保持较小的执行和信任边界：
+## 核心能力
 
-- 只把 staged diff 发送给 Codex 推理；
-- Codex 在临时目录执行，而不是项目仓库目录；
-- 本次 Review 忽略用户 Codex config 和项目执行规则；
-- 在 CLI 支持的情况下显式关闭不需要的 Codex 能力；
-- 使用 read-only sandbox，并关闭 approval；
-- 模型输出必须通过严格的本地 schema、路径和范围校验；
-- 仓库状态使用 **HEAD OID + SHA-256(raw `git ls-files --stage -z`)** 表示；
-- 在输入采集前后、Codex 返回后、Problems 发布后都进行 snapshot 校验；
-- HEAD/index 发生变化或新 Review 覆盖旧 Review 时，旧结果直接丢弃；
-- workspace/folder settings 不能降低 Review policy；
-- `.codex-review.json` 从捕获到的精确 HEAD OID 中读取；
-- operational log 不记录源码、staged diff、审查内容、secret 或仓库绝对路径。
+- 只审查 staged/index changes。
+- Review findings 支持简体中文和英文。
+- 使用 Safe Core Semantic Context Budget，不再做“取前 N 字节”的粗暴截断。
+- 对每个 finding 做本地 schema、severity、category、file、line range、confidence 校验。
+- 低于 `confidenceThreshold` 的 finding 在影响 Problems、verdict、receipt 之前就被 suppressed。
+- 只有能安全映射到当前文件的位置才发布为 Problems Diagnostic。
+- 无法安全定位的 finding 保留在完整报告中，而不是强行发布 inline diagnostic。
+- 使用 HEAD + Git 原始 index snapshot 防止 stale result。
+- **质量结论**与**交付就绪结论**严格分离。
+- 持久化与 HEAD、index、完整 diff、policy fingerprint 绑定的 Review Receipt v2。
+- 通过只读 API 向 Commit/PR 配套扩展提供 range evidence。
 
-组织级 Codex 策略、MDM、managed hooks 和云端策略仍可能具有更高优先级，扩展不会尝试绕过组织策略。
+## 明确不会做的事
 
-> staged diff 会离开本机并发送到所配置的 Codex 服务。请确保符合所在组织的源码和数据使用规范。
+- 不修改源码。
+- 不自动 commit 或 push。
+- 不自动创建/提交 Pull Request。
+- 不给 Codex Shell 权限。
+- 不给 Codex 网络/Web Search 权限。
+- 不把“无 findings”解释为需求、构建或测试已经通过。
 
-完整说明见 [SECURITY.md](SECURITY.md)。
+## 安全边界
+
+Safe Core v2 要求 Codex CLI 具备：
+
+- `--ask-for-approval never`
+- `exec --json`
+- ephemeral execution
+- 本次请求忽略用户/项目 Codex rules
+- read-only sandbox
+- Structured Output schema
+- 显式关闭 shell、unified exec、web search、apps、hooks、memories、multi-agent 等无关能力
+
+缺失必要安全能力时直接 fail closed 并要求升级；**不存在 legacy CLI fallback**。
+
+完整 staged diff 保留在本地，用于 fingerprint、line mapping 和 Review Receipt evidence；模型输入单独经过 Safe Core Semantic Context Budget：
+
+- source 文件公平分配预算；
+- generated/lock 文件只保留元数据；
+- binary 文件只保留元数据；
+- 过大的 source 文件保留受控头尾上下文；
+- 原始 staged diff 固定 8 MiB 安全上限。
+
+## Finding 精度门禁
+
+每个 finding 都有 `0~1` 的 `confidence`。默认 `confidenceThreshold=0.70`。
+
+```text
+model finding
+    ↓ schema/path validation
+confidence >= threshold?
+    ├─ 是 → finding → diagnostic/verdict/receipt
+    └─ 否 → suppressed finding
+```
+
+Suppressed findings 不影响 `qualityVerdict` 或 Review Receipt。目标是优先保证证据充分、误报率低，而不是追求 finding 数量。
+
+## 唯一仓库策略文件
+
+仓库只认 `.codex-safe.json`，且必须使用 `schemaVersion: 2`。
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/d49dc356824b984166e81e42bb5f9d7abfb90099/codex-safe.schema.json",
+  "schemaVersion": 2,
+  "review": {
+    "language": "zh-CN",
+    "maxDiffBytes": 524288,
+    "maxFindings": 40,
+    "severityThreshold": "low",
+    "confidenceThreshold": 0.7,
+    "timeoutSeconds": 120,
+    "extraInstructions": "重点关注正确性、资源生命周期、并发、边界和错误处理。"
+  }
+}
+```
+
+只使用 **HEAD 中已提交的策略**。staged 的策略修改不能降低对自身的 Review 门禁，而是在提交后生效。
+
+仓库策略不能配置 Codex executable、model、environment、working directory 或任意命令。`safeCodexReview.codexPath` 为 machine scope，其余用户偏好为 application scope。
+
+`maxDiffBytes` 表示**模型 Semantic Context 预算**，不是原始 diff 的拒绝阈值。
+
+## Verdict 与 Receipt
+
+Review Safe 分离两个维度：
+
+- `qualityVerdict`：`no_findings` / `findings_open` / `blocked`；
+- `readinessVerdict`：只基于独立交付证据，不会声称需求/构建/测试已经完成。
+
+Review Receipt v2 记录精确的 HEAD、index、diff、policy fingerprint，以及 quality/readiness/mechanical-gate 与执行元数据。
+
+Commit Safe 只有在 Receipt 与当前精确 staged snapshot 匹配时才消费它；PR Safe 后续还会把 Review Receipt 与真正提交后的 first-parent diff 重新验证。
+
+## Diagnostic 安全策略
+
+即使 finding 通过结构化校验，也可能只进入报告，不发布 Problems。例如：
+
+- 删除文件；
+- binary 文件；
+- submodule change；
+- dirty editor；
+- staged 文件同时存在 unstaged overlay；
+- symlink 指向仓库外；
+- rename/copy 但无内容变更；
+- 行号无法安全映射。
+
+这样可以保持 Problems 界面保守可信，同时不丢失完整 Review evidence。
+
+## 使用
+
+1. Stage 准备审查的修改。
+2. 打开 **Source Control**。
+3. 执行 **Codex Review Safe: 审查 Staged Changes**。
+4. 在 **Problems** 查看能安全定位的 findings。
+5. 执行 **显示审查报告** 查看完整结果。
+6. 修复、重新 Stage，再次 Review。
+7. 手工 Commit，或继续使用 Codex Commit Safe。
+
+**清除审查结果**会同时清理本机持久化的 Review Receipt 历史。
 
 ## 环境要求
 
 - VS Code `1.90.0` 或更高版本
 - Git
-- 已安装并登录 OpenAI Codex CLI
+- 在工作区 Extension Host 所在环境安装并登录 OpenAI Codex CLI
 
-先确认：
-
-```bash
-codex --version
-```
-
-## 安装
-
-从对应的 GitHub Release 下载 VSIX，并把 `<version>` 替换为实际发布版本：
+## 构建与测试
 
 ```bash
-code --install-extension codex-review-safe-<version>.vsix
-```
-
-或在 VS Code 中：
-
-```text
-Extensions → ... → Install from VSIX...
-```
-
-然后运行：
-
-```text
-Ctrl+Shift+P → Codex Review Safe: 检查 Codex 环境
-```
-
-## 使用方法
-
-1. Stage 需要审查的修改。
-2. 打开 **Source Control**。
-3. 运行 **Codex Review Safe: 审查 Staged Changes**，或点击 Source Control 工具栏按钮。
-4. 能安全定位的问题会出现在 **Problems**。
-5. 使用 **Codex Review Safe: 显示审查报告** 查看完整报告，包括 report-only 问题和原因。
-6. 修复问题、重新 Stage，再重新 Review，最后手动 Commit。
-
-报告只描述 staged 快照。如果已暂存文件同时还有未暂存修改，报告会列出该 overlay，并明确最新 working-tree 版本尚未被审查。重新 Review 前应先 Stage 准备提交的修复。
-
-`qualityVerdict=no_findings` 仅表示在输入 diff 中未发现实质问题；在需求、构建和测试获得独立证据前，`readinessVerdict` 仍为 `needs_evidence`。凭据只保存在本机 VS Code 扩展状态中，不会 Commit、Push、发布或修改源码。
-
-运行 **Codex Review Safe: 清除审查结果** 也会删除本机持久化的凭据历史。
-
-## 项目配置
-
-仓库可以提交 `.codex-review.json`：
-
-```json
-{
-  "language": "zh-CN",
-  "maxDiffBytes": 524288,
-  "maxFindings": 40,
-  "severityThreshold": "low",
-  "timeoutSeconds": 120,
-  "extraInstructions": "重点关注正确性、资源泄漏、并发、边界检查、错误处理和长期运行稳定性。"
-}
-```
-
-项目规则不能设置 Codex 可执行文件、模型、环境变量、工作目录或任意命令。Review policy 从本次 Review 捕获到的精确 HEAD 中读取，因此 staged 的规则修改只会在提交后生效。
-
-所有 `safeCodexReview.*` VS Code 设置都是 application-scoped User Settings。
-
-## 扩展身份
-
-- 仓库：`codex-review`
-- Extension name：`codex-review-safe`
-- Display name：**Codex Review Safe**
-- Publisher/VSIX ID：`jiying2007.codex-review-safe`
-- 命令/设置 namespace：`safeCodexReview.*`
-- 仓库规则：`.codex-review.json`
-- 配套扩展：**Codex Commit Safe**（`jiying2007.codex-commit-safe`）
-- Marketplace：**暂未发布**，当前通过 GitHub Releases 分发
-
-## 开发
-
-```bash
-npm run verify:lock
+git submodule update --init --recursive
 npm ci --ignore-scripts --no-audit --no-fund
 npm run check
 npm run test:integration
@@ -180,10 +157,42 @@ npm run test:trust
 npm run package
 ```
 
-`npm run test:trust` 会用隔离 profile 分别启动 trusted 与 Restricted Mode Extension Test Host，并断言真实的 `vscode.workspace.isTrusted` 状态。由于 Extension Development Host 对开发扩展的加载可能比正常安装场景更宽松，`npm run check` 会额外强制 `reviewStaged()` 和 `checkEnvironment()` 把 `assertTrustedWorkspace()` 保持为第一条可执行语句。CI 会把这套 trust 门禁与 Linux/Windows/macOS 最新 VS Code、VS Code `1.90.0` 最低兼容、简体中文 Extension Host smoke、源码与双语 l10n key 一致性、官方 VSIX 内容及 SHA-256 一并验证。
+Marketplace / Release 运行入口统一为 `dist/extension.js`。VSIX 只包含 `dist/` 下的确定性生产运行时、`dist/codex-safe.schema.json`、本地化、图标和发布文档；源码、tests、scripts、submodule metadata 一旦进入 VSIX，CI 直接失败。
 
-贡献约束见 [CONTRIBUTING.md](CONTRIBUTING.md)，发布流程见 [PUBLISHING.md](PUBLISHING.md)。
+CI 门禁包括：
+
+- static/contract/module-boundary；
+- unit/regression；
+- Linux / Windows / macOS Extension Host；
+- 最低 VS Code `1.90.0`；
+- 简体中文本地化 smoke；
+- 真实 Workspace Trust / Restricted Mode；
+- 官方 VSIX 边界审计与 SHA-256。
+
+## 发布完整性
+
+`main` 上版本变更触发完整 Release gate。只有 validation 与 integration 全部通过后才创建不可变 Tag 和 GitHub Release。
+
+发布资产包括：
+
+- `codex-review-safe-<version>.vsix`
+- `SHA256SUMS`
+- 两个资产对应的 GitHub build-provenance attestation
+
+只有最终 Release job 拥有 `contents: write`、`id-token: write`、`attestations: write`；其他验证 job 只读。Actions 使用完整 commit SHA 固定。
+
+详见 [SECURITY.md](SECURITY.md)、[CONTRIBUTING.md](CONTRIBUTING.md)、[PUBLISHING.md](PUBLISHING.md)。
+
+## 产品族边界
+
+| 产品 | 职责 | 明确不做 |
+| --- | --- | --- |
+| **Codex Review Safe** | staged-change 质量门禁 + Review Receipt | 写代码 / commit |
+| Codex Commit Safe | Commit Message + 可验证 Commit Receipt | commit / push |
+| Codex PR Safe | PR narrative + provenance | push / 自动提交 PR |
+
+设计原则：**AI 辅助 Git 工作流，但不把 Git 控制权交给 AI。**
 
 ## License
 
-见 [LICENSE](LICENSE)。
+MIT
