@@ -8,7 +8,7 @@ const {
   validateReviewReceipt
 } = require('./codex-safe-core/safe-contract');
 
-const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v3';
+const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v4';
 const MAX_RECEIPTS_PER_REPO = 50;
 
 function localSubject(receipt) {
@@ -31,7 +31,7 @@ function createReviewReceiptStore(globalState) {
   async function persist(repoRoot, receipt) {
     const validated = validateReviewReceipt(receipt);
     const subject = localSubject(validated);
-    if (!validated || !subject) throw new Error('Local Review Receipt v3 is invalid and was not stored.');
+    if (!validated || !subject) throw new Error('Local Review Receipt v4 is invalid and was not stored.');
     const key = normalizeFsPath(repoRoot);
     const receipts = [validated, ...(receiptsByRepo.get(key) || [])]
       .filter((item, index, all) => {
