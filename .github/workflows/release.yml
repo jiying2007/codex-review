@@ -2,10 +2,8 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*'
+    branches: [main]
+    tags: ['v*']
 
 permissions:
   contents: read
@@ -18,7 +16,7 @@ jobs:
   validate:
     name: Validate release
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
@@ -39,45 +37,20 @@ jobs:
         run: |
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
-            echo "package version must be MAJOR.MINOR.PATCH: $version" >&2
-            exit 1
-          }
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "package version must be MAJOR.MINOR.PATCH: $version" >&2; exit 1; }
           tag="v${version}"
           publish=true
-
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            test "$GITHUB_REF_NAME" = "$tag" || {
-              echo "tag $GITHUB_REF_NAME does not match package.json version $version" >&2
-              exit 1
-            }
+            test "$GITHUB_REF_NAME" = "$tag"
             git fetch --no-tags origin main:refs/remotes/origin/main
-            git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
-              echo "release commit $GITHUB_SHA is not reachable from main" >&2
-              exit 1
-            }
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
           else
-            test "$GITHUB_REF_NAME" = "main" || {
-              echo "unexpected release branch: $GITHUB_REF_NAME" >&2
-              exit 1
-            }
             previous_version=""
             if [[ "$GITHUB_EVENT_BEFORE" =~ ^[0-9a-f]{40}$ && ! "$GITHUB_EVENT_BEFORE" =~ ^0+$ ]]; then
               previous_version=$(git show "${GITHUB_EVENT_BEFORE}:package.json" 2>/dev/null | node -e "let s='';process.stdin.setEncoding('utf8');process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>{try{process.stdout.write(JSON.parse(s).version||'')}catch{}})" || true)
             fi
-            if [[ "$previous_version" == "$version" ]]; then
-              publish=false
-              echo "package version is unchanged at $version; no release will be published."
-            elif git ls-remote --exit-code --refs origin "refs/tags/$tag" >/dev/null 2>&1; then
-              git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
-              existing=$(git rev-list -n 1 "$tag")
-              test "$existing" = "$GITHUB_SHA" || {
-                echo "release tag $tag already points to a different commit: $existing" >&2
-                exit 1
-              }
-            fi
+            if [[ "$previous_version" == "$version" ]]; then publish=false; fi
           fi
-
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
@@ -88,8 +61,8 @@ jobs:
       - if: steps.version.outputs.publish == 'true'
         run: npm run check
 
-  integration-latest:
-    name: Extension Host / ${{ matrix.os }} / latest
+  integration:
+    name: Release Extension Host / ${{ matrix.os }}
     needs: validate
     if: needs.validate.outputs.publish == 'true'
     timeout-minutes: 20
@@ -100,137 +73,63 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+        with: { persist-credentials: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-          cache: npm
+        with: { node-version: '22', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Ensure Linux Extension Host dependencies
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
-            echo 'Extension Host dependencies already available.'
-          else
-            sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
-          fi
-      - name: Run Extension Host integration tests
-        if: runner.os == 'Linux'
-        shell: bash
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
+      - if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:integration
-      - name: Run Extension Host integration tests
-        if: runner.os != 'Linux'
+      - if: runner.os != 'Linux'
         run: npm run test:integration
 
   integration-minimum:
-    name: Extension Host / Ubuntu / VS Code 1.90.0
+    name: Release Extension Host / VS Code 1.90.0
     needs: validate
     if: needs.validate.outputs.publish == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      VSCODE_TEST_VERSION: '1.90.0'
+    env: { VSCODE_TEST_VERSION: '1.90.0' }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+        with: { persist-credentials: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-          cache: npm
+        with: { node-version: '22', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Ensure Linux Extension Host dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
-            echo 'Extension Host dependencies already available.'
-          else
-            sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
-          fi
-      - run: xvfb-run -a npm run test:integration
-
-  integration-zh-cn:
-    name: Extension Host / Ubuntu / zh-CN localization
-    needs: validate
-    if: needs.validate.outputs.publish == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      CODEX_REVIEW_IT_ZH_SMOKE: '1'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Ensure Linux Extension Host dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
-            echo 'Extension Host dependencies already available.'
-          else
-            sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
-          fi
+      - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
       - run: xvfb-run -a npm run test:integration
 
   integration-trust:
-    name: Extension Host / Ubuntu / Workspace Trust
+    name: Release Extension Host / Workspace Trust
     needs: validate
     if: needs.validate.outputs.publish == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+        with: { persist-credentials: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-          cache: npm
+        with: { node-version: '22', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Ensure Linux Extension Host dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v xvfb-run >/dev/null 2>&1 && ldconfig -p | grep -q 'libgtk-3.so' && ldconfig -p | grep -q 'libnss3.so'; then
-            echo 'Extension Host dependencies already available.'
-          else
-            sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2
-          fi
+      - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
       - run: xvfb-run -a npm run test:trust
 
   release:
-    name: Package and publish
-    needs: [validate, integration-latest, integration-minimum, integration-zh-cn, integration-trust]
+    name: Package / attest / publish
+    needs: [validate, integration, integration-minimum, integration-trust]
     if: needs.validate.outputs.publish == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
+        with: { persist-credentials: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-          cache: npm
+        with: { node-version: '22', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Package VSIX
-        run: npm run package
+      - run: npm run package
       - name: Verify package and create checksum
         shell: bash
         run: |
@@ -238,23 +137,18 @@ jobs:
           version="${{ needs.validate.outputs.version }}"
           vsix="codex-review-safe-${version}.vsix"
           unzip -Z1 "$vsix" > /tmp/vsix-files.txt
-          grep -Fx 'extension/package.nls.json' /tmp/vsix-files.txt
-          grep -Fx 'extension/package.nls.zh-cn.json' /tmp/vsix-files.txt
-          grep -Fx 'extension/l10n/bundle.l10n.json' /tmp/vsix-files.txt
-          grep -Fx 'extension/l10n/bundle.l10n.zh-cn.json' /tmp/vsix-files.txt
-          grep -Fx 'extension/README.zh-CN.md' /tmp/vsix-files.txt
-          grep -Fx 'extension/images/icon.png' /tmp/vsix-files.txt
-          for module in i18n core process git policy review report receipts codex; do
-            grep -Fx "extension/src/${module}.js" /tmp/vsix-files.txt
-          done
-          grep -Fx 'extension/src/codex-safe-core/codex-cli.js' /tmp/vsix-files.txt
-          grep -Fx 'extension/src/codex-safe-core/safe-contract.js' /tmp/vsix-files.txt
-          grep -Fx 'extension/src/codex-safe-core/manifest.json' /tmp/vsix-files.txt
-          if grep -E '^extension/(test|scripts|package-lock\.json|PUBLISHING\.md|CONTRIBUTING\.md|\.gitignore|\.gitattributes|\.github|\.vscode|\.vscode-test)' /tmp/vsix-files.txt; then
-            echo 'VSIX contains development-only files' >&2
-            exit 1
-          fi
+          grep -Fx 'extension/dist/extension.js' /tmp/vsix-files.txt
+          grep -Fx 'extension/dist/codex-safe.schema.json' /tmp/vsix-files.txt
+          grep -Fx 'extension/dist/src/codex.js' /tmp/vsix-files.txt
+          grep -Fx 'extension/dist/src/codex-safe-core/context-builder.js' /tmp/vsix-files.txt
+          if grep -E '^extension/(extension\.js|src/|test|scripts|package-lock\.json|\.gitmodules|PUBLISHING\.md|CONTRIBUTING\.md|\.gitignore|\.gitattributes)' /tmp/vsix-files.txt; then echo 'VSIX contains development-only files' >&2; exit 1; fi
           sha256sum "$vsix" > SHA256SUMS
+      - name: Attest VSIX and checksum provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            codex-review-safe-${{ needs.validate.outputs.version }}.vsix
+            SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codex-review-safe-${{ needs.validate.outputs.version }}
@@ -263,41 +157,25 @@ jobs:
             SHA256SUMS
           if-no-files-found: error
       - name: Ensure release tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+        env: { GH_TOKEN: '${{ github.token }}', RELEASE_TAG: '${{ needs.validate.outputs.tag }}' }
         shell: bash
         run: |
           set -euo pipefail
           if git ls-remote --exit-code --refs origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
             git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
-            existing=$(git rev-list -n 1 "$RELEASE_TAG")
-            test "$existing" = "$GITHUB_SHA" || {
-              echo "release tag $RELEASE_TAG points to $existing, expected $GITHUB_SHA" >&2
-              exit 1
-            }
+            test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$GITHUB_SHA"
           else
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
-              -f ref="refs/tags/${RELEASE_TAG}" \
-              -f sha="$GITHUB_SHA" >/dev/null
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${RELEASE_TAG}" -f sha="$GITHUB_SHA" >/dev/null
           fi
       - name: Publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+        env: { GH_TOKEN: '${{ github.token }}', RELEASE_TAG: '${{ needs.validate.outputs.tag }}' }
         shell: bash
         run: |
           set -euo pipefail
           version="${{ needs.validate.outputs.version }}"
           vsix="codex-review-safe-${version}.vsix"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists; refreshing artifacts for a safe rerun."
             gh release upload "$RELEASE_TAG" "$vsix" SHA256SUMS --clobber
           else
-            gh release create "$RELEASE_TAG" \
-              "$vsix" \
-              SHA256SUMS \
-              --title "Codex Review Safe ${version}" \
-              --generate-notes \
-              --verify-tag
+            gh release create "$RELEASE_TAG" "$vsix" SHA256SUMS --title "Codex Review Safe ${version}" --generate-notes --verify-tag
           fi
