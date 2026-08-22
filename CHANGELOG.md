@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 3.0.0
+
+### Changed
+
+- Hard-switched to Codex Safe Core 3.0.1, Policy Schema v3 and Review Receipt v3.
+- Replaced narrative diff truncation with coverage-preserving Review Evidence Chunks.
+- Removed ±3 finding relocation; local findings require exact post-change changed lines.
+- Added canonical deterministic repository review rules and explicit coverage/mechanical evidence.
+
 ## 2.1.0
 
 - Pin the final Codex Safe Core 2.1 baseline with canonical repository-policy validation, closed receipt contracts, hardened process execution, Git token validation, deep-frozen policy values, and Semantic Context budgeting.
