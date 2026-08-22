@@ -16,6 +16,8 @@ const {
 const { fingerprintPolicy } = require('./codex-safe-core/safe-contract');
 const { t } = require('./i18n');
 
+const RAW_DIFF_HARD_LIMIT_BYTES = 8 * 1024 * 1024;
+
 async function readProjectRulesAtHead(repoRoot, headOid, token) {
   const result = await readPolicySectionAtHead({
     git,
@@ -51,6 +53,11 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     0.7, 0, 1, 'confidenceThreshold'
   );
 
+  const contextBudgetBytes = Math.round(clampNumber(
+    project.maxDiffBytes ?? getUserOnlySetting(config, 'maxDiffBytes', 524288),
+    524288, 4096, 2097152, 'maxDiffBytes'
+  ));
+
   const extraInstructions = [
     validateExtraInstructions(getUserOnlySetting(config, 'extraInstructions', '')),
     validateExtraInstructions(project.extraInstructions)
@@ -61,7 +68,8 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     codexPath,
     model,
     language,
-    maxDiffBytes: clampNumber(project.maxDiffBytes ?? getUserOnlySetting(config, 'maxDiffBytes', 524288), 524288, 4096, 2097152, 'maxDiffBytes'),
+    maxDiffBytes: RAW_DIFF_HARD_LIMIT_BYTES,
+    contextBudgetBytes,
     maxFindings: Math.round(clampNumber(project.maxFindings ?? getUserOnlySetting(config, 'maxFindings', 40), 40, 1, 100, 'maxFindings')),
     severityThreshold,
     confidenceThreshold,
@@ -73,7 +81,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
 
   options.policyFingerprint = fingerprintPolicy({
     language: options.language,
-    maxDiffBytes: options.maxDiffBytes,
+    maxDiffBytes: options.contextBudgetBytes,
     maxFindings: options.maxFindings,
     severityThreshold: options.severityThreshold,
     confidenceThreshold: options.confidenceThreshold,
@@ -84,4 +92,8 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   return options;
 }
 
-module.exports = { readProjectRulesAtHead, getEffectiveOptions };
+module.exports = {
+  RAW_DIFF_HARD_LIMIT_BYTES,
+  readProjectRulesAtHead,
+  getEffectiveOptions
+};
