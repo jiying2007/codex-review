@@ -33,7 +33,11 @@ assert.match(gitModule, /\.\/codex-safe-core\/git-repository/, 'Review Git primi
 assert.match(policyModule, /\.\/codex-safe-core\/policy/, 'Review policy must delegate to Core');
 assert.match(reviewModule, /\.\/codex-safe-core\/review-rules/, 'Review deterministic rules must delegate to Core');
 assert.match(codexModule, /buildReviewEvidenceChunks/, 'Review evidence chunking must delegate to Core');
-assert.doesNotMatch(reviewModule, /maxDistance\s*=\s*3/, 'nearest-line relocation must not return');
+assert.doesNotMatch(reviewModule, /nearestChangedLine|maxDistance\s*=\s*3/, 'nearest-line compatibility residue must not return');
+for (const catalog of ['l10n/bundle.l10n.json','l10n/bundle.l10n.zh-cn.json']) {
+  if (!fs.existsSync(catalog)) continue;
+  assert.doesNotMatch(fs.readFileSync(catalog, 'utf8'), /mapped to the nearest changed line/i, `${catalog} must not retain nearest-line compatibility copy`);
+}
 
 for (const [name, source] of [['src/policy.js', policyModule], ['src/review.js', reviewModule], ['src/codex.js', codexModule]]) {
   assert.match(source, /require\(['\"]\.\/codex-safe-core\/safe-contract['\"]\)/, `${name} must import the canonical Safe Core contract directly`);
@@ -65,4 +69,4 @@ for (const file of ['test.js', ...collectJsFiles('test')]) {
   assert.doesNotMatch(source, /src[\\/]safe-contract\.js|require\(['\"]\.\/src\/safe-contract['\"]\)/, `${file} must not depend on a removed contract shim`);
 }
 
-console.log('Review runtime boundaries verified against Codex Safe Core v3.');
+console.log('Review runtime boundaries verified against Codex Safe Core v3 with no nearest-line compatibility residue.');
