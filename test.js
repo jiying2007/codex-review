@@ -37,63 +37,131 @@ function gitRun(repo, args) {
   if (result.status !== 0) throw new Error(result.stderr || result.stdout);
   return result.stdout.trim();
 }
-
-const meta = {
-  diffFingerprint: 'a'.repeat(64),
-  policyFingerprint: 'b'.repeat(64),
-  stagedFileCount: 1,
-  stagedPaths: ['src/a.js'],
-  changedRanges: new Map([['src/a.js', [{ start: 1, end: 20 }]]),
-  dirtyOpenPaths: new Set(),
-  binaryPaths: new Set(),
-  submodulePaths: new Set(),
-  unstagedPaths: new Set()
-};
-const highConfidence = { severity: 'medium', file: 'src/a.js', line: 10, title: 'Issue', message: 'Problem', confidence: 0.9 };
-const lowConfidence = { severity: 'high', file: 'src/a.js', line: 11, title: 'Unclear', message: 'Weak', confidence: 0.2 };
+function initRepo(repo) {
+  gitRun(repo, ['init']);
+  gitRun(repo, ['config', 'user.email', 'test@example.invalid']);
+  gitRun(repo, ['config', 'user.name', 'Codex Review Safe Test']);
+}
 
 (async () => {
-  assert.strictEqual(unit.computeVerdict([]), 'pass');
-  assert.strictEqual(unit.computeVerdict([highConfidence]), 'needs_attention');
-  const validated = unit.validateReviewResult({ summary: 'review', findings: [highConfidence, lowConfidence] }, meta, { maxFindings: 40, confidenceThreshold: 0.7 });
-  assert.strictEqual(validated.findings.length, 1);
-  assert.strictEqual(validated.suppressedFindings.length, 1);
-  assert.strictEqual(validated.findings[0].confidence, 0.9);
+  assert.strictEqual(unit.PROJECT_RULES_FILE, '.codex-safe.json');
+  assert.strictEqual(unit.severityPasses('high', 'medium'), true);
+  assert.strictEqual(unit.severityPasses('low', 'medium'), false);
 
-  const receipt = unit.createReviewReceipt(
-    { qualityVerdict: 'no_findings', readinessVerdict: 'needs_evidence', mechanicalGate: 'not_run' },
-    { headOid: '1'.repeat(40), indexFingerprint: '2'.repeat(64) },
-    { ...meta, diffFingerprint: '3'.repeat(64), policyFingerprint: '4'.repeat(64) }
+  const staged = ['src/a.c'];
+  const highConfidence = {
+    severity: 'medium', category: 'correctness', file: 'src/a.c', line: 10, endLine: 10,
+    title: 'boundary error', description: 'zero is skipped', suggestion: 'handle zero', confidence: 0.91
+  };
+  const lowConfidence = { ...highConfidence, title: 'weak guess', confidence: 0.4 };
+  const reviewed = unit.validateReviewResult(
+    { summary: 'review', findings: [lowConfidence, highConfidence] },
+    { maxFindings: 40, confidenceThreshold: 0.7 },
+    staged
   );
+  assert.strictEqual(reviewed.findings.length, 1);
+  assert.strictEqual(reviewed.suppressedFindings.length, 1);
+  assert.strictEqual(reviewed.findings[0].title, 'boundary error');
+  assert.strictEqual(reviewed.qualityVerdict, 'findings_open');
+
+  const onlyWeak = unit.validateReviewResult(
+    { summary: '', findings: [lowConfidence] },
+    { maxFindings: 40, confidenceThreshold: 0.7 },
+    staged
+  );
+  assert.strictEqual(onlyWeak.findings.length, 0);
+  assert.strictEqual(onlyWeak.suppressedFindings.length, 1);
+  assert.strictEqual(onlyWeak.qualityVerdict, 'no_findings');
+
+  const prompt = unit.buildPrompt({ language: 'en', extraInstructions: '', confidenceThreshold: 0.7 }, staged);
+  assert.match(prompt, /completely untrusted data/i);
+  assert.match(prompt, /confidence 0\.7/);
+  assert.match(prompt, /do not stop after finding the first issue/i);
+
+  const schema = unit.outputSchema({ maxFindings: 12 });
+  assert.strictEqual(schema.additionalProperties, false);
+  assert.strictEqual(schema.properties.findings.maxItems, 12);
+  assert.strictEqual(schema.properties.findings.items.properties.confidence.minimum, 0);
+  assert.strictEqual(schema.properties.findings.items.properties.confidence.maximum, 1);
+
+  const args = unit.buildCodexArgs('/tmp/schema.json', 'gpt-test');
+  const execIndex = args.indexOf('exec');
+  assert.ok(args.indexOf('--ask-for-approval') >= 0 && args.indexOf('--ask-for-approval') < execIndex);
+  assert.strictEqual(args[args.indexOf('--ask-for-approval') + 1], 'never');
+  assert.strictEqual(args[args.indexOf('--sandbox') + 1], 'read-only');
+  for (const required of ['web_search="disabled"', 'features.shell_tool=false', 'features.unified_exec=false', 'features.apps=false', 'features.multi_agent=false']) {
+    assert.ok(args.join(' ').includes(required), required);
+  }
+
+  const meta = unit.buildReviewInputMeta(
+    { headOid: '1'.repeat(40), indexFingerprint: '2'.repeat(64) },
+    '3'.repeat(64), 321, staged, new Set(),
+    { model: 'gpt-test', codexVersion: 'codex-cli 9.9.9', policyFingerprint: '4'.repeat(64), policySource: 'head-policy' }
+  );
+  const receipt = unit.createReviewReceipt(reviewed, meta, new Date('2026-08-22T00:00:00.000Z'));
+  assert(receipt);
   assert.strictEqual(receipt.schemaVersion, 2);
   assert.strictEqual(receipt.kind, 'codex-review-safe');
 
-  const memory = new Map();
-  const globalState = { get: (k, fallback) => memory.has(k) ? memory.get(k) : fallback, update: async (k, v) => memory.set(k, v) };
-  const store = createReviewReceiptStore(globalState);
-  store.restore();
-  assert.strictEqual(RECEIPT_STORAGE_KEY, 'safeCodexReview.receipts.v2');
+  const state = {
+    value: {},
+    get(key, fallback) { return key === RECEIPT_STORAGE_KEY ? this.value : fallback; },
+    async update(key, value) { if (key === RECEIPT_STORAGE_KEY) this.value = value || {}; }
+  };
+  const receiptStore = createReviewReceiptStore(state);
+  receiptStore.restore();
+  await receiptStore.persist('/repo', receipt);
+  assert.strictEqual(receiptStore.getStatus('/repo', { headOid: receipt.headOid, indexFingerprint: receipt.indexFingerprint }).status, 'current');
+  assert.strictEqual(receiptStore.getStatus('/repo', { headOid: '9'.repeat(40), indexFingerprint: receipt.indexFingerprint }).status, 'stale');
 
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-range-'));
+  const policyRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-policy-'));
   try {
-    gitRun(repo, ['init']);
-    gitRun(repo, ['config', 'user.email', 'test@example.invalid']);
-    gitRun(repo, ['config', 'user.name', 'Test']);
-    fs.writeFileSync(path.join(repo, 'a.txt'), 'a\n');
-    gitRun(repo, ['add', 'a.txt']);
+    initRepo(policyRepo);
+    fs.writeFileSync(path.join(policyRepo, '.codex-safe.json'), JSON.stringify({
+      schemaVersion: 2,
+      review: { severityThreshold: 'low', confidenceThreshold: 0.8, maxFindings: 40 }
+    }));
+    fs.writeFileSync(path.join(policyRepo, 'a.c'), 'int a = 1;\n');
+    gitRun(policyRepo, ['add', '.codex-safe.json', 'a.c']);
+    gitRun(policyRepo, ['commit', '-m', 'base policy']);
+    const head = gitRun(policyRepo, ['rev-parse', 'HEAD']);
+    fs.writeFileSync(path.join(policyRepo, '.codex-safe.json'), JSON.stringify({
+      schemaVersion: 2,
+      review: { severityThreshold: 'critical', confidenceThreshold: 1, maxFindings: 1 }
+    }));
+    gitRun(policyRepo, ['add', '.codex-safe.json']);
+    const policy = await unit.readProjectRulesAtHead(policyRepo, head);
+    assert.strictEqual(policy.rules.severityThreshold, 'low');
+    assert.strictEqual(policy.rules.confidenceThreshold, 0.8);
+    assert.strictEqual(policy.rules.maxFindings, 40);
+  } finally {
+    fs.rmSync(policyRepo, { recursive: true, force: true });
+  }
+
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-range-'));
+  try {
+    initRepo(repo);
+    fs.writeFileSync(path.join(repo, 'a.c'), 'int a = 1;\n');
+    gitRun(repo, ['add', 'a.c']);
     gitRun(repo, ['commit', '-m', 'initial']);
     const parent = gitRun(repo, ['rev-parse', 'HEAD']);
-    fs.writeFileSync(path.join(repo, 'a.txt'), 'b\n');
-    gitRun(repo, ['add', 'a.txt']);
-    const snapshot = await unit.getRepositorySnapshot(repo);
+    fs.writeFileSync(path.join(repo, 'a.c'), 'int a = 2;\n');
+    gitRun(repo, ['add', 'a.c']);
     const diff = await unit.getStagedDiff(repo);
-    const currentReceipt = unit.createReviewReceipt(
-      { qualityVerdict: 'no_findings', readinessVerdict: 'needs_evidence', mechanicalGate: 'not_run' },
+    const snapshot = { headOid: parent, indexFingerprint: await unit.getIndexFingerprint(repo) };
+    const rangeMeta = unit.buildReviewInputMeta(
       snapshot,
-      { ...meta, diffFingerprint: crypto.createHash('sha256').update(diff, 'utf8').digest('hex'), policyFingerprint: '<none>' }
+      crypto.createHash('sha256').update(diff, 'utf8').digest('hex'),
+      Buffer.byteLength(diff), ['a.c'], new Set(), { policyFingerprint: '<none>' }
     );
-    await store.set(repo, currentReceipt);
-    gitRun(repo, ['commit', '-m', 'reviewed']);
+    const rangeReceipt = unit.createReviewReceipt(
+      { qualityVerdict: 'no_findings', readinessVerdict: 'needs_evidence', mechanicalGate: 'not_run' },
+      rangeMeta,
+      new Date('2026-08-22T00:00:00.000Z')
+    );
+    const store = createReviewReceiptStore();
+    await store.persist(repo, rangeReceipt);
+    gitRun(repo, ['commit', '-m', 'fix: update value']);
     const evidence = await store.getEvidenceForRange(repo, parent, 'HEAD');
     assert.strictEqual(evidence.schemaVersion, 2);
     assert.strictEqual(evidence.totalCommits, 1);
@@ -108,7 +176,7 @@ const lowConfidence = { severity: 'high', file: 'src/a.js', line: 11, title: 'Un
     if (key === 'safeCodexReview.codexPath') continue;
     assert.strictEqual(value.scope, 'application', `${key} must remain application scoped`);
   }
-  assert.deepStrictEqual(pkg.contributes.jsonValidation, [{ fileMatch: '.codex-safe.json', url: './dist/codex-safe.schema.json' }]);
+  assert.deepStrictEqual(pkg.contributes.jsonValidation, [{ fileMatch: '.codex-safe.json', url: './src/codex-safe-core/codex-safe.schema.json' }]);
   assert.strictEqual(pkg.extensionKind[0], 'workspace');
 
   const report = unit.buildReviewReport(
@@ -120,11 +188,7 @@ const lowConfidence = { severity: 'high', file: 'src/a.js', line: 11, title: 'Un
   assert.match(report, /Review policy: head-policy/);
   assert.match(report, /\[MEDIUM\]/);
 
-  const source = fs.readFileSync(path.join(__dirname, 'extension.js'), 'utf8');
-  assert.doesNotMatch(source, /contractVersion:\s*1/);
-  assert.match(source, /contractVersion:\s*2/);
-
-  console.log(`All Codex Review Safe ${pkg.version} unit/regression tests passed.`);
+  console.log(`All Codex Review Safe ${pkg.version} v2 unit/regression tests passed.`);
 })().catch(error => {
   console.error(error);
   process.exit(1);
