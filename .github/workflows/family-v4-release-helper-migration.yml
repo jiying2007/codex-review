@@ -1,0 +1,37 @@
+name: Family v4 Release Helper Migration
+on:
+  push:
+    branches: [family-terminal-hardening]
+    paths: [.github/workflows/family-v4-release-helper-migration.yml]
+permissions: { contents: write }
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: family-terminal-hardening, fetch-depth: 0 }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: '22' }
+      - shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const file='scripts/release.js'; let s=fs.readFileSync(file,'utf8');
+          const a="for (const name of [`${state.pkg.name}-${state.pkg.version}.vsix`, 'SHA256SUMS']) {";
+          const b="for (const name of [`${state.pkg.name}-${state.pkg.version}.vsix`, 'SBOM.spdx.json', 'SHA256SUMS']) {";
+          if(!s.includes(a)) throw new Error('asset verifier fragment not found'); s=s.replace(a,b);
+          const marker="  console.log(`[release] 发布核验完成: ${release.html_url}`);";
+          const repl="  const checksumAsset = assets.get('SHA256SUMS');\n  if (!checksumAsset?.browser_download_url) fail('Release SHA256SUMS 缺少下载 URL');\n  console.log(`[release] 发布核验完成: ${release.html_url}`);";
+          if(!s.includes(marker)) throw new Error('completion fragment not found'); s=s.replace(marker,repl);
+          fs.writeFileSync(file,s);
+          NODE
+          git rm .github/workflows/family-v4-release-helper-migration.yml
+          git diff --check
+      - shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/release.js
+          git commit -m 'build: require SBOM in release verification'
+          git push origin HEAD:family-terminal-hardening
