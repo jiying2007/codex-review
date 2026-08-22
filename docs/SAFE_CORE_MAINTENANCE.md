@@ -1,1 +1,0 @@
-Safe Core maintenance is review-driven: update the canonical `jiying2007/codex-commit:main/src/codex-safe-core` source first, then run `node scripts/safe-core.js sync` in each consumer repository, inspect the hash-locked diff, and merge only after its normal CI and Safe Core drift gate pass.
