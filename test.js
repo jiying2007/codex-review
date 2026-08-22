@@ -57,7 +57,6 @@ function initRepo(repo) {
   const diff = ['diff --git a/src/a.c b/src/a.c','--- a/src/a.c','+++ b/src/a.c','@@ -9,2 +9,2 @@',' old','-bad','+good'].join('\n');
   const changed = unit.parseChangedLineRanges(diff);
   assert.strictEqual(unit.lineInChangedRanges(10, changed.get('src/a.c')), true);
-  assert.strictEqual(unit.nearestChangedLine(11, changed.get('src/a.c')), undefined, 'v3 must not relocate to a nearby changed line');
 
   const highConfidence = {
     severity: 'medium', category: 'correctness', file: 'src/a.c', line: 10, endLine: 10,

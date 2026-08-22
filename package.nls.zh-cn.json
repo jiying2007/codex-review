@@ -12,7 +12,7 @@
   "config.language": "审查摘要和 findings 使用的语言。",
   "config.language.zhCN": "简体中文",
   "config.language.en": "英文",
-  "config.maxDiffBytes": "发送给 Codex 的最大 staged diff 大小（字节）。",
+  "config.maxDiffBytes": "单次 Review Evidence 分块预算（字节）。无法装入预算的 changed hunk 会形成明确的 fail-closed coverage gap。",
   "config.maxFindings": "允许接收的最大审查 finding 数量。",
   "config.severityThreshold": "在 Problems 和审查报告中显示的最低严重级别。",
   "config.timeoutSeconds": "等待 Codex CLI 的最长时间。",

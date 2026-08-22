@@ -48,7 +48,6 @@ function parseChangedLineRanges(diff) {
 }
 
 function lineInChangedRanges(line, ranges) { return (ranges || []).some(r => line >= r.start && line <= r.end); }
-function nearestChangedLine(line, ranges) { return lineInChangedRanges(line, ranges) ? line : undefined; }
 
 function outputSchema(options) {
   return {
@@ -284,7 +283,7 @@ function shortFingerprint(value) { const text = String(value || '<unknown>'); re
 function severityPasses(severity, threshold) { return SEVERITY_ORDER[severity] >= SEVERITY_ORDER[threshold]; }
 
 module.exports = {
-  computeVerdict, parseChangedLineRanges, lineInChangedRanges, nearestChangedLine,
+  computeVerdict, parseChangedLineRanges, lineInChangedRanges,
   outputSchema, buildPrompt, parseCodexJsonl, normalizeFinding, validateReviewResult,
   deterministicReview, consolidateReviewResults, buildReviewInputMeta, createReviewReceipt,
   shortFingerprint, severityPasses

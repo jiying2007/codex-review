@@ -12,7 +12,7 @@
   "config.language": "Language used for review summary and findings.",
   "config.language.zhCN": "Simplified Chinese",
   "config.language.en": "English",
-  "config.maxDiffBytes": "Maximum staged diff size sent to Codex, in bytes.",
+  "config.maxDiffBytes": "Per-review evidence chunk budget in bytes. Changed hunks that cannot fit are explicit fail-closed coverage gaps.",
   "config.maxFindings": "Maximum number of review findings accepted from Codex.",
   "config.severityThreshold": "Minimum severity shown in Problems and the review report.",
   "config.timeoutSeconds": "Maximum time to wait for Codex CLI.",
