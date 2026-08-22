@@ -4,6 +4,8 @@
 node_modules/**
 *.vsix
 *.zip
+extension.js
+src/**
 test.js
 test/**
 scripts/**
@@ -14,4 +16,3 @@ CONTRIBUTING.md
 .gitattributes
 .gitmodules
 .codex-safe.example.json
-src/codex-safe-core/.git
