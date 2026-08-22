@@ -110,7 +110,7 @@ Review Safe separates:
 
 `qualityVerdict=no_findings` is never treated as proof of requirement, build or test success.
 
-**Review Receipt v3** uses a `git-index` subject and binds HEAD/index/diff/policy fingerprints with quality/readiness/mechanical/coverage verdicts. It contains provenance metadata, not source diff or finding text. Receipt history is stored in VS Code extension global state and exposed only through a read-only companion API.
+**Review Receipt v4** uses a `git-index` subject and binds HEAD/index/diff/policy fingerprints with quality/readiness/mechanical/coverage verdicts. It contains provenance metadata, not source diff or finding text. Receipt history is stored in VS Code extension global state and exposed only through a read-only companion API.
 
 Range evidence recomputes committed first-parent diffs before associating historical receipts with real commits.
 
