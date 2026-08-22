@@ -19,7 +19,8 @@ for (const [key, value] of Object.entries(pkg.contributes?.configuration?.proper
 
 const validation = (pkg.contributes?.jsonValidation || []).find(item => item.fileMatch === '.codex-safe.json');
 assert.ok(validation, '.codex-safe.json validation contribution is required');
-assert.strictEqual(validation.url, './src/codex-safe-core/codex-safe.schema.json');
+assert.strictEqual(validation.url, './dist/codex-safe.schema.json', 'Marketplace schema must resolve from dist only');
+assert.notStrictEqual(validation.url, './src/codex-safe-core/codex-safe.schema.json', 'source/submodule schema must not be a Marketplace runtime path');
 
 const scmItems = pkg.contributes?.menus?.['scm/title'] || [];
 const paletteItems = pkg.contributes?.menus?.commandPalette || [];
@@ -36,4 +37,4 @@ assert.match(source, /function assertTrustedWorkspace\(\)[\s\S]*?!vscode\.worksp
 assert.match(source, /async function reviewStaged\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'reviewStaged must enforce Workspace Trust first');
 assert.match(source, /async function checkEnvironment\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'checkEnvironment must enforce Workspace Trust first');
 
-console.log('Review security manifest and trust-boundary checks passed.');
+console.log('Review security manifest, dist-only schema, and trust-boundary checks passed.');
