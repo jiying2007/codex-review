@@ -108,5 +108,6 @@
   "Problems: {0} — {1}": "Problems: {0} — {1}",
   "Problems: published at {0}:{1}": "Problems: published at {0}:{1}",
   "Confidence: {0}": "Confidence: {0}",
-  "STALE": "STALE"
+  "STALE": "STALE",
+  "The staged diff exceeds the 8 MiB raw safety ceiling. Split the change before reviewing.": "The staged diff exceeds the 8 MiB raw safety ceiling. Split the change before reviewing."
 }

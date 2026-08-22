@@ -176,7 +176,7 @@ function initRepo(repo) {
     if (key === 'safeCodexReview.codexPath') continue;
     assert.strictEqual(value.scope, 'application', `${key} must remain application scoped`);
   }
-  assert.deepStrictEqual(pkg.contributes.jsonValidation, [{ fileMatch: '.codex-safe.json', url: './src/codex-safe-core/codex-safe.schema.json' }]);
+  assert.deepStrictEqual(pkg.contributes.jsonValidation, [{ fileMatch: '.codex-safe.json', url: './dist/codex-safe.schema.json' }]);
   assert.strictEqual(pkg.extensionKind[0], 'workspace');
 
   const report = unit.buildReviewReport(

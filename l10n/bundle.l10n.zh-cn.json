@@ -108,5 +108,6 @@
   "Problems: {0} — {1}": "Problems：{0} — {1}",
   "Problems: published at {0}:{1}": "Problems：已定位到 {0}:{1}",
   "Confidence: {0}": "置信度：{0}",
-  "STALE": "已过期"
+  "STALE": "已过期",
+  "The staged diff exceeds the 8 MiB raw safety ceiling. Split the change before reviewing.": "暂存 diff 超过 8 MiB 原始输入安全上限。请拆分改动后再审查。"
 }

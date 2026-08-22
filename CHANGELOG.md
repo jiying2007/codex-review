@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.1.0
+
 - Pin the final Codex Safe Core 2.1 baseline with canonical repository-policy validation, closed receipt contracts, hardened process execution, Git token validation, deep-frozen policy values, and Semantic Context budgeting.
 - Remove the ambiguous Review product `src/core.js` boundary in favor of `src/review-support.js`; `codex-safe-core` is now the only Core.
 - Keep Review-specific adapters only where they add localization or domain semantics while delegating shared safety/runtime behavior to Safe Core.
