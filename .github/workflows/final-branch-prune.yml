@@ -1,0 +1,31 @@
+name: Final Branch Prune
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    if: github.head_ref == 'cleanup/final-branch-prune'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Delete every non-main branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t branches < <(git ls-remote --heads origin | awk '{sub("refs/heads/", "", $2); print $2}' | sort -u)
+          for branch in "${branches[@]}"; do
+            if [[ "$branch" != 'main' ]]; then
+              git push origin --delete "$branch" || true
+            fi
+          done
+          remaining=$(git ls-remote --heads origin | awk '{sub("refs/heads/", "", $2); print $2}' | sort -u)
+          test "$remaining" = 'main'
