@@ -1,4 +1,4 @@
-# rerun-l10n-and-schema-tests: eadca528e4d5470014fdb76c0138a299ff2119f4
+# final-product-only: eadca528e4d5470014fdb76c0138a299ff2119f4
 name: Finalize 2.1
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Prepare release and self-delete
+      - name: Prepare 2.1.0 product changes
         shell: bash
         run: |
           set -euo pipefail
@@ -41,16 +41,8 @@ jobs:
           const oldValue = './src/codex-safe-core/codex-safe.schema.json';
           const newValue = './dist/codex-safe.schema.json';
           if (!test.includes(oldValue)) throw new Error('Review source-schema assertion not found');
-          test = test.replace(oldValue, newValue);
-          fs.writeFileSync('test.js', test);
+          fs.writeFileSync('test.js', test.replace(oldValue, newValue));
           NODE
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('.github/workflows/ci.yml'); s=p.read_text()
-          if 'workflow_dispatch:' not in s.split('permissions:',1)[0]: s=s.replace('  pull_request:\n','  pull_request:\n  workflow_dispatch:\n',1)
-          p.write_text(s)
-          PY
-          rm -f .github/workflows/finalize-2.1.yml
       - run: npm run verify:lock
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify exact pinned Safe Core
@@ -66,7 +58,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add package.json package-lock.json CHANGELOG.md test.js l10n/bundle.l10n.json l10n/bundle.l10n.zh-cn.json
           git commit -m 'release!: Codex Review Safe 2.1.0'
           git push origin HEAD:main
       - name: Dispatch and verify permanent CI and Release
@@ -78,22 +70,9 @@ jobs:
           head=$(git rev-parse HEAD)
           gh workflow run ci.yml --ref main
           gh workflow run release.yml --ref main
-          wait_run(){
-            local wf="$1" id=''
-            for _ in $(seq 1 30); do
-              id=$(gh run list --workflow "$wf" --branch main --event workflow_dispatch --limit 30 --json databaseId,headSha --jq ".[] | select(.headSha == \"$head\") | .databaseId" | head -n1)
-              [ -n "$id" ] && { echo "$id"; return 0; }
-              sleep 2
-            done
-            return 1
-          }
+          wait_run(){ local wf="$1" id=''; for _ in $(seq 1 30); do id=$(gh run list --workflow "$wf" --branch main --event workflow_dispatch --limit 30 --json databaseId,headSha --jq ".[] | select(.headSha == \"$head\") | .databaseId" | head -n1); [ -n "$id" ] && { echo "$id"; return 0; }; sleep 2; done; return 1; }
           ci=$(wait_run ci.yml); rel=$(wait_run release.yml)
-          verify(){
-            local id="$1" context="$2" state=success
-            gh run watch "$id" --exit-status || state=failure
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${head}" -f state="$state" -f context="$context" -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${id}" >/dev/null
-            [ "$state" = success ]
-          }
+          verify(){ local id="$1" context="$2" state=success; gh run watch "$id" --exit-status || state=failure; gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${head}" -f state="$state" -f context="$context" -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${id}" >/dev/null; [ "$state" = success ]; }
           verify "$ci" 'ci-2.1-final'
           verify "$rel" 'release-2.1-final'
       - name: Expose finalizer failure
