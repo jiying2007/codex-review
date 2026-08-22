@@ -1,18 +1,21 @@
 'use strict';
 
-const crypto = require('crypto');
 const path = require('path');
 const vscode = require('vscode');
 const { runProcess, runProcessBuffer } = require('./process');
+const { createGitRepository } = require('./codex-safe-core/git-repository');
 const {
   normalizeFsPath,
   normalizeGitPathForComparison
 } = require('./core');
 const { t } = require('./i18n');
 
-async function git(args, cwd, token) {
-  return runProcess('git', args, { cwd, timeoutMs: 15000, prepared: false }, '', token);
-}
+const coreGit = createGitRepository({
+  runProcess,
+  runProcessBuffer,
+  ui: (_zh, en) => t(en)
+});
+const git = coreGit.git;
 
 async function getGitApi() {
   const extension = vscode.extensions.getExtension('vscode.git');
@@ -77,95 +80,30 @@ async function chooseRepository(commandArgs = []) {
   if (repositories.length === 1) return { ...repositories[0], repositoryCount: 1 };
 
   const selected = await vscode.window.showQuickPick(
-    repositories.map(item => ({
-      label: path.basename(item.root),
-      description: item.root,
-      item
-    })),
+    repositories.map(item => ({ label: path.basename(item.root), description: item.root, item })),
     { placeHolder: t('Select the Git repository whose staged changes should be reviewed') }
   );
-
-  return selected?.item
-    ? { ...selected.item, repositoryCount: repositories.length }
-    : undefined;
+  return selected?.item ? { ...selected.item, repositoryCount: repositories.length } : undefined;
 }
 
 async function getStagedDiff(repoRoot, token) {
-  const { stdout } = await git(
-    [
-      '-c', 'core.quotePath=false',
-      'diff',
-      '--cached',
-      '-M',
-      '-C',
-      '--src-prefix=a/',
-      '--dst-prefix=b/',
-      '--no-color',
-      '--no-ext-diff',
-      '--no-textconv',
-      '--unified=3'
-    ],
-    repoRoot,
-    token
-  );
+  const { stdout } = await git([
+    '-c', 'core.quotePath=false',
+    'diff', '--cached', '-M', '-C',
+    '--src-prefix=a/', '--dst-prefix=b/',
+    '--no-color', '--no-ext-diff', '--no-textconv', '--unified=3'
+  ], repoRoot, token, { maxStdoutBytes: 32 * 1024 * 1024 });
   return stdout;
 }
 
-async function getIndexFingerprint(repoRoot, token) {
-  const { stdout } = await runProcessBuffer(
-    'git',
-    ['ls-files', '--stage', '-z'],
-    {
-      cwd: repoRoot,
-      timeoutMs: 15000,
-      maxStdoutBytes: 16 * 1024 * 1024,
-      maxStderrBytes: 256 * 1024
-    },
-    token
-  );
-  return crypto.createHash('sha256').update(stdout).digest('hex');
-}
-
-async function getHeadOid(repoRoot, token) {
-  try {
-    const { stdout } = await git(
-      ['rev-parse', '--verify', '--quiet', 'HEAD'],
-      repoRoot,
-      token
-    );
-    const oid = stdout.trim();
-    if (!/^[0-9a-f]{40,64}$/i.test(oid)) {
-      throw new Error(t('Git HEAD returned an invalid object ID.'));
-    }
-    return oid;
-  } catch (error) {
-    const stderr = String(error?.stderr || '');
-    if (error?.code === 1 && !stderr.trim()) return '<unborn>';
-    throw error;
-  }
-}
-
-async function getRepositorySnapshot(repoRoot, token) {
-  const [headOid, indexFingerprint] = await Promise.all([
-    getHeadOid(repoRoot, token),
-    getIndexFingerprint(repoRoot, token)
-  ]);
-  return { headOid, indexFingerprint };
-}
-
-function snapshotsEqual(a, b) {
-  return Boolean(
-    a && b &&
-    a.headOid === b.headOid &&
-    a.indexFingerprint === b.indexFingerprint
-  );
-}
+const getIndexFingerprint = coreGit.getIndexFingerprint;
+const getHeadOid = coreGit.getHeadOid;
+const getRepositorySnapshot = coreGit.getRepositorySnapshot;
+const snapshotsEqual = coreGit.repositorySnapshotsEqual;
 
 function toRepoRelativeGitPath(repoRoot, fsPath) {
   const relative = path.relative(repoRoot, fsPath);
-  if (!relative || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
-    return undefined;
-  }
+  if (!relative || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) return undefined;
   return relative.split(path.sep).join('/');
 }
 
@@ -183,11 +121,9 @@ function parseNameStatusZ(stdout) {
   const tokens = String(stdout || '').split('\0');
   const metadata = new Map();
   let i = 0;
-
   while (i < tokens.length) {
     const statusToken = tokens[i++];
     if (!statusToken) continue;
-
     const status = statusToken[0];
     if (status === 'R' || status === 'C') {
       const oldPath = tokens[i++];
@@ -209,40 +145,26 @@ function parseNameStatusZ(stdout) {
       });
     }
   }
-
   return metadata;
 }
 
 async function getStagedChangeMetadata(repoRoot, token) {
-  const { stdout } = await git(
-    ['diff', '--cached', '--name-status', '-z', '-M', '-C', '--diff-filter=ACMRDTUXB'],
-    repoRoot,
-    token
-  );
+  const { stdout } = await git(['diff', '--cached', '--name-status', '-z', '-M', '-C', '--diff-filter=ACMRDTUXB'], repoRoot, token);
   return parseNameStatusZ(stdout);
 }
 
 async function getBinaryPathSet(repoRoot, token) {
-  const { stdout } = await git(
-    ['diff', '--cached', '--numstat', '-z', '--no-renames'],
-    repoRoot,
-    token
-  );
-
+  const { stdout } = await git(['diff', '--cached', '--numstat', '-z', '--no-renames'], repoRoot, token);
   const result = new Set();
   for (const record of stdout.split('\0')) {
     if (!record) continue;
     const firstTab = record.indexOf('\t');
     const secondTab = firstTab >= 0 ? record.indexOf('\t', firstTab + 1) : -1;
     if (firstTab < 0 || secondTab < 0) continue;
-
     const added = record.slice(0, firstTab);
     const deleted = record.slice(firstTab + 1, secondTab);
     const file = record.slice(secondTab + 1);
-
-    if ((added === '-' || deleted === '-') && file) {
-      result.add(normalizeGitPathForComparison(file));
-    }
+    if ((added === '-' || deleted === '-') && file) result.add(normalizeGitPathForComparison(file));
   }
   return result;
 }
@@ -250,25 +172,16 @@ async function getBinaryPathSet(repoRoot, token) {
 async function getSubmodulePathSet(repoRoot, token) {
   const { stdout } = await git(['ls-files', '--stage', '-z'], repoRoot, token);
   const result = new Set();
-
   for (const record of stdout.split('\0')) {
     if (!record) continue;
     const match = record.match(/^(\d{6}) [0-9a-f]+ \d\t([\s\S]*)$/i);
-    if (match?.[1] === '160000') {
-      result.add(normalizeGitPathForComparison(match[2]));
-    }
+    if (match?.[1] === '160000') result.add(normalizeGitPathForComparison(match[2]));
   }
-
   return result;
 }
 
 async function getUnmergedPaths(repoRoot, token) {
-  const { stdout } = await git(
-    ['ls-files', '--unmerged', '-z'],
-    repoRoot,
-    token
-  );
-
+  const { stdout } = await git(['ls-files', '--unmerged', '-z'], repoRoot, token);
   const paths = new Set();
   for (const record of stdout.split('\0')) {
     if (!record) continue;
@@ -281,14 +194,8 @@ async function getUnmergedPaths(repoRoot, token) {
 }
 
 async function getUnstagedPathSet(repoRoot, token) {
-  const { stdout } = await git(
-    ['diff', '--name-only', '--diff-filter=ACMRDTUXB', '-z'],
-    repoRoot,
-    token
-  );
-  return new Set(
-    stdout.split('\0').filter(s => s.length > 0).map(normalizeGitPathForComparison)
-  );
+  const { stdout } = await git(['diff', '--name-only', '--diff-filter=ACMRDTUXB', '-z'], repoRoot, token);
+  return new Set(stdout.split('\0').filter(Boolean).map(normalizeGitPathForComparison));
 }
 
 module.exports = {
