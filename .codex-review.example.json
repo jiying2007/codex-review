@@ -1,8 +1,0 @@
-{
-  "language": "zh-CN",
-  "maxDiffBytes": 524288,
-  "maxFindings": 40,
-  "severityThreshold": "low",
-  "timeoutSeconds": 120,
-  "extraInstructions": "重点检查状态机、并发、资源释放、错误处理和接口兼容；不要报告纯格式问题。"
-}

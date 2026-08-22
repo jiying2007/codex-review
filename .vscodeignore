@@ -12,5 +12,6 @@ PUBLISHING.md
 CONTRIBUTING.md
 .gitignore
 .gitattributes
-.codex-review.example.json
-safe-core.lock.json
+.gitmodules
+.codex-safe.example.json
+src/codex-safe-core/.git
