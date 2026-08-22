@@ -3,34 +3,25 @@
 const vscode = require('vscode');
 const { git } = require('./git');
 const {
-  PROJECT_RULE_KEYS,
   SEVERITY_ORDER,
   clampNumber,
   validateExtraInstructions,
   getUserOnlySetting
-} = require('./core');
-const {
-  POLICY_FILE,
-  readPolicySectionAtHead
-} = require('./codex-safe-core/policy');
+} = require('./review-support');
+const { readPolicySectionAtHead } = require('./codex-safe-core/policy');
 const { fingerprintPolicy } = require('./codex-safe-core/safe-contract');
 const { t } = require('./i18n');
 
 const RAW_DIFF_HARD_LIMIT_BYTES = 8 * 1024 * 1024;
 
-async function readProjectRulesAtHead(repoRoot, headOid, token) {
-  const result = await readPolicySectionAtHead({
+function readProjectRulesAtHead(repoRoot, headOid, token) {
+  return readPolicySectionAtHead({
     git,
     repoRoot,
     headOid,
     section: 'review',
     token
   });
-  const unknown = Object.keys(result.rules).filter(key => !PROJECT_RULE_KEYS.has(key));
-  if (unknown.length) {
-    throw new Error(t('{0}.review contains unsupported fields: {1}', POLICY_FILE, unknown.join(', ')));
-  }
-  return result;
 }
 
 async function getEffectiveOptions(repoRoot, headOid, token) {
