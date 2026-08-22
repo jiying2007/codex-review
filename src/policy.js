@@ -55,6 +55,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   ].filter(Boolean).join('\n');
   if (extraInstructions.length > 5000) throw new Error(t('The combined extraInstructions must not exceed 5000 characters.'));
 
+  const reviewRules = Object.freeze({ ...(project.rules || {}) });
   const options = {
     codexPath,
     model,
@@ -66,6 +67,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     confidenceThreshold,
     timeoutSeconds: Math.round(clampNumber(project.timeoutSeconds ?? getUserOnlySetting(config, 'timeoutSeconds', 120), 120, 10, 300, 'timeoutSeconds')),
     extraInstructions,
+    reviewRules,
     policySource,
     projectPolicyFingerprint: policyFingerprint
   };
@@ -78,6 +80,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     confidenceThreshold: options.confidenceThreshold,
     timeoutSeconds: options.timeoutSeconds,
     extraInstructions: options.extraInstructions,
+    reviewRules: options.reviewRules,
     projectPolicyFingerprint: options.projectPolicyFingerprint
   });
   return options;
