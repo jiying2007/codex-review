@@ -1,4 +1,4 @@
-# rerun-l10n-gate: eadca528e4d5470014fdb76c0138a299ff2119f4
+# rerun-l10n-and-schema-tests: eadca528e4d5470014fdb76c0138a299ff2119f4
 name: Finalize 2.1
 on:
   push:
@@ -29,15 +29,20 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const key = 'The staged diff exceeds the 8 MiB raw safety ceiling. Split the change before reviewing.';
-          const files = [
+          for (const [file, value] of [
             ['l10n/bundle.l10n.json', key],
             ['l10n/bundle.l10n.zh-cn.json', '暂存 diff 超过 8 MiB 原始输入安全上限。请拆分改动后再审查。']
-          ];
-          for (const [file, value] of files) {
+          ]) {
             const json = JSON.parse(fs.readFileSync(file, 'utf8'));
             json[key] = value;
             fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n');
           }
+          let test = fs.readFileSync('test.js', 'utf8');
+          const oldValue = './src/codex-safe-core/codex-safe.schema.json';
+          const newValue = './dist/codex-safe.schema.json';
+          if (!test.includes(oldValue)) throw new Error('Review source-schema assertion not found');
+          test = test.replace(oldValue, newValue);
+          fs.writeFileSync('test.js', test);
           NODE
           python3 - <<'PY'
           from pathlib import Path
