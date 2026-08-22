@@ -12,7 +12,7 @@ const {
 const { t } = require('./i18n');
 
 function computeVerdict(findings, coverageComplete = true) {
-  if (!coverageComplete) return 'incomplete';
+  if (!coverageComplete) return 'block';
   if (findings.some(f => f.severity === 'critical' || f.severity === 'high')) return 'block';
   if (findings.length) return 'needs_attention';
   return 'pass';
@@ -133,8 +133,8 @@ function normalizeFinding(finding, stagedPathSet, changedLineRanges) {
   const file = normalizeGitPathForComparison(finding.file);
   if (!stagedPathSet.has(file)) throw new Error(t('Codex returned a path that is not staged: {0}', file));
   const line = Math.round(Number(finding.line));
-  if (!Number.isInteger(line) || line < 1) throw new Error(t('Finding line is invalid.'));
-  if (!lineInChangedRanges(line, changedLineRanges?.get(file) || [])) throw new Error(t('Finding line is not an exact changed line.'));
+  if (!Number.isInteger(line) || line < 1) throw new Error(t('The model line cannot be mapped to a changed line; the finding is report-only.'));
+  if (!lineInChangedRanges(line, changedLineRanges?.get(file) || [])) throw new Error(t('The model line cannot be mapped to a changed line; the finding is report-only.'));
   const endLine = Math.max(line, Math.round(Number(finding.endLine) || line));
   const title = String(finding.title || '').trim().replace(/\s+/g, ' ');
   const description = String(finding.description || '').trim();
