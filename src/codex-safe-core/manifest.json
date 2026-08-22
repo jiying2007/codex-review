@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "safeCoreVersion": 1,
   "source": {
-    "repository": "jiying2007/codex-commit",
+    "repository": "jiying2007/codex-safe-core",
     "ref": "main",
-    "path": "src/codex-safe-core"
+    "path": "src"
   },
   "files": {
     "safe-contract.js": "35179be24e5ad9dc898d8de8b4f6cdbd0cbe603664a29230b96d90f303457c28",
