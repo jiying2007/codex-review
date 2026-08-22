@@ -13,8 +13,8 @@ async function run() {
   if (expected) {
     const api = await extension.activate();
     assert.strictEqual(extension.isActive, true, 'extension must activate in a trusted workspace');
-    assert.strictEqual(api?.contractVersion, 1, 'trusted activation must preserve the public API contract');
-    console.log('[trust-test] trusted: workspace.isTrusted=true and extension activation succeeded');
+    assert.strictEqual(api?.contractVersion, 2, 'trusted activation must expose the v2 public API contract');
+    console.log('[trust-test] trusted: workspace.isTrusted=true and v2 extension activation succeeded');
     return;
   }
 
