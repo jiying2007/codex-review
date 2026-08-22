@@ -34,6 +34,8 @@ jobs:
           rm -f .github/workflows/finalize-2.1.yml
       - run: npm run verify:lock
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify exact pinned Safe Core
+        run: cd src/codex-safe-core && npm run check
       - run: npm run check
       - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
       - run: xvfb-run -a npm run test:integration
@@ -75,3 +77,8 @@ jobs:
           }
           verify "$ci" 'ci-2.1-final'
           verify "$rel" 'release-2.1-final'
+      - name: Expose finalizer failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" -f state=failure -f context='finalize-2.1' -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >/dev/null
