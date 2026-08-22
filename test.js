@@ -45,10 +45,10 @@ function initRepo(repo) {
 }
 
 (async () => {
-  assert.strictEqual(core.SAFE_CORE_VERSION, 3);
+  assert.strictEqual(core.SAFE_CORE_VERSION, 4);
   assert.strictEqual(core.SAFE_CONTRACT_VERSION, 2);
   assert.strictEqual(core.POLICY_SCHEMA_VERSION, 3);
-  assert.strictEqual(core.REVIEW_RECEIPT_SCHEMA_VERSION, 3);
+  assert.strictEqual(core.REVIEW_RECEIPT_SCHEMA_VERSION, 4);
   assert.strictEqual(unit.PROJECT_RULES_FILE, '.codex-safe.json');
   assert.strictEqual(unit.severityPasses('high', 'medium'), true);
   assert.strictEqual(unit.severityPasses('low', 'medium'), false);
@@ -131,7 +131,11 @@ function initRepo(repo) {
   );
   const receipt = unit.createReviewReceipt(consolidated, meta, new Date('2026-08-22T00:00:00.000Z'));
   assert(receipt);
-  assert.strictEqual(receipt.schemaVersion, 3);
+  assert.strictEqual(receipt.schemaVersion, 4);
+  assert.strictEqual(receipt.safeCoreVersion, 4);
+  assert.strictEqual(receipt.safeContractVersion, 2);
+  assert.strictEqual(receipt.policySchemaVersion, 3);
+  assert.strictEqual(receipt.promptContractVersion, 1);
   assert.strictEqual(receipt.kind, 'codex-review');
   assert.strictEqual(receipt.subject.type, 'git-index');
   assert.strictEqual(receipt.subject.headOid, meta.headOid);
@@ -197,7 +201,7 @@ function initRepo(repo) {
     await store.persist(repo, rangeReceipt);
     gitRun(repo, ['commit', '-m', 'fix: update value']);
     const rangeEvidence = await store.getEvidenceForRange(repo, parent, 'HEAD');
-    assert.strictEqual(rangeEvidence.schemaVersion, 3);
+    assert.strictEqual(rangeEvidence.schemaVersion, 4);
     assert.strictEqual(rangeEvidence.totalCommits, 1);
     assert.strictEqual(rangeEvidence.reviewedCommits, 1);
     assert.strictEqual(rangeEvidence.incompleteCommits, 0);
@@ -223,7 +227,7 @@ function initRepo(repo) {
   assert.match(report, /Review policy: head-policy/);
   assert.match(report, /\[MEDIUM\]/);
 
-  console.log(`All Codex Review Safe ${pkg.version} Family v3 unit/regression tests passed.`);
+  console.log(`All Codex Review Safe ${pkg.version} Family v4 unit/regression tests passed.`);
 })().catch(error => {
   console.error(error);
   process.exit(1);

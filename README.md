@@ -4,7 +4,7 @@
 
 Review **staged Git changes only** in VS Code with a local Codex CLI, fail-closed evidence coverage, deterministic repository rules, and a narrow execution boundary.
 
-Codex Review Safe 3.0 uses **Codex Safe Core 3.0.1** pinned to commit `e6e25b502aa35a079f660346785cf283fe293b6d`. Repository policy is a single HEAD-pinned `.codex-safe.json` document with `schemaVersion: 3`; Policy v2 is intentionally rejected.
+Codex Review Safe 4.0 uses **Codex Safe Core 4.0.0** pinned to commit `4dc4de836625a8b70084531eb3321734eca675d0`. Repository policy is a single HEAD-pinned `.codex-safe.json` document with `schemaVersion: 3`; Policy v2 is intentionally rejected.
 
 ## Long-term architecture
 
@@ -21,7 +21,7 @@ Review domain
   deterministic review rules
   diagnostics/report
       ↓
-Review Receipt v3
+Review Receipt v4
 ```
 
 The product repository owns only Review-specific behavior. Process execution, generic Git primitives, repository-policy structure, Safe Contract/Receipt validation, Review Evidence chunking, deterministic rule semantics, and Codex CLI safety belong to `codex-safe-core`.
@@ -36,7 +36,7 @@ The product repository owns only Review-specific behavior. Process execution, ge
 - `confidenceThreshold` suppresses low-confidence model findings before they affect Problems or verdicts;
 - `.codex-safe.json.review.rules` is evaluated deterministically by Safe Core, including forbidden paths and code-without-tests policy;
 - incomplete coverage or invalid model finding locations fail closed and block the review verdict;
-- Review Receipt v3 binds a `git-index` subject to HEAD/index/diff/policy fingerprints plus quality/readiness/mechanical/coverage verdicts;
+- Review Receipt v4 binds a `git-index` subject to HEAD/index/diff/policy fingerprints plus quality/readiness/mechanical/coverage verdicts;
 - Restricted Mode is rejected at runtime and covered by Extension Host tests;
 - Codex runs in an ephemeral directory with read-only sandboxing, no approvals, ignored user rules/config, and required capability probing;
 - no source edits, commits, pushes, or PR creation;

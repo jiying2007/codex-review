@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 4.0.0
+
+### Changed
+
+- Hard-switch to Safe Core 4.0.0 and Review Receipt v4 with complete Core/Contract/Policy/Prompt/model/Codex provenance.
+- Add immutable VSIX releases with SPDX SBOM, SHA256 checksums, provenance attestations, Scorecard, and no asset overwrite.
+- Keep Review findings exact-line, coverage-preserving and fail-closed; Receipt v3 is intentionally unsupported.
+
 ## 3.0.0
 
 ### Changed

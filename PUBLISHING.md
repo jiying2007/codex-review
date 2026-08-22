@@ -1,6 +1,6 @@
 # Publishing
 
-Codex Review Safe releases are immutable, reproducible GitHub Actions builds from a committed source revision, locked npm graph and commit-pinned **Codex Safe Core 3.0.1** submodule.
+Codex Review Safe releases are immutable, reproducible GitHub Actions builds from a committed source revision, locked npm graph and commit-pinned **Codex Safe Core 4.0.0** submodule.
 
 ## Release source requirements
 
@@ -20,7 +20,7 @@ A release is valid only when:
 
 - package and lockfile metadata agree;
 - the Core path is the canonical commit-pinned Git submodule at the reviewed Core 3.0.1 commit;
-- Safe Core v3 implementation / Safe Contract v2 / Policy Schema v3 / Review Receipt v3 checks pass;
+- Safe Core v3 implementation / Safe Contract v2 / Policy Schema v3 / Review Receipt v4 checks pass;
 - security/module-boundary, unit and regression tests pass;
 - exact changed-line, coverage-preserving chunking, deterministic rule, confidence suppression and Receipt v3 tests pass;
 - latest VS Code Extension Host tests pass on Linux, Windows and macOS;
@@ -40,7 +40,7 @@ vMAJOR.MINOR.PATCH
 
 The tag must equal `v<package.json.version>`, lockfile version metadata must match, and the release commit must be reachable from `main`.
 
-Family v3 is a breaking protocol line for Policy/Receipt semantics. Do not restore Policy v2, Review Receipt v2, nearest-line relocation, or another consumer-owned Safe Runtime in a 3.x release.
+Family v4 is a breaking protocol line for Policy/Receipt semantics. Do not restore Policy v2, Review Receipt v2, nearest-line relocation, or another consumer-owned Safe Runtime in a 3.x release.
 
 ## Standard release flow
 

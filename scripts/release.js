@@ -216,9 +216,11 @@ async function verifyPublished(state, sha, timeoutMinutes) {
   const release = await apiRequest(remote.owner, remote.repo, `/releases/tags/${state.tag}`);
   if (release.draft || release.prerelease) fail(`${state.tag} Release 不是正式已发布状态`);
   const assets = new Map((release.assets || []).map(asset => [asset.name, asset]));
-  for (const name of [`${state.pkg.name}-${state.pkg.version}.vsix`, 'SHA256SUMS']) {
+  for (const name of [`${state.pkg.name}-${state.pkg.version}.vsix`, 'SBOM.spdx.json', 'SHA256SUMS']) {
     if (assets.get(name)?.state !== 'uploaded') fail(`Release 缺少已上传附件: ${name}`);
   }
+  const checksumAsset = assets.get('SHA256SUMS');
+  if (!checksumAsset?.browser_download_url) fail('Release SHA256SUMS 缺少下载 URL');
   console.log(`[release] 发布核验完成: ${release.html_url}`);
 }
 async function push(options) {
