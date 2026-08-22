@@ -2,35 +2,41 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Review **staged Git changes only** in VS Code with a local Codex CLI, conservative diagnostics, deterministic provenance, and a narrow execution boundary.
+Review **staged Git changes only** in VS Code with a local Codex CLI, fail-closed evidence coverage, deterministic repository rules, and a narrow execution boundary.
 
-Codex Review Safe 2.1 uses **Codex Safe Core 2.1** as the only shared Core. Repository policy is a single HEAD-pinned `.codex-safe.json` document with `schemaVersion: 2`; the `review` section is validated by Safe Core before product logic consumes it.
+Codex Review Safe 3.0 uses **Codex Safe Core 3.0.1** pinned to commit `e6e25b502aa35a079f660346785cf283fe293b6d`. Repository policy is a single HEAD-pinned `.codex-safe.json` document with `schemaVersion: 3`; Policy v2 is intentionally rejected.
 
 ## Long-term architecture
 
 ```text
 staged Git snapshot
       ↓
-Safe Core Git / Policy / Process / Codex / Context
+Safe Core Git / Policy / Process / Codex
+      ↓
+coverage-preserving Review Evidence Chunks
       ↓
 Review domain
-  finding validation
+  exact changed-line validation
   confidence gate
+  deterministic review rules
   diagnostics/report
       ↓
-Review Receipt v2
+Review Receipt v3
 ```
 
-The product repository owns only Review-specific behavior. Process execution, generic Git primitives, repository-policy structure, Safe contracts/receipts, Semantic Context budgeting, and Codex CLI safety belong to `codex-safe-core`.
+The product repository owns only Review-specific behavior. Process execution, generic Git primitives, repository-policy structure, Safe Contract/Receipt validation, Review Evidence chunking, deterministic rule semantics, and Codex CLI safety belong to `codex-safe-core`.
 
 ## Key guarantees
 
 - staged changes only; working-tree-only edits are outside the reviewed snapshot;
 - HEAD + raw Git-index fingerprint protects against stale/TOCTOU results;
-- `.codex-safe.json.review` is read from the captured HEAD and validated fail-closed;
-- `confidenceThreshold` suppresses low-confidence findings before they affect Problems or verdicts;
-- source changes consume the Semantic Context budget; generated/lock/binary content is represented conservatively;
-- Review Receipt v2 is bound to HEAD/index/diff/policy fingerprints and is AI evidence, not human approval or test evidence;
+- `.codex-safe.json.review` is read from the captured HEAD and validated fail-closed as Policy Schema v3;
+- Review Evidence Chunking never silently middle-truncates changed hunks: a hunk is reviewed or becomes an explicit coverage gap;
+- model findings must point to an exact post-change added/modified line; the old ±3 nearest-line relocation is removed;
+- `confidenceThreshold` suppresses low-confidence model findings before they affect Problems or verdicts;
+- `.codex-safe.json.review.rules` is evaluated deterministically by Safe Core, including forbidden paths and code-without-tests policy;
+- incomplete coverage or invalid model finding locations fail closed and block the review verdict;
+- Review Receipt v3 binds a `git-index` subject to HEAD/index/diff/policy fingerprints plus quality/readiness/mechanical/coverage verdicts;
 - Restricted Mode is rejected at runtime and covered by Extension Host tests;
 - Codex runs in an ephemeral directory with read-only sandboxing, no approvals, ignored user rules/config, and required capability probing;
 - no source edits, commits, pushes, or PR creation;
@@ -42,7 +48,7 @@ Repository policy:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "review": {
     "language": "zh-CN",
     "maxDiffBytes": 524288,
@@ -50,12 +56,18 @@ Repository policy:
     "severityThreshold": "low",
     "confidenceThreshold": 0.7,
     "timeoutSeconds": 120,
-    "extraInstructions": "Focus on correctness, concurrency, bounds, error handling and long-running stability."
+    "extraInstructions": "Focus on correctness, concurrency, bounds, error handling and long-running stability.",
+    "rules": {
+      "requireTestsForCodeChanges": true,
+      "codePathPrefixes": ["src/"],
+      "testPathPrefixes": ["test/", "tests/"],
+      "forbiddenPathPrefixes": []
+    }
   }
 }
 ```
 
-`maxDiffBytes` is the **model Semantic Context budget**, not a user-controlled raw-diff rejection threshold. The raw staged diff has a fixed 8 MiB safety ceiling and the complete raw diff remains the basis for deterministic fingerprints.
+`maxDiffBytes` is the **per-review evidence budget used by coverage-preserving chunking**, not a raw-diff rejection threshold. The raw staged diff has a fixed 8 MiB safety ceiling and the complete raw diff remains the basis for deterministic fingerprints.
 
 `safeCodexReview.codexPath` is machine-scoped; other VS Code product settings are application-scoped. Repository policy cannot select an executable/model or arbitrary commands.
 
@@ -63,10 +75,10 @@ Repository policy:
 
 1. Stage the intended changes.
 2. Run **Codex Review Safe: Review Staged Changes** from Source Control or the Command Palette.
-3. Safely mappable findings appear in Problems; all validated findings and report-only reasons are available in the Review report.
+3. Exact post-change findings appear in Problems; coverage gaps, deterministic-rule violations, and report-only evidence remain visible in the Review report.
 4. Fix, stage, and review again before committing.
 
-`qualityVerdict=no_findings` means no substantive issue was found in the supplied diff. It does not prove specification, build, test, or human-review readiness.
+`qualityVerdict=no_findings` means no substantive issue was found in the reviewed evidence. It does not prove specification, build, test, or human-review readiness.
 
 ## Development and release
 
