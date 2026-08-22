@@ -2,9 +2,14 @@
 
 ## Unreleased
 
-- Remove the transitional `extension.__test` surface and the legacy `src/safe-contract.js` path shim; tests now consume the production modules directly.
-- Split report rendering and review-receipt storage/evidence into first-class runtime modules.
-- Add a cross-platform local release CLI that prepares versions, enforces release gates, pushes `main`, and verifies the automated GitHub Release without creating local tags.
+- Breaking: hard-switch to Codex Safe Core v2 through a commit-pinned Git submodule; remove copied vendoring, sync locks, compatibility shims, and legacy Core ownership from the Review repository.
+- Replace `.codex-review.json` with the unified `.codex-safe.json` schema v2 `review` section; v1 policy and Receipt v1 are intentionally unsupported.
+- Add confidence-aware quality gating with configurable `confidenceThreshold` (default `0.70`); low-confidence findings are suppressed before diagnostics, verdicts, and receipts.
+- Route model input through Safe Core Semantic Context Budget while preserving the complete staged diff for fingerprints/line mapping/receipt evidence; enforce a fixed 8 MiB raw staged-diff safety ceiling.
+- Upgrade the public companion API and persisted Review Receipt store to contract/schema v2, including verified first-parent range evidence.
+- Standardize the Marketplace runtime on deterministic `dist/` staging plus `dist/codex-safe.schema.json`, with CI rejecting source/tests/scripts/submodule metadata in VSIX artifacts.
+- Unify CI/release gates, retain real Workspace Trust and zh-CN Extension Host coverage, and add SHA-256 plus full-SHA-pinned GitHub build-provenance attestations.
+- Rewrite English/Chinese user, security, and publishing documentation around the v2 product-family contract.
 
 ## 1.0.2
 
