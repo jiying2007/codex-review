@@ -1,6 +1,6 @@
 # Publishing
 
-Codex Review Safe releases are immutable, reproducible GitHub Actions builds from a committed source revision, locked npm graph and commit-pinned Codex Safe Core v2 submodule.
+Codex Review Safe releases are immutable, reproducible GitHub Actions builds from a committed source revision, locked npm graph and commit-pinned **Codex Safe Core 3.0.1** submodule.
 
 ## Release source requirements
 
@@ -19,10 +19,10 @@ npm run package
 A release is valid only when:
 
 - package and lockfile metadata agree;
-- the Core path is the canonical commit-pinned Git submodule;
-- Safe Core v2 contract/policy/receipt checks pass;
+- the Core path is the canonical commit-pinned Git submodule at the reviewed Core 3.0.1 commit;
+- Safe Core v3 implementation / Safe Contract v2 / Policy Schema v3 / Review Receipt v3 checks pass;
 - security/module-boundary, unit and regression tests pass;
-- confidence suppression and Receipt v2 tests pass;
+- exact changed-line, coverage-preserving chunking, deterministic rule, confidence suppression and Receipt v3 tests pass;
 - latest VS Code Extension Host tests pass on Linux, Windows and macOS;
 - minimum VS Code `1.90.0` passes;
 - Simplified-Chinese localization smoke passes;
@@ -40,7 +40,7 @@ vMAJOR.MINOR.PATCH
 
 The tag must equal `v<package.json.version>`, lockfile version metadata must match, and the release commit must be reachable from `main`.
 
-Codex Safe v2 is a breaking protocol line. Do not restore v1 repository-policy or receipt compatibility in a 2.x release.
+Family v3 is a breaking protocol line for Policy/Receipt semantics. Do not restore Policy v2, Review Receipt v2, nearest-line relocation, or another consumer-owned Safe Runtime in a 3.x release.
 
 ## Standard release flow
 
@@ -57,7 +57,7 @@ npm run release:check
 npm run release:push
 ```
 
-`release:prepare` updates only `package.json`, `package-lock.json`, and `CHANGELOG.md`. `release:check` requires exactly those edits, synchronized `main`, an unused remote tag and the complete lock/test/package gate. `release:push` reruns the gate, commits/pushes the release files and verifies the exact Release workflow result, immutable tag, VSIX and checksum.
+`release:prepare` updates only `package.json`, `package-lock.json`, and `CHANGELOG.md`. `release:check` requires synchronized `main`, an unused remote tag and the complete lock/test/package gate. `release:push` reruns the gate, commits/pushes the release files and verifies the exact Release workflow result, immutable tag, VSIX and checksum.
 
 Never force-move a release tag. `CODEX_RELEASE_GITHUB_TOKEN`, if used for release polling, stays local.
 
@@ -85,7 +85,7 @@ dist/codex-safe.schema.json
 dist/src/*
 ```
 
-`dist/src/` contains only deterministic production runtime modules staged by `npm run build`; the Core runtime subset is staged under `dist/src/codex-safe-core/` without Git/submodule metadata.
+`dist/src/` contains only deterministic production runtime modules staged by `npm run build`; the Core runtime subset is staged under `dist/src/codex-safe-core/`, including `review-rules.js`, without Git/submodule metadata.
 
 The VSIX also contains required localization, README and icon assets.
 
