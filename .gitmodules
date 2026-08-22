@@ -1,4 +1,3 @@
 [submodule "src/codex-safe-core"]
 	path = src/codex-safe-core
 	url = https://github.com/jiying2007/codex-safe-core.git
-	branch = main
