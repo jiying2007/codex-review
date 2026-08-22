@@ -28,7 +28,7 @@ The product repository owns only Review-specific behavior. Process execution, ge
 - staged changes only; working-tree-only edits are outside the reviewed snapshot;
 - HEAD + raw Git-index fingerprint protects against stale/TOCTOU results;
 - `.codex-safe.json.review` is read from the captured HEAD and validated fail-closed;
-- `confidenceThreshold` suppresses low-confidence findings before they can affect Problems or verdicts;
+- `confidenceThreshold` suppresses low-confidence findings before they affect Problems or verdicts;
 - source changes consume the Semantic Context budget; generated/lock/binary content is represented conservatively;
 - Review Receipt v2 is bound to HEAD/index/diff/policy fingerprints and is AI evidence, not human approval or test evidence;
 - Restricted Mode is rejected at runtime and covered by Extension Host tests;
