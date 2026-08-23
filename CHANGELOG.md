@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 4.0.1
+
+### Fixed
+
+- Localize the `confidenceThreshold` setting description so Simplified-Chinese VS Code settings no longer expose an English-only string.
+
+### Changed
+
+- Repin to the coordinated Safe Core 4.0.1 security-maintenance commit.
+- Pin GitHub Actions Node setup to the upstream verified post-v7.0.0 commit that fixes GHSA-3jxr-9vmj-r5cp.
+
 ## 4.0.0
 
 ### Changed
