@@ -15,6 +15,7 @@
   "config.maxDiffBytes": "Per-review evidence chunk budget in bytes. Changed hunks that cannot fit are explicit fail-closed coverage gaps.",
   "config.maxFindings": "Maximum number of review findings accepted from Codex.",
   "config.severityThreshold": "Minimum severity shown in Problems and the review report.",
+  "config.confidenceThreshold": "Minimum confidence required for a finding to affect Problems diagnostics and the review verdict.",
   "config.timeoutSeconds": "Maximum time to wait for Codex CLI.",
   "config.extraInstructions": "Additional user-level review instructions. They cannot override the extension safety boundary."
 }
