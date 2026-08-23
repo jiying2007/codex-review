@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
           node-version: '22'
           cache: npm
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
           node-version: '22'
           cache: npm
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
           node-version: '22'
           cache: npm
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
           node-version: '22'
           cache: npm
@@ -102,7 +102,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
           node-version: '22'
           cache: npm
@@ -118,7 +118,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
           node-version: '22'
           cache: npm
