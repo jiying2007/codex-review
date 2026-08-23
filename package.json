@@ -2,7 +2,7 @@
   "name": "codex-review-safe",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "publisher": "jiying2007",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
@@ -164,7 +164,7 @@
           "minimum": 0,
           "maximum": 1,
           "scope": "application",
-          "description": "Minimum confidence required for a finding to affect diagnostics and review verdicts."
+          "description": "%config.confidenceThreshold%"
         },
         "safeCodexReview.timeoutSeconds": {
           "type": "number",
