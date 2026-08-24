@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices", ":automergeDisabled", ":disableMajorUpdates"],
+  "dependencyDashboard": true,
+  "minimumReleaseAge": "3 days",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "schedule": ["before 5am on monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {"description":"Keep GitHub Actions on reviewed immutable digests","matchManagers":["github-actions"],"groupName":"github-actions maintenance","automerge":false},
+    {"description":"Group npm maintenance without automatic merge","matchManagers":["npm"],"groupName":"npm maintenance","automerge":false}
+  ]
+}
