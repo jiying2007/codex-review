@@ -1,0 +1,78 @@
+name: VS Code Marketplace
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Immutable GitHub Release tag to publish, for example v4.0.1'
+        required: true
+
+permissions:
+  contents: read
+  attestations: read
+
+concurrency:
+  group: vscode-marketplace-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish validated Release VSIX
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve immutable release tag
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ inputs.tag }}'
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must be vMAJOR.MINOR.PATCH: $tag" >&2; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+        with: { node-version: '22', cache: npm }
+
+      - name: Verify immutable release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./package.json').version")" = "${{ steps.release.outputs.version }}"
+          test "$(node -p "require('./package.json').publisher")" = "jiying2007"
+          test "$(node -p "require('./package.json').name")" = "codex-review-safe"
+          npm run verify:lock
+          npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Download and verify GitHub Release artifacts
+        env: { GH_TOKEN: '${{ github.token }}' }
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ steps.release.outputs.tag }}'
+          version='${{ steps.release.outputs.version }}'
+          vsix="codex-review-safe-${version}.vsix"
+          mkdir -p release-artifacts
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir release-artifacts --pattern "$vsix" --pattern SHA256SUMS
+          test -f "release-artifacts/$vsix"
+          test -f release-artifacts/SHA256SUMS
+          (cd release-artifacts && sha256sum -c SHA256SUMS)
+          gh attestation verify "release-artifacts/$vsix" -R "$GITHUB_REPOSITORY"
+          unzip -Z1 "release-artifacts/$vsix" > /tmp/vsix-files.txt
+          grep -Fx 'extension/dist/extension.js' /tmp/vsix-files.txt
+          grep -Fx 'extension/dist/codex-safe.schema.json' /tmp/vsix-files.txt
+          if grep -E '^extension/(extension\.js|src/|test|scripts|package-lock\.json|\.gitmodules|PUBLISHING\.md|CONTRIBUTING\.md|\.gitignore|\.gitattributes)' /tmp/vsix-files.txt; then echo 'Release VSIX contains development-only files' >&2; exit 1; fi
+
+      - name: Publish exact Release VSIX
+        env: { VSCE_PAT: '${{ secrets.VSCE_PAT }}' }
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VSCE_PAT:-}" || { echo 'VSCE_PAT is required with stable @vscode/vsce 3.9.x. Migrate to trusted OIDC publishing only after a stable vsce release ships --oidc.' >&2; exit 1; }
+          ./node_modules/.bin/vsce publish --packagePath "release-artifacts/codex-review-safe-${{ steps.release.outputs.version }}.vsix" --pat "$VSCE_PAT" --skip-duplicate
