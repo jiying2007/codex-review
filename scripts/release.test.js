@@ -33,7 +33,7 @@ assert.match(String(policyExample.$schema||''),new RegExp(expectedCore));
 const marketplace=fs.readFileSync(path.join(root,'.github','workflows','marketplace.yml'),'utf8');
 assert.match(marketplace,/gh release download/);
 assert.match(marketplace,/sha256sum -c SHA256SUMS/);
-assert.match(marketplace,/gh attestation verify .* -R "\\$GITHUB_REPOSITORY"/);
+assert.match(marketplace,/gh attestation verify .* -R "\$GITHUB_REPOSITORY"/);
 assert.match(marketplace,/vsce publish --packagePath/);
 assert.doesNotMatch(marketplace,/npm run package|vsce package/,'Marketplace must publish the exact GitHub Release VSIX, never rebuild it');
 const renovate=JSON.parse(fs.readFileSync(path.join(root,'renovate.json'),'utf8'));
