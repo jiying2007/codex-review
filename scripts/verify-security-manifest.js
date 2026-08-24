@@ -37,4 +37,6 @@ assert.match(source, /function assertTrustedWorkspace\(\)[\s\S]*?!vscode\.worksp
 assert.match(source, /async function reviewStaged\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'reviewStaged must enforce Workspace Trust first');
 assert.match(source, /async function checkEnvironment\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'checkEnvironment must enforce Workspace Trust first');
 
-console.log('Review security manifest, dist-only schema, and trust-boundary checks passed.');
+require('./verify-product-docs');
+
+console.log('Review security manifest, dist-only schema, trust boundary, and product documentation checks passed.');
