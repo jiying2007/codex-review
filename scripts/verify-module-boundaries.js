@@ -11,10 +11,7 @@ const policyModule = fs.readFileSync('src/policy.js', 'utf8');
 const reviewModule = fs.readFileSync('src/review.js', 'utf8');
 const codexModule = fs.readFileSync('src/codex.js', 'utf8');
 
-for (const modulePath of [
-  './src/i18n', './src/review-support', './src/process', './src/git', './src/policy',
-  './src/review', './src/report', './src/receipts', './src/codex'
-]) {
+for (const modulePath of ['./src/i18n', './src/review-support', './src/process', './src/git', './src/policy', './src/review', './src/report', './src/receipts', './src/codex']) {
   assert.match(extension, new RegExp(`require\\(['\"]${modulePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['\"]\\)`), `extension.js must import ${modulePath}`);
 }
 
@@ -23,7 +20,7 @@ assert.strictEqual(fs.existsSync('src/safe-contract.js'), false, 'legacy src/saf
 assert.strictEqual(fs.existsSync('safe-core.lock.json'), false, 'legacy Safe Core lock must not return');
 assert.strictEqual(fs.existsSync('scripts/safe-core.js'), false, 'legacy Safe Core sync script must not return');
 for (const name of ['safe-contract.js','codex-cli.js','process-runner.js','git-repository.js','context-builder.js','policy.js','review-rules.js']) {
-  assert.strictEqual(fs.existsSync(path.join('src','codex-safe-core',name)), true, `Safe Core v3 runtime missing ${name}`);
+  assert.strictEqual(fs.existsSync(path.join('src','codex-safe-core',name)), true, `Safe Core v4 runtime missing ${name}`);
 }
 assert.doesNotMatch(extension, /\b__test\b/, 'extension.js must not expose a transitional private test surface');
 assert.doesNotMatch(extension, /require\(['\"]child_process['\"]\)/, 'extension.js must not own subprocess execution');
@@ -45,12 +42,7 @@ for (const [name, source] of [['src/policy.js', policyModule], ['src/review.js',
   assert.doesNotMatch(source, /require\(['\"]\.\/safe-contract['\"]\)/, `${name} must not reintroduce a contract shim`);
 }
 
-for (const functionName of [
-  'runProcess', 'runProcessBuffer', 'getStagedDiff', 'readProjectRulesAtHead',
-  'getEffectiveOptions', 'outputSchema', 'buildPrompt', 'parseCodexJsonl',
-  'validateReviewResult', 'buildReviewReport', 'createReviewReceiptStore',
-  'resolveCodexExecutable', 'probeCodexCapabilities', 'runCodexReview'
-]) {
+for (const functionName of ['runProcess', 'runProcessBuffer', 'getStagedDiff', 'readProjectRulesAtHead', 'getEffectiveOptions', 'outputSchema', 'buildPrompt', 'parseCodexJsonl', 'validateReviewResult', 'buildReviewReport', 'createReviewReceiptStore', 'resolveCodexExecutable', 'probeCodexCapabilities', 'runCodexReview']) {
   assert.doesNotMatch(extension, new RegExp(`(?:async\\s+)?function\\s+${functionName}\\s*\\(`), `${functionName} must stay outside extension.js`);
 }
 
@@ -70,4 +62,4 @@ for (const file of ['test.js', ...collectJsFiles('test')]) {
   assert.doesNotMatch(source, /src[\\/]safe-contract\.js|require\(['\"]\.\/src\/safe-contract['\"]\)/, `${file} must not depend on a removed contract shim`);
 }
 
-console.log('Review runtime boundaries verified against Codex Safe Core v3 with exact-line-only publication.');
+console.log('Review runtime boundaries verified against Codex Safe Core v4 with exact-line-only publication.');
