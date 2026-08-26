@@ -25,7 +25,7 @@ assert.strictEqual(updateChangelog(source, '1.0.1'), '# Changelog\n\n## Unreleas
 assert.throws(() => updateChangelog('# Changelog\n\n## Unreleased\n\n## 1.0.0\n', '1.0.1'), /Unreleased 区域为空/);
 
 const root=path.resolve(__dirname,'..');
-const expectedCore='7ffbf6f1791e17ba74faf0922e7a702bdac72059';
+const expectedCore='ca8770aa784306d27d306a2b1e4db2b090087de0';
 const gitlink=execFileSync('git',['ls-files','--stage','src/codex-safe-core'],{cwd:root,encoding:'utf8'}).trim();
 assert.match(gitlink,new RegExp(`^160000 ${expectedCore} 0\\tsrc/codex-safe-core$`));
 const policyExample=JSON.parse(fs.readFileSync(path.join(root,'.codex-safe.example.json'),'utf8'));
