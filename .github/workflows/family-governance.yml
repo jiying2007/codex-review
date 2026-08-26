@@ -1,0 +1,27 @@
+name: Family Governance
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  governance:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with:
+          node-version: 22.22.2
+      - name: Verify family workflow and architecture invariants
+        run: |
+          node src/codex-safe-core/scripts/verify-actions-pins.js .github/workflows
+          node src/codex-safe-core/scripts/verify-non-goals.js .
+      - name: Emit metadata-only diagnostics
+        run: node scripts/family-diagnostics.js > FAMILY_DIAGNOSTICS.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: family-diagnostics
+          path: FAMILY_DIAGNOSTICS.json
+          if-no-files-found: error
