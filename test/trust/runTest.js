@@ -26,8 +26,8 @@ async function runHost(vscodeExecutablePath, root, suitePath, base, label, trust
   const workspace = trusted
     ? path.join(root, 'test', 'trust', 'trusted-workspace')
     : path.join(base, 'untrusted-workspace');
-  const userDataDir = path.join(base, `user-data-${label}`);
-  const extensionsDir = path.join(base, `extensions-${label}`);
+  const userDataDir = path.join(base, `u-${label}`);
+  const extensionsDir = path.join(base, `e-${label}`);
 
   fs.mkdirSync(workspace, { recursive: true });
   fs.mkdirSync(userDataDir, { recursive: true });
@@ -62,7 +62,12 @@ async function runHost(vscodeExecutablePath, root, suitePath, base, label, trust
 async function main() {
   const root = path.resolve(__dirname, '..', '..');
   const suitePath = path.resolve(__dirname, 'suite', 'index.js');
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-trust-'));
+  // macOS os.tmpdir() is commonly a long /var/folders/... path. VS Code derives
+  // an IPC socket below --user-data-dir and macOS rejects paths beyond 103 bytes.
+  // Use /tmp directly on POSIX so Family CI remains valid regardless of checkout depth.
+  const base = process.platform === 'win32'
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'crt-'))
+    : fs.mkdtempSync('/tmp/crt-');
 
   try {
     const vscodeExecutablePath = await downloadAndUnzipVSCode();
