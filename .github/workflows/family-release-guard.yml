@@ -1,0 +1,11 @@
+name: Family Release Guard
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  guard:
+    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@a0c3419684f835108cad31eb909b3d7f7df7b260
+    with:
+      product: codex-review-safe
+      expected_core_sha: a0c3419684f835108cad31eb909b3d7f7df7b260
