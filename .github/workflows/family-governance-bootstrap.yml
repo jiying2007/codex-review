@@ -1,0 +1,77 @@
+name: Family governance bootstrap
+on:
+  push:
+    branches: [family-governance-v4.2.0]
+permissions:
+  contents: write
+jobs:
+  adopt:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with:
+          node-version: 22.22.2
+      - name: Adopt exact Core 4.2.0 and family governance
+        env:
+          CORE_SHA: a0c3419684f835108cad31eb909b3d7f7df7b260
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C src/codex-safe-core fetch origin "$CORE_SHA"
+          git -C src/codex-safe-core checkout --detach "$CORE_SHA"
+          node <<'NODE'
+          const fs=require('fs'); const sha=process.env.CORE_SHA;
+          const ex='.codex-safe.example.json'; const v=JSON.parse(fs.readFileSync(ex)); v.$schema=v.$schema.replace(/[0-9a-f]{40}(?=\/codex-safe\.schema\.json)/i,sha); fs.writeFileSync(ex,JSON.stringify(v,null,2)+'\n');
+          for(const vf of ['scripts/verify-security-manifest.js','scripts/verify-module-boundaries.js']){if(fs.existsSync(vf)){let t=fs.readFileSync(vf,'utf8');t=t.replace(/[0-9a-f]{40}/g,m=>m==='72363d4f648171242810ac5871d713b2fa9b3bb6'?sha:m);fs.writeFileSync(vf,t);}}
+          const p=JSON.parse(fs.readFileSync('package.json')); p.scripts.governance='node src/codex-safe-core/scripts/verify-actions-pins.js .github/workflows && node src/codex-safe-core/scripts/verify-non-goals.js .'; p.scripts.diagnostics='node src/codex-safe-core/scripts/family-diagnostics.js'; p.scripts.preci='npm run core:init'; if(!p.scripts.check.includes('npm run governance')) p.scripts.check=p.scripts.check.replace('npm run verify:l10n','npm run governance && npm run verify:l10n'); fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');
+          NODE
+          cat > .github/workflows/dependency-review.yml <<'YAML'
+          name: Dependency Review
+          on:
+            pull_request:
+          permissions:
+            contents: read
+          jobs:
+            dependency-review:
+              runs-on: ubuntu-24.04
+              steps:
+                - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+                  with: {persist-credentials: false, submodules: recursive}
+                - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+                  with: {node-version: 22.22.2}
+                - id: graph
+                  env: {GH_TOKEN: "${{ github.token }}"}
+                  shell: bash
+                  run: |
+                    if gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" >/dev/null 2>&1; then echo 'enabled=true' >> "$GITHUB_OUTPUT"; else echo 'enabled=false' >> "$GITHUB_OUTPUT"; fi
+                - if: steps.graph.outputs.enabled == 'true'
+                  uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48
+                  with: {fail-on-severity: high, deny-licenses: "GPL-2.0, GPL-3.0, AGPL-3.0"}
+                - if: steps.graph.outputs.enabled != 'true'
+                  shell: bash
+                  run: |
+                    npm ci --ignore-scripts --no-audit --no-fund
+                    npm audit --audit-level=high --omit=dev
+                    node src/codex-safe-core/scripts/verify-package-licenses.js .
+          YAML
+          cat > .github/workflows/family-release-guard.yml <<'YAML'
+          name: Family Release Guard
+          on:
+            pull_request:
+          permissions:
+            contents: read
+          jobs:
+            guard:
+              uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@a0c3419684f835108cad31eb909b3d7f7df7b260
+              with:
+                product: codex-review-safe
+                expected_core_sha: a0c3419684f835108cad31eb909b3d7f7df7b260
+          YAML
+          rm .github/workflows/family-governance-bootstrap.yml
+          git add -A && git commit -m 'feat: adopt Codex Safe family governance v4.2.0' && git push origin HEAD:family-governance-v4.2.0
