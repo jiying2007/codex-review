@@ -56,6 +56,9 @@ setTimeout(()=>console.log(JSON.stringify({type:'item.completed',item:{type:'age
 
 async function main() {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-it-'));
+  const userDataDir = process.platform === 'win32'
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'crt-ui-'))
+    : fs.mkdtempSync('/tmp/crt-ui-');
   const repo1 = path.join(base, 'repo1');
   const repo2 = path.join(base, 'repo2');
   initRepo(repo1, 'a.c');
@@ -74,7 +77,7 @@ async function main() {
   const runOptions = {
     extensionDevelopmentPath: path.resolve(__dirname, '..', '..'),
     extensionTestsPath: path.resolve(__dirname, 'suite', 'index'),
-    launchArgs: [workspace, '--disable-extensions', '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes']
+    launchArgs: [workspace, `--user-data-dir=${userDataDir}`, '--disable-extensions', '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes']
   };
   if (process.env.VSCODE_TEST_VERSION) runOptions.version = process.env.VSCODE_TEST_VERSION;
 
@@ -82,6 +85,7 @@ async function main() {
     await runTests(runOptions);
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
+    fs.rmSync(userDataDir, { recursive: true, force: true });
   }
 }
 
