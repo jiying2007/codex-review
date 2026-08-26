@@ -1,0 +1,38 @@
+name: Finalize Core v4.2.1 adoption
+on:
+  push:
+    branches: [family-governance-v4.2.0]
+permissions:
+  contents: write
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Finalize exact pin and governance scripts
+        env:
+          CORE_SHA: 1755262f51d5e15d74e432add38863d2383bb495
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C src/codex-safe-core fetch origin "$CORE_SHA"
+          git -C src/codex-safe-core checkout --detach "$CORE_SHA"
+          node <<'NODE'
+          const fs=require('fs'); const sha=process.env.CORE_SHA;
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          p.scripts.governance='node src/codex-safe-core/scripts/verify-actions-pins.js .github/workflows && node src/codex-safe-core/scripts/verify-non-goals.js .';
+          p.scripts.diagnostics='node src/codex-safe-core/scripts/family-diagnostics.js';
+          if(!p.scripts.check.includes('npm run governance')) p.scripts.check=p.scripts.check.replace('npm run verify:l10n','npm run governance && npm run verify:l10n');
+          fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');
+          const ex='.codex-safe.example.json',v=JSON.parse(fs.readFileSync(ex,'utf8'));v.$schema=v.$schema.replace(/[0-9a-f]{40}(?=\/codex-safe\.schema\.json)/i,sha);fs.writeFileSync(ex,JSON.stringify(v,null,2)+'\n');
+          for(const file of ['scripts/release.test.js','scripts/verify-security-manifest.js','scripts/verify-module-boundaries.js']){if(fs.existsSync(file)){let t=fs.readFileSync(file,'utf8');t=t.replace(/72363d4f648171242810ac5871d713b2fa9b3bb6/g,sha).replace(/a0c3419684f835108cad31eb909b3d7f7df7b260/g,sha);fs.writeFileSync(file,t);}}
+          NODE
+          git add package.json .codex-safe.example.json scripts src/codex-safe-core
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore: finalize Codex Safe Core v4.2.1 adoption'
+          git push origin HEAD:family-governance-v4.2.0
