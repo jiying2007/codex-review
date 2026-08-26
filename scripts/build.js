@@ -13,6 +13,7 @@ const coreModules = [
   'index.js', 'safe-contract.js', 'codex-cli.js', 'process-runner.js',
   'git-repository.js', 'context-builder.js', 'policy.js', 'review-rules.js'
 ];
+const coreRuntimeData = ['core-contract.json'];
 
 function copy(source, target) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -25,6 +26,7 @@ function main() {
   copy(path.join(root, 'extension.js'), path.join(dist, 'extension.js'));
   for (const name of runtimeModules) copy(path.join(root, 'src', name), path.join(dist, 'src', name));
   for (const name of coreModules) copy(path.join(root, 'src', 'codex-safe-core', name), path.join(dist, 'src', 'codex-safe-core', name));
+  for (const name of coreRuntimeData) copy(path.join(root, 'src', 'codex-safe-core', name), path.join(dist, 'src', 'codex-safe-core', name));
   copy(path.join(root, 'src', 'codex-safe-core', 'codex-safe.schema.json'), path.join(dist, 'codex-safe.schema.json'));
 }
 
