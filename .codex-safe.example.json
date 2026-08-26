@@ -1,12 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/1755262f51d5e15d74e432add38863d2383bb495/codex-safe.schema.json",
   "schemaVersion": 3,
-  "commit": {
-    "language": "zh-CN",
-    "scopePolicy": "flexible",
-    "autoInferScope": true,
-    "styleHistoryLimit": 12
-  },
+  "commit": { "language": "zh-CN", "scopePolicy": "flexible", "autoInferScope": true, "styleHistoryLimit": 12 },
   "review": {
     "language": "zh-CN",
     "severityThreshold": "low",
@@ -14,25 +9,11 @@
     "maxFindings": 40,
     "rules": {
       "requireTestsForCodeChanges": false,
-      "codePathPrefixes": [
-        "src/"
-      ],
-      "testPathPrefixes": [
-        "test/",
-        "tests/"
-      ],
+      "codePathPrefixes": ["src/"],
+      "testPathPrefixes": ["test/", "tests/"],
       "forbiddenPathPrefixes": []
     }
   },
-  "reviewService": {
-    "maxContextBytes": 262144,
-    "maxContextFiles": 12,
-    "contextLines": 20,
-    "skipGeneratedFiles": true,
-    "blockUnreviewableFiles": false
-  },
-  "pr": {
-    "language": "zh-CN",
-    "includePullRequestTemplate": true
-  }
+  "reviewService": { "maxContextBytes": 262144, "maxContextFiles": 12, "contextLines": 20, "skipGeneratedFiles": true, "blockUnreviewableFiles": false },
+  "pr": { "language": "zh-CN", "includePullRequestTemplate": true }
 }
