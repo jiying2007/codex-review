@@ -66,7 +66,7 @@ async function runCodexReview(diff, stagedPaths, options, token) {
   const results = [];
   const deadline = Date.now() + options.timeoutSeconds * 1000;
   const tokenBudget = configuredTokenBudget(options);
-  const usage = usageShape();
+  const usage = { ...usageShape() };
   const models = new Set();
   let estimatedTokens = 0;
   let resolvedVersion = 'not-run';
