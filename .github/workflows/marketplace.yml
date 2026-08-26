@@ -59,8 +59,9 @@ jobs:
           vsix="codex-review-safe-${version}.vsix"
           mkdir -p release-artifacts
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
-          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir release-artifacts --pattern "$vsix" --pattern SHA256SUMS
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir release-artifacts --pattern "$vsix" --pattern SBOM.spdx.json --pattern SHA256SUMS
           test -f "release-artifacts/$vsix"
+          test -f release-artifacts/SBOM.spdx.json
           test -f release-artifacts/SHA256SUMS
           (cd release-artifacts && sha256sum -c SHA256SUMS)
           gh attestation verify "release-artifacts/$vsix" -R "$GITHUB_REPOSITORY"
