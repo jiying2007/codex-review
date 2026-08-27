@@ -1,37 +1,39 @@
 name: Release Integrity
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      RELEASE_TAG: ${{ github.event.release.tag_name }}
     steps:
-      - name: Verify immutable release and every asset
+      - name: Verify latest published immutable release and every asset
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$RELEASE_TAG"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq '.immutable')" = true || {
-            echo "Published release ${RELEASE_TAG} is not immutable." >&2
+          tag="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=20" --jq '[.[] | select(.draft == false and .prerelease == false)] | sort_by(.published_at) | reverse | .[0].tag_name // ""')"
+          test -n "$tag" || { echo 'No published formal release found.' >&2; exit 1; }
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" --jq '.immutable')" = true || {
+            echo "Published release ${tag} is not immutable." >&2
             exit 1
           }
-          gh release verify "$RELEASE_TAG"
+          gh release verify "$tag"
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
-          gh release download "$RELEASE_TAG" --dir "$tmp"
+          gh release download "$tag" --dir "$tmp"
           shopt -s nullglob
           assets=("$tmp"/*)
-          ((${#assets[@]} > 0)) || { echo "Release ${RELEASE_TAG} has no assets." >&2; exit 1; }
+          ((${#assets[@]} > 0)) || { echo "Release ${tag} has no assets." >&2; exit 1; }
           for asset in "${assets[@]}"; do
-            gh release verify-asset "$RELEASE_TAG" "$asset"
+            gh release verify-asset "$tag" "$asset"
           done
