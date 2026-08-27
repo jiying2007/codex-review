@@ -36,7 +36,7 @@ jobs:
           ref: ${{ steps.release.outputs.tag }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+      - uses: actions/setup-node@94196ee1d15439c1b6651cd87ef14e88ec435966 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with: { node-version: '22', cache: npm }
 
       - name: Verify immutable release source
