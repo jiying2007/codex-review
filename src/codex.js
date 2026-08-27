@@ -22,6 +22,7 @@ const {
 
 const REVIEW_CHUNK_LIMIT = 8;
 const DEFAULT_REVIEW_TOKEN_BUDGET = 250000;
+const DEFAULT_TOTAL_EVIDENCE_CAP_BYTES = 2 * 1024 * 1024;
 const capabilityCache = new Map();
 const sharedCodexCli = createCodexCli({
   runPreparedProcess: runProcess,
@@ -40,6 +41,10 @@ function configuredTokenBudget(options) {
     ? Math.max(0, Math.floor(options.maxTokenBudget))
     : DEFAULT_REVIEW_TOKEN_BUDGET;
 }
+function configuredTotalEvidenceBudget(options, chunkBudgetBytes) {
+  if (Number.isFinite(options?.totalContextBudgetBytes)) return Math.max(0, Math.floor(options.totalContextBudgetBytes));
+  return Math.min(DEFAULT_TOTAL_EVIDENCE_CAP_BYTES, Math.max(chunkBudgetBytes, chunkBudgetBytes * 2));
+}
 
 async function runCodexReview(diff, stagedPaths, options, token) {
   const chunkBudgetBytes = options.contextBudgetBytes || options.maxDiffBytes;
@@ -48,7 +53,7 @@ async function runCodexReview(diff, stagedPaths, options, token) {
     maxBytes: chunkBudgetBytes,
     maxChunks: REVIEW_CHUNK_LIMIT
   });
-  const totalBudgetBytes = options.totalContextBudgetBytes || chunkBudgetBytes;
+  const totalBudgetBytes = configuredTotalEvidenceBudget(options, chunkBudgetBytes);
   const bytePlan = selectChunksWithinByteBudget(rawEvidence.chunks, totalBudgetBytes);
   const coverageGaps = [...rawEvidence.coverageGaps];
   if (!bytePlan.complete) {
@@ -141,7 +146,9 @@ async function runCodexReview(diff, stagedPaths, options, token) {
 module.exports = {
   REVIEW_CHUNK_LIMIT,
   DEFAULT_REVIEW_TOKEN_BUDGET,
+  DEFAULT_TOTAL_EVIDENCE_CAP_BYTES,
   configuredTokenBudget,
+  configuredTotalEvidenceBudget,
   findWindowsCodexCandidates,
   resolveCodexExecutable,
   probeCodexCapabilities,
