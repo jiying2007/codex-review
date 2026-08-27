@@ -10,6 +10,7 @@ const {
 } = require('./review-support');
 const { readPolicySectionAtHead } = require('./codex-safe-core/policy');
 const { fingerprintPolicy } = require('./codex-safe-core/safe-contract');
+const { resolveReviewProfile } = require('./codex-safe-core/quality-platform');
 const { t } = require('./i18n');
 
 const RAW_DIFF_HARD_LIMIT_BYTES = 8 * 1024 * 1024;
@@ -32,6 +33,11 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   const model = String(getUserOnlySetting(config, 'model', '') || '').trim();
   if (!codexPath || codexPath.length > 1024 || /[\r\n\0]/.test(codexPath)) throw new Error(t('User-level safeCodexReview.codexPath is invalid.'));
   if (model.length > 128 || /[\r\n\0]/.test(model)) throw new Error(t('User-level safeCodexReview.model is invalid.'));
+
+  const profile = resolveReviewProfile(String(getUserOnlySetting(config, 'profile', 'standard') || 'standard'));
+  const sarifRaw = getUserOnlySetting(config, 'sarifFiles', []);
+  if (!Array.isArray(sarifRaw) || sarifRaw.length > 8 || sarifRaw.some(value => typeof value !== 'string' || !value.trim() || value.length > 512 || /[\r\n\0]/.test(value))) throw new Error('User-level safeCodexReview.sarifFiles is invalid.');
+  const sarifFiles = Object.freeze(sarifRaw.map(value => value.trim()));
 
   const language = project.language ?? getUserOnlySetting(config, 'language', 'zh-CN');
   if (!['zh-CN', 'en'].includes(language)) throw new Error(t('Unsupported language: {0}', language));
@@ -59,6 +65,10 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   const options = {
     codexPath,
     model,
+    profile: profile.name,
+    profileConfig: profile,
+    sarifFiles,
+    repoRoot,
     language,
     maxDiffBytes: RAW_DIFF_HARD_LIMIT_BYTES,
     contextBudgetBytes,
@@ -81,7 +91,9 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     timeoutSeconds: options.timeoutSeconds,
     extraInstructions: options.extraInstructions,
     reviewRules: options.reviewRules,
-    projectPolicyFingerprint: options.projectPolicyFingerprint
+    projectPolicyFingerprint: options.projectPolicyFingerprint,
+    reviewProfile: options.profile,
+    sarifEvidenceEnabled: options.sarifFiles.length > 0
   });
   return options;
 }

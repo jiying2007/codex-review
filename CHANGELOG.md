@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 4.1.0 - 2026-08-27
+
+- Adopt Safe Core 4.4 Quality Platform with user review profiles, bounded local Impact Evidence, pre-generated SARIF evidence, deterministic controller summaries and explicit preview-before-apply fix proposals.
+- Keep Safe Contract v2, Policy Schema v3, Review Receipt v4, exact changed-line publication and Workspace Trust unchanged.
+
 ## 4.0.1
 
 ### Fixed
