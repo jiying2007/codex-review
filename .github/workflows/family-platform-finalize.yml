@@ -31,7 +31,6 @@ jobs:
           python3 scripts/finalize-family-platform.py
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           rm scripts/finalize-family-platform.py
-          rm .github/workflows/family-platform-finalize.yml
       - name: Run full Review CI
         shell: bash
         run: |
@@ -39,10 +38,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 >/dev/null 2>&1 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2 >/dev/null 2>&1
           xvfb-run -a npm run ci
-      - name: Commit validated final state
+      - name: Commit validated non-workflow state
         shell: bash
         run: |
           set -euo pipefail
+          git restore --staged --worktree .github/workflows/family-release-guard.yml .github/workflows/family-platform-finalize.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
