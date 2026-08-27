@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 4.1.1 - 2026-08-27
+
+- Repin the exact Safe Core 4.4.1 immutable-release publication patch; Review runtime, Quality Platform and protocol semantics are unchanged.
+- Publish new VSIX/SBOM/checksum assets under repository-level immutable Releases and verify the published assets in CI.
+
 ## 4.1.0 - 2026-08-27
 
 - Adopt Safe Core 4.4 Quality Platform with user review profiles, bounded local Impact Evidence, pre-generated SARIF evidence, deterministic controller summaries and explicit preview-before-apply fix proposals.
