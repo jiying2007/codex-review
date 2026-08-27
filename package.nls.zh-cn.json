@@ -17,5 +17,14 @@
   "config.severityThreshold": "在 Problems 和审查报告中显示的最低严重级别。",
   "config.confidenceThreshold": "Finding 影响 Problems 诊断和审查结论所需的最低置信度。",
   "config.timeoutSeconds": "等待 Codex CLI 的最长时间。",
-  "config.extraInstructions": "用户级附加审查要求，不能覆盖扩展的安全边界。"
+  "config.extraInstructions": "用户级附加审查要求，不能覆盖扩展的安全边界。",
+  "command.importSarif.title": "导入 SARIF 审查证据",
+  "command.generateFix.title": "生成安全修复候选",
+  "config.profile": "Review 执行 Profile；只在现有安全/预算上限内调整证据深度。",
+  "config.profile.quick": "快速、最小证据",
+  "config.profile.standard": "标准平衡",
+  "config.profile.deep": "深度影响分析",
+  "config.profile.security": "安全优先",
+  "config.profile.embedded": "嵌入式/并发/资源优先",
+  "config.sarifFiles": "仓库内由用户或 CI 预先生成的 SARIF 文件；扩展不会执行 analyzer 命令。"
 }

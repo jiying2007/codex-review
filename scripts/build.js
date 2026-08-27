@@ -7,11 +7,11 @@ const root = path.resolve(__dirname, '..');
 const dist = path.join(root, 'dist');
 const runtimeModules = [
   'i18n.js', 'review-support.js', 'process.js', 'git.js', 'policy.js',
-  'review.js', 'report.js', 'receipts.js', 'codex.js'
+  'review.js', 'report.js', 'receipts.js', 'codex.js', 'quality.js'
 ];
 const coreModules = [
   'index.js', 'safe-contract.js', 'codex-cli.js', 'process-runner.js',
-  'git-repository.js', 'context-builder.js', 'efficiency-planner.js', 'policy.js', 'review-rules.js'
+  'git-repository.js', 'context-builder.js', 'efficiency-planner.js', 'quality-platform.js', 'policy.js', 'review-rules.js'
 ];
 const coreRuntimeData = ['core-contract.json'];
 
