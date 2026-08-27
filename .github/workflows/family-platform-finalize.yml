@@ -27,6 +27,7 @@ jobs:
           core_sha='c59a036cdb0b5839fe0e794031d38fd274bc116b'
           git -C src/codex-safe-core fetch --quiet origin "$core_sha"
           git -C src/codex-safe-core checkout --quiet "$core_sha"
+          git add src/codex-safe-core
           python3 scripts/finalize-family-platform.py
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           rm scripts/finalize-family-platform.py
