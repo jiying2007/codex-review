@@ -58,8 +58,10 @@ jobs:
               s=s.replace('## Unreleased\n','## Unreleased\n'+entry,1)
               p.write_text(s)
           PY
+      - name: Install Extension Host dependencies
+        run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
       - name: Run full product CI
-        run: npm run ci
+        run: xvfb-run -a npm run ci
       - name: Push validated non-workflow state
         shell: bash
         run: |
