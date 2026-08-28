@@ -37,8 +37,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sed -i 's/contextBudgetBytes=evidence\.budgetBytes/contextBudgetBytes:evidence.budgetBytes/' src/codex.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/codex.js'); s=p.read_text()
+          for old,new in [
+            ('contextBudgetBytes=evidence.budgetBytes','contextBudgetBytes:evidence.budgetBytes'),
+            ('reviewChunkCount=evidence.chunks.length','reviewChunkCount:evidence.chunks.length'),
+            ('plannedChunkCount=evidence.chunks.length','plannedChunkCount:evidence.chunks.length')]:
+              s=s.replace(old,new)
+          p.write_text(s)
+          PY
+          node --check src/codex.js
           python3 scripts/finalize-semantic-review.py
+          node --check src/codex.js
       - name: Verify package lock
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Run full Review CI
