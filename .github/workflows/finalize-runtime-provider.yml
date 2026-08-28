@@ -82,7 +82,8 @@ jobs:
           git add -A
           git diff --cached --check
           npm ci --ignore-scripts --no-audit --no-fund
-          xvfb-run -a npm run ci
+          npm run check
+          npm run package
           rm .github/workflows/finalize-runtime-provider.yml
           git add -A
           git diff --cached --check
