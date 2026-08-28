@@ -1,0 +1,54 @@
+name: Finalize Review 4.2 semantic review once
+
+on:
+  push:
+    branches: [semantic-review-v4.2.0]
+
+permissions:
+  contents: write
+
+env:
+  CORE_SHA: 23830be910c2b313d7679ee2c938cb94a1478b7f
+
+jobs:
+  finalize:
+    if: "${{ github.event.head_commit.message != 'feat: finalize Review 4.2 semantic review' }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: semantic-review-v4.2.0
+          submodules: recursive
+          fetch-depth: 2
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with:
+          node-version: '22.22.2'
+          cache: npm
+      - name: Pin canonical Safe Core 4.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C src/codex-safe-core fetch origin "$CORE_SHA"
+          git -C src/codex-safe-core checkout "$CORE_SHA"
+          git add src/codex-safe-core
+          test "$(git ls-files --stage src/codex-safe-core | awk '{print $2}')" = "$CORE_SHA"
+      - name: Apply Review 4.2 product wiring
+        run: python3 scripts/finalize-semantic-review.py
+      - name: Verify package lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Run full Review CI
+        run: xvfb-run -a npm run ci
+      - name: Push validated product state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist codex-review-safe-*.vsix
+          git rm scripts/finalize-semantic-review.py
+          git restore --staged --worktree .github/workflows/semantic-review-v4.2.0-finalize.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'feat: finalize Review 4.2 semantic review'
+          git push origin HEAD:semantic-review-v4.2.0
