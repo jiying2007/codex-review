@@ -35,13 +35,13 @@ The report derives a convergence state:
 - `active`: review still has findings without a clear improvement/regression signal;
 - `incomplete`: evidence/coverage or Force Re-review stability is incomplete.
 
-Metrics include closure rate, fix-induced rate, reintroduced rate, run number, and deterministic-invariant candidates.
+The report explicitly outputs `reviews-to-convergence` (the converged Session run number, otherwise `pending`), closure rate, new finding count, reintroduced count, `likely-fix-induced` count, deterministic-preventable count, plus fix-induced and reintroduced rates. `likely-fix-induced` remains a heuristic signal and is never presented as proven causality.
 
 ## Changed causal anchor
 
-Findings still require an exact staged changed line as their causal anchor. The model may additionally provide `supportingLocations` for unchanged symptoms, dependency code, tests, configuration, or state displays.
+Findings require an exact staged changed causal span: `file`, `line`, and `endLine` must remain entirely inside one added/modified line range. The model may additionally provide `supportingLocations` for unchanged symptoms, dependency code, tests, configuration, or state displays.
 
-This addresses cases where a changed state transition exposes a bug in unchanged presentation code without restoring nearest-line mapping. The unchanged symptom is supporting evidence only; Problems diagnostics remain anchored to the exact changed causal line.
+This addresses cases where a changed state transition exposes a bug in unchanged presentation code without restoring nearest-line mapping. The unchanged symptom is supporting evidence only; Problems diagnostics remain anchored to the exact changed causal span.
 
 ## Deterministic invariants
 
