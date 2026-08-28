@@ -436,13 +436,7 @@ async function reviewStaged(commandArgs = [], { force = false } = {}) {
         }
         rawReview.executionMeta = { ...(rawReview.executionMeta || {}), reviewKey, cacheHit, evidenceManifestDigest, scopeFingerprint: scope.fingerprint, scopePhase: scope.phase };
         const sessionKey = buildReviewSessionKey({ headOid: snapshotAfter.headOid, policyFingerprint: options.policyFingerprint, scopeFingerprint: scope.fingerprint, profile: options.profile });
-        const lineage = await reviewLineage.record(repoRoot, { sessionKey, phase: scope.phase, reviewKey, subjectKey, coverageVerdict: rawReview.coverageVerdict, findings: rawReview.findings });
-        const review = applyResolutionLedger(rawReview, findingLedger.list(repoRoot), options.language);
-        review.scope = { present: scope.present, source: scope.source, phase: scope.phase, complexityBudget: scope.complexityBudget, goals: scope.goals, invariants: scope.invariants, nonGoals: scope.nonGoals, managedPaths: scope.managedPaths, fingerprint: scope.fingerprint };
-        review.lineage = lineage;
-        review.convergence = evaluateConvergence(review, lineage, scope);
-        review.executionMeta = { ...(review.executionMeta || {}), reviewKey, cacheHit, evidenceManifestDigest, scopeFingerprint: scope.fingerprint, scopePhase: scope.phase };
-        return { rawReview, review, subjectKey, reviewKey, evidenceManifestDigest, cacheHit, snapshot: snapshotAfter, changedLineRanges, stagedChangeMetadata, binaryPathSet, submodulePathSet, stagedPolicyChange, diffFingerprint, diffBytes, diff, options };
+        return { rawReview, scope, sessionKey, subjectKey, reviewKey, evidenceManifestDigest, cacheHit, snapshot: snapshotAfter, changedLineRanges, stagedChangeMetadata, binaryPathSet, submodulePathSet, stagedPolicyChange, diffFingerprint, diffBytes, diff, options };
       } finally { linked.dispose(); }
     });
     if (!result) return;
@@ -454,6 +448,9 @@ async function reviewStaged(commandArgs = [], { force = false } = {}) {
       return;
     }
     if (!isCurrentReview(key, state.id)) return;
+    result.review = applyResolutionLedger(result.rawReview, findingLedger.list(repoRoot), result.options.language);
+    result.review.scope = { present: result.scope.present, source: result.scope.source, phase: result.scope.phase, complexityBudget: result.scope.complexityBudget, goals: result.scope.goals, invariants: result.scope.invariants, nonGoals: result.scope.nonGoals, managedPaths: result.scope.managedPaths, fingerprint: result.scope.fingerprint };
+    result.review.executionMeta = { ...(result.review.executionMeta || {}), reviewKey: result.reviewKey, cacheHit: result.cacheHit, evidenceManifestDigest: result.evidenceManifestDigest, scopeFingerprint: result.scope.fingerprint, scopePhase: result.scope.phase };
     const currentUnstagedPathSet = await getUnstagedPathSet(repoRoot);
     const dirtyOpenPathSet = getDirtyOpenPathSet(repoRoot);
     const publishMeta = await publishDiagnostics(repoRoot, result.review, result.options, result.changedLineRanges, currentUnstagedPathSet, dirtyOpenPathSet, result.stagedChangeMetadata, result.binaryPathSet, result.submodulePathSet);
@@ -464,6 +461,9 @@ async function reviewStaged(commandArgs = [], { force = false } = {}) {
       vscode.window.showWarningMessage(t('Git HEAD or staged changes changed while publishing results. Stale Problems were retracted; review again.'));
       return;
     }
+    const lineage = await reviewLineage.record(repoRoot, { sessionKey: result.sessionKey, phase: result.scope.phase, reviewKey: result.reviewKey, subjectKey: result.subjectKey, coverageVerdict: result.rawReview.coverageVerdict, findings: result.rawReview.findings });
+    result.review.lineage = lineage;
+    result.review.convergence = evaluateConvergence(result.review, lineage, result.scope);
     if (result.stagedPolicyChange) result.review.policyNotice = t('{0} is modified in the staged changes. This review still uses the policy from HEAD; the new policy takes effect after commit.', PROJECT_RULES_FILE);
     const reviewInputMeta = { ...buildReviewInputMeta(result.snapshot, result.diffFingerprint, result.diffBytes, [...result.stagedChangeMetadata.keys()], currentUnstagedPathSet, {
       ...result.review.executionMeta, policySource: result.options.policySource, policyFingerprint: result.options.policyFingerprint
