@@ -34,7 +34,11 @@ jobs:
           git add src/codex-safe-core
           test "$(git ls-files --stage src/codex-safe-core | awk '{print $2}')" = "$CORE_SHA"
       - name: Apply Review 4.2 product wiring
-        run: python3 scripts/finalize-semantic-review.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/contextBudgetBytes=evidence\.budgetBytes/contextBudgetBytes:evidence.budgetBytes/' src/codex.js
+          python3 scripts/finalize-semantic-review.py
       - name: Verify package lock
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Run full Review CI
