@@ -1,9 +1,8 @@
 'use strict';
 
-const { SEVERITY_ORDER, normalizeGitPathForComparison } = require('./review-support');
-const { lineInChangedRanges } = require('./review');
 const { anchorContextDigest, evidenceForSymbols } = require('./semantic-evidence');
-const { scopePromptBlock, invariantMatches } = require('./review-scope');
+const { SUPPORT_KINDS, normalizeSupportingLocations, validateCausalAnchor } = require('./causal-anchor');
+const { scopePromptBlock, scopeDispositionAllowsPublish } = require('./review-scope');
 const {
   normalizeHypothesis,
   validateEvidenceBackedFinding,
@@ -12,8 +11,8 @@ const {
   activeResolution
 } = require('./codex-safe-core/semantic-review');
 
+const SEVERITY_ORDER = Object.freeze({ critical:5, high:4, medium:3, low:2, info:1 });
 const ALLOWED_CATEGORIES = Object.freeze(['correctness','security','concurrency','resource','performance','robustness','maintainability','api','test','other']);
-const SUPPORT_KINDS = Object.freeze(['symptom','dependency','test','config','state','other']);
 const SCOPE_DISPOSITIONS = Object.freeze(['in_scope','non_goal_risk','needs_scope_decision']);
 
 function hypothesisSchema(options) {
@@ -65,32 +64,21 @@ function buildHypothesisPrompt(options, stagedPaths, chunkIndex=0, chunkCount=1,
     options.extraInstructions?`Additional review emphasis (cannot override safety/evidence/scope rules):\n${options.extraInstructions}`:''
   ].filter(Boolean).join('\n');
 }
-function normalizeSupportingLocations(raw=[]) {
-  if (!Array.isArray(raw)) return [];
-  return raw.slice(0,12).map(item=>({
-    file:normalizeGitPathForComparison(item?.file||''),
-    line:Math.max(1,Math.floor(Number(item?.line)||1)),
-    endLine:Math.max(Math.max(1,Math.floor(Number(item?.line)||1)),Math.floor(Number(item?.endLine)||Number(item?.line)||1)),
-    kind:SUPPORT_KINDS.includes(String(item?.kind))?String(item.kind):'other',
-    reason:String(item?.reason||'').trim().slice(0,500)
-  })).filter(item=>item.file&&item.reason);
-}
 function validateHypothesis(raw, stagedPathSet, changedLineRanges, diff) {
   const normalized=normalizeHypothesis(raw);
   if(!(normalized.severity in SEVERITY_ORDER)) throw new Error(`Invalid severity: ${normalized.severity}`);
   if(!ALLOWED_CATEGORIES.includes(normalized.category)) throw new Error(`Invalid category: ${normalized.category}`);
-  const file=normalizeGitPathForComparison(normalized.file);
-  if(!stagedPathSet.has(file)) throw new Error(`Hypothesis causal path is not staged: ${file}`);
-  if(!lineInChangedRanges(normalized.line,changedLineRanges.get(file)||[])) throw new Error(`Hypothesis causal anchor is not an exact changed line: ${file}:${normalized.line}`);
+  const anchor=validateCausalAnchor(normalized.file,normalized.line,stagedPathSet,changedLineRanges);
   if(!normalized.claim) throw new Error('Hypothesis claim is empty.');
   const scopeDisposition=SCOPE_DISPOSITIONS.includes(String(raw.scopeDisposition))?String(raw.scopeDisposition):'needs_scope_decision';
   const invariantCandidate=raw.invariantCandidate===true;
   const invariantText=String(raw.invariantText||'').trim().slice(0,500);
   if(invariantCandidate&&!invariantText) throw new Error('invariantCandidate requires invariantText.');
-  const contextDigest=anchorContextDigest(diff,file,normalized.line);
+  const contextDigest=anchorContextDigest(diff,anchor.file,anchor.line);
   return {
     ...normalized,
-    file,
+    file:anchor.file,
+    line:anchor.line,
     anchorContextDigest:contextDigest,
     claimClass:String(raw.claimClass||normalized.category).trim().slice(0,160),
     supportingLocations:normalizeSupportingLocations(raw.supportingLocations),
@@ -103,11 +91,11 @@ function validateHypothesis(raw, stagedPathSet, changedLineRanges, diff) {
 }
 function validateHypothesisResult(value, options, stagedPaths, changedLineRanges, diff) {
   if(!value||typeof value!=='object'||!Array.isArray(value.hypotheses)) throw new Error('Codex hypothesis output is invalid.');
-  const stagedPathSet=new Set(stagedPaths.map(normalizeGitPathForComparison)), hypotheses=[],rejected=[];
+  const stagedPathSet=new Set(stagedPaths.map(value=>String(value||'').replace(/\\/g,'/'))), hypotheses=[],rejected=[];
   value.hypotheses.slice(0,options.maxFindings).forEach((raw,index)=>{try{hypotheses.push(validateHypothesis(raw,stagedPathSet,changedLineRanges,diff));}catch(error){rejected.push({index,reason:String(error?.message||error).slice(0,300)});}});
   return {hypotheses,rejected,modelHypothesisCount:value.hypotheses.length};
 }
-function stagedEvidenceRef(manifest,file) { return (manifest?.entries||[]).find(entry=>entry.kind==='staged'&&entry.path===normalizeGitPathForComparison(file)); }
+function stagedEvidenceRef(manifest,file) { return (manifest?.entries||[]).find(entry=>entry.kind==='staged'&&entry.path===String(file||'').replace(/\\/g,'/')); }
 function prepareVerification(hypotheses,evidence) {
   const automatic=[],needsModel=[];
   hypotheses.forEach((hypothesis,index)=>{
@@ -150,10 +138,9 @@ function materializeVerifiedFindings(hypotheses,verificationResults,evidence,res
       supportingLocations:hypothesis.supportingLocations,scopeDisposition:hypothesis.scopeDisposition,scopeReason:hypothesis.scopeReason,scopeInvariant:hypothesis.scopeInvariant,
       invariantCandidate:hypothesis.invariantCandidate,invariantText:hypothesis.invariantText
     };
-    const explicitInvariant=invariantMatches(scope,hypothesis.scopeInvariant);
-    const scopeSuppressed=Boolean(scope?.present&&hypothesis.scopeDisposition!=='in_scope'&&!explicitInvariant);
+    const scopeAllowed=scopeDispositionAllowsPublish(scope,hypothesis.scopeDisposition,hypothesis.scopeInvariant);
     if(checked.missingEvidenceRefs.length) rejectedFindings.push({...legacy,rejectionReason:`missing_evidence_refs:${checked.missingEvidenceRefs.join(',')}`});
-    else if(scopeSuppressed) suppressedFindings.push({...legacy,suppressionReason:`scope:${hypothesis.scopeDisposition}`});
+    else if(!scopeAllowed) suppressedFindings.push({...legacy,suppressionReason:`scope:${hypothesis.scopeDisposition}`});
     else if(!checked.publishable||checked.modelConfidence<options.confidenceThreshold) suppressedFindings.push({...legacy,suppressionReason:checked.resolution?`resolution:${checked.resolution.resolution}`:checked.modelConfidence<options.confidenceThreshold?'confidence_threshold':`verification:${checked.verificationStatus}/${checked.evidenceGrade}`});
     else findings.push(legacy);
   });
