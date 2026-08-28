@@ -31,7 +31,7 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   }
   if (review.convergence) {
     const c = review.convergence;
-    lines.push(`Convergence: ${c.state}; closure=${pct(c.closureRate)}, fix-induced=${pct(c.fixInducedRate)}, reintroduced=${pct(c.reintroducedRate)}, deterministic-preventable=${c.deterministicPreventableCount}`);
+    lines.push(`Convergence: ${c.state}; reviews-to-convergence=${c.reviewsToConvergence ?? 'pending'}, closure=${pct(c.closureRate)}, new=${c.added || 0}, reintroduced=${c.reintroduced || 0}, likely-fix-induced=${c.likelyFixInduced || 0}, deterministic-preventable=${c.deterministicPreventableCount || 0}, fix-induced-rate=${pct(c.fixInducedRate)}, reintroduced-rate=${pct(c.reintroducedRate)}`);
     if (c.invariantCandidates?.length) {
       lines.push('Suggested deterministic invariants:');
       for (const item of c.invariantCandidates.slice(0, 10)) lines.push(`- ${item}`);
