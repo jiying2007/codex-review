@@ -13,6 +13,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CORE_SHA: ada3733a0d938b763fd241628da86990af7cfad7
+          OLD_CORE_SHA: 23830be910c2b313d7679ee2c938cb94a1478b7f
         run: |
           set -euo pipefail
           git init .
@@ -25,32 +26,34 @@ jobs:
           git -C src/codex-safe-core fetch origin "${CORE_SHA}" --depth=1
           git -C src/codex-safe-core checkout --detach "${CORE_SHA}"
           python3 - <<'PY'
+          import os
           from pathlib import Path
-          p=Path('package.json')
-          s=p.read_text()
-          s=s.replace('"version": "4.2.0"','"version": "4.3.0"',1)
+          core=os.environ['CORE_SHA']; old_core=os.environ['OLD_CORE_SHA']
+          p=Path('package.json'); s=p.read_text(); s=s.replace('"version": "4.2.0"','"version": "4.3.0"',1)
           needle='        "safeCodexReview.model": { "type": "string", "default": "", "scope": "application", "description": "%config.model%" },\n'
           insert=needle + '''        "safeCodexReview.providerMode": { "type": "string", "enum": ["openai", "openai-compatible"], "default": "openai", "scope": "machine", "description": "Codex provider runtime: built-in OpenAI or an explicitly configured OpenAI-compatible Responses endpoint." },\n        "safeCodexReview.providerBaseUrl": { "type": "string", "default": "", "scope": "machine", "description": "HTTPS base URL for openai-compatible mode. User Codex config.toml is intentionally ignored." },\n        "safeCodexReview.providerApiKeyEnv": { "type": "string", "default": "OPENAI_API_KEY", "scope": "machine", "description": "Environment-variable name containing the provider API key. The secret value is never stored in VS Code settings." },\n        "safeCodexReview.connectTimeoutSeconds": { "type": "number", "default": 15, "minimum": 1, "maximum": 120, "scope": "application", "description": "Provider connection timeout in seconds." },\n        "safeCodexReview.requestTimeoutSeconds": { "type": "number", "default": 180, "minimum": 10, "maximum": 900, "scope": "application", "description": "Maximum time for one Codex model request." },\n        "safeCodexReview.reviewTimeoutSeconds": { "type": "number", "default": 600, "minimum": 30, "maximum": 1800, "scope": "application", "description": "Whole Review operation deadline across hypothesis and verification requests." },\n        "safeCodexReview.streamIdleTimeoutSeconds": { "type": "number", "default": 60, "minimum": 5, "maximum": 600, "scope": "application", "description": "Maximum idle time for a provider response stream." },\n'''
-          if needle not in s: raise SystemExit('package provider insertion anchor missing')
-          s=s.replace(needle,insert,1)
+          if '"safeCodexReview.providerMode"' not in s:
+            if needle not in s: raise SystemExit('package provider insertion anchor missing')
+            s=s.replace(needle,insert,1)
           old='        "safeCodexReview.timeoutSeconds": { "type": "number", "default": 120, "minimum": 10, "maximum": 300, "scope": "application", "description": "%config.timeoutSeconds%" },\n'
-          if old not in s: raise SystemExit('old timeout setting missing')
           s=s.replace(old,'',1)
           p.write_text(s)
 
           p=Path('extension.js'); s=p.read_text()
-          old='''  resolveCodexExecutable,\n  probeCodexCapabilities,\n  runCodexReview,'''
-          new='''  resolveCodexExecutable,\n  probeCodexCapabilities,\n  probeCodexRuntime,\n  runCodexReview,'''
-          if old not in s: raise SystemExit('extension import anchor missing')
-          s=s.replace(old,new,1)
+          old='''  resolveCodexExecutable,\n  probeCodexCapabilities,\n  runCodexReview,'''; new='''  resolveCodexExecutable,\n  probeCodexCapabilities,\n  probeCodexRuntime,\n  runCodexReview,'''
+          if 'probeCodexRuntime,' not in s:
+            if old not in s: raise SystemExit('extension import anchor missing')
+            s=s.replace(old,new,1)
           old='''  const resolved = await resolveCodexExecutable(options.codexPath);\n  await probeCodexCapabilities(resolved, options.model);\n  const { stdout: gitVersion } = await runProcess('git', ['--version'], { timeoutMs: 10000, prepared: false });\n  vscode.window.showInformationMessage(t('Codex Review Safe environment is ready: {0}; {1}; required CLI capabilities OK', resolved.version || resolved.executable, gitVersion.trim()));'''
           new='''  const runtime = await probeCodexRuntime({ codexPath: options.codexPath, model: options.model, runtime: options.codexRuntime });\n  const { stdout: gitVersion } = await runProcess('git', ['--version'], { timeoutMs: 10000, prepared: false });\n  const endpoint = runtime.provider.endpointHost || 'Codex default';\n  vscode.window.showInformationMessage(t('Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms', runtime.codexVersion || options.codexPath, gitVersion.trim(), runtime.provider.mode, endpoint, runtime.durationMs));'''
-          if old not in s: raise SystemExit('checkEnvironment anchor missing')
-          s=s.replace(old,new,1)
+          if 'live structured probe {4} ms' not in s:
+            if old not in s: raise SystemExit('checkEnvironment anchor missing')
+            s=s.replace(old,new,1)
           old='''function friendlyError(error) {\n  const detail = error?.stderr || error?.message || String(error);\n  if (error?.code === 'ETIMEDOUT') return t('{0}. Increase safeCodexReview.timeoutSeconds, or check Codex network/login status.', detail);\n  return detail;\n}'''
           new='''function friendlyError(error) {\n  const detail = error?.message || error?.stderr || String(error);\n  const provider = error?.provider;\n  const meta = provider ? ` Provider: ${provider.mode}${provider.endpointHost ? ` @ ${provider.endpointHost}` : ''}.` : '';\n  const timing = Number.isFinite(error?.elapsedMs) ? ` Elapsed: ${Math.round(error.elapsedMs / 100) / 10}s${Number.isFinite(error?.lastActivityMs) ? `; last activity ${Math.round(error.lastActivityMs / 100) / 10}s ago` : ''}.` : '';\n  const diagnostic = error?.diagnosticTail ? ` Diagnostic: ${String(error.diagnosticTail).slice(-1200)}` : '';\n  if (String(error?.code || '').startsWith('ECODEX_')) return `${detail}${meta}${timing}${diagnostic}`;\n  return detail;\n}'''
-          if old not in s: raise SystemExit('friendlyError anchor missing')
-          s=s.replace(old,new,1)
+          if 'const provider = error?.provider;' not in s:
+            if old not in s: raise SystemExit('friendlyError anchor missing')
+            s=s.replace(old,new,1)
           p.write_text(s)
 
           for name,heading,text in [
@@ -59,16 +62,19 @@ jobs:
             p=Path(name); s=p.read_text();
             if heading not in s: s=s.rstrip()+f'\n\n{heading}\n\n{text}'
             p.write_text(s)
-          p=Path('CHANGELOG.md'); s=p.read_text()
-          marker='# Changelog\n'
+          p=Path('CHANGELOG.md'); s=p.read_text(); marker='# Changelog\n'
           entry='''\n## 4.3.0 - 2026-08-28\n\n- Add the shared Core v4.6 Codex Runtime/Provider Contract with explicit OpenAI-compatible relay configuration while preserving `--ignore-user-config`.\n- Split per-request and whole-review timeouts, force relay traffic to Responses HTTP/SSE, add live Environment Check, and surface provider/DNS/TLS/auth/rate-limit/model/timeout diagnostics without exposing secrets.\n'''
           if '## 4.3.0 - 2026-08-28' not in s:
             if marker not in s: raise SystemExit('changelog header missing')
             s=s.replace(marker,marker+entry,1)
           p.write_text(s)
+          for name in ['scripts/release.test.js','.codex-safe.example.json']:
+            p=Path(name); s=p.read_text();
+            if old_core not in s: raise SystemExit(f'old Core provenance missing in {name}')
+            p.write_text(s.replace(old_core,core))
           PY
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          git add package.json package-lock.json extension.js src/policy.js src/codex.js README.md README.zh-CN.md CHANGELOG.md src/codex-safe-core
+          git add package.json package-lock.json extension.js src/policy.js src/codex.js README.md README.zh-CN.md CHANGELOG.md scripts/release.test.js .codex-safe.example.json src/codex-safe-core
           git diff --cached --check
           npm ci --ignore-scripts --no-audit --no-fund
           npm run ci
