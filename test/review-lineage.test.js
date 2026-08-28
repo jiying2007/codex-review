@@ -36,8 +36,10 @@ assert.equal(convergence.added, 1);
 assert.equal(convergence.likelyFixInduced, 1);
 assert.equal(convergence.deterministicPreventableCount, 1);
 assert.equal(convergence.scopePhase, 'production-aging-v1');
+assert.equal(convergence.reviewsToConvergence, null);
 
 const converged = evaluateConvergence({ findings:[], coverageVerdict:'complete', coverageGaps:[] }, { runNumber:3, transition:{ fixedIds:['B','C'], newIds:[], unchangedIds:[], changedIds:[], reintroducedIds:[], likelyFixInducedIds:[], previousCount:2 } }, { phase:'production-aging-v1', complexityBudget:'minimal' });
 assert.equal(converged.state, 'converged');
 assert.equal(converged.closureRate, 1);
+assert.equal(converged.reviewsToConvergence, 3);
 console.log('Review lineage and convergence tests passed.');
