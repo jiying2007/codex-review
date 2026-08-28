@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "source": "repeated production-aging thermal review case",
+  "cases": [
+    {
+      "id": "vsapi-trim-ownership-hard-negative",
+      "kind": "hard_negative",
+      "category": "resource",
+      "claimClass": "invalid-free",
+      "expected": "suppressed_or_contradicted",
+      "description": "Ownership-replacing trim API must not be treated as pointer-view trim when index evidence shows free/realloc and pointer replacement."
+    },
+    {
+      "id": "thermal-recover-reason-loss",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "state-transition",
+      "expected": "verified",
+      "description": "RECOVER_WAIT must preserve HOT/COLD origin or the stable recovery window cannot accumulate."
+    },
+    {
+      "id": "thermal-sensor-fault-missing-battery-fail",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "failure-propagation",
+      "expected": "verified",
+      "description": "Sensor/current-mode faults must enter the existing Battery failure flow rather than silently continuing the same aging session."
+    },
+    {
+      "id": "thermal-startup-requires-discharge-deadlock",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "startup-gate",
+      "expected": "verified",
+      "description": "A normal first sample must release startup loads even while idle/charging; discharge mode only gates new temperature protection."
+    },
+    {
+      "id": "thermal-motor-health-not-consecutive",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "health-gate",
+      "expected": "verified",
+      "description": "A bad Motor health frame between good frames must reset a consecutive-good counter."
+    },
+    {
+      "id": "thermal-partial-start-rollback",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "rollback",
+      "expected": "verified",
+      "description": "If any managed load fails to resume, already-started managed heat loads must be rolled back off."
+    },
+    {
+      "id": "thermal-config-gate-bypass",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "config-gate",
+      "expected": "verified",
+      "description": "Battery/LCD production gate failure must disable the thermal control path as well as normal aging feature startup."
+    },
+    {
+      "id": "thermal-invalid-temperature-precedence",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "input-validation",
+      "expected": "verified",
+      "description": "Physical temperature validity must be checked before HOT/COLD classification."
+    },
+    {
+      "id": "thermal-stale-event-generation",
+      "kind": "hard_positive",
+      "category": "concurrency",
+      "claimClass": "stale-event",
+      "expected": "verified",
+      "description": "A stale event queued for an old sample must not override a newer fresh sample."
+    },
+    {
+      "id": "thermal-lazy-mutex-init",
+      "kind": "hard_positive",
+      "category": "concurrency",
+      "claimClass": "initialization-race",
+      "expected": "verified",
+      "description": "Thermal mutex initialization must occur before concurrent callbacks rather than using unsynchronized lazy creation."
+    },
+    {
+      "id": "thermal-trip-single-slot-overwrite",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "event-coalescing",
+      "expected": "verified",
+      "description": "A real threshold trip must be latched so a later normal sample cannot erase the safety event before processing."
+    },
+    {
+      "id": "thermal-recover-timer-leak",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "state-transition",
+      "expected": "verified",
+      "description": "Every new HOT/COLD protection cycle must reset its recovery stable timer."
+    },
+    {
+      "id": "thermal-startup-health-suppression",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "health-gate",
+      "expected": "verified",
+      "description": "Managed Motor/IR health checks must be suppressed while startup temperature gating intentionally keeps them stopped."
+    },
+    {
+      "id": "thermal-opposite-boundary-recovery",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "state-transition",
+      "expected": "verified",
+      "description": "Recovery must require the complete safe interval and switch protection reason if temperature crosses the opposite cutoff."
+    },
+    {
+      "id": "thermal-lcd-unchanged-symptom-causal-anchor",
+      "kind": "hard_positive",
+      "category": "correctness",
+      "claimClass": "state-presentation",
+      "expected": "verified_with_changed_causal_anchor",
+      "description": "An unchanged STATUS RUN symptom may support a finding, but publication must anchor to the changed state transition that introduced/exposed the incorrect display."
+    }
+  ]
+}
