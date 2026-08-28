@@ -1,6 +1,5 @@
 'use strict';
 
-const { git } = require('./git');
 const { canonicalJson, sha256 } = require('./codex-safe-core/semantic-review');
 
 const REVIEW_SCOPE_FILE = '.codex-review-scope.json';
@@ -57,6 +56,7 @@ function defaultReviewScope() {
 }
 async function loadReviewScope(repoRoot, headOid, token) {
   if (!headOid || headOid === '<unborn>') return defaultReviewScope();
+  const { git } = require('./git');
   try {
     const { stdout } = await git(['show', `${headOid}:${REVIEW_SCOPE_FILE}`], repoRoot, token, { maxStdoutBytes: MAX_SCOPE_BYTES + 1, maxStderrBytes: 128 * 1024 });
     if (Buffer.byteLength(stdout, 'utf8') > MAX_SCOPE_BYTES) throw new Error(`${REVIEW_SCOPE_FILE} exceeds ${MAX_SCOPE_BYTES} bytes.`);
@@ -71,7 +71,7 @@ async function loadReviewScope(repoRoot, headOid, token) {
 }
 function scopePromptBlock(scope) {
   if (!scope?.present) return 'Review Scope Contract: none supplied. Do not invent product non-goals or widen the task beyond the staged change.';
-  const lines = [
+  return [
     '--- REVIEW SCOPE CONTRACT (TRUSTED CONTROLLER METADATA) ---',
     `Phase: ${scope.phase}`,
     `Complexity budget: ${scope.complexityBudget}`,
@@ -81,8 +81,7 @@ function scopePromptBlock(scope) {
     `Managed paths: ${scope.managedPaths.length ? scope.managedPaths.join(' | ') : '<unspecified>'}`,
     'Do not turn a non-goal into a blocker merely because a broader redesign could reduce risk. A changed line that violates an explicit invariant remains in scope.',
     '--- END REVIEW SCOPE CONTRACT ---'
-  ];
-  return lines.join('\n');
+  ].join('\n');
 }
 function invariantMatches(scope, value) {
   const target = String(value || '').trim();
