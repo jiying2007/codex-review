@@ -68,7 +68,7 @@ function validateHypothesis(raw, stagedPathSet, changedLineRanges, diff) {
   const normalized=normalizeHypothesis(raw);
   if(!(normalized.severity in SEVERITY_ORDER)) throw new Error(`Invalid severity: ${normalized.severity}`);
   if(!ALLOWED_CATEGORIES.includes(normalized.category)) throw new Error(`Invalid category: ${normalized.category}`);
-  const anchor=validateCausalAnchor(normalized.file,normalized.line,stagedPathSet,changedLineRanges);
+  const anchor=validateCausalAnchor(normalized.file,normalized.line,stagedPathSet,changedLineRanges,normalized.endLine);
   if(!normalized.claim) throw new Error('Hypothesis claim is empty.');
   const scopeDisposition=SCOPE_DISPOSITIONS.includes(String(raw.scopeDisposition))?String(raw.scopeDisposition):'needs_scope_decision';
   const invariantCandidate=raw.invariantCandidate===true;
