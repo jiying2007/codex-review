@@ -35,13 +35,13 @@ Review Session 由 HEAD、Policy fingerprint、Scope fingerprint 和 Review Prof
 - `active`：仍有 Finding，但没有明显改善/退化信号；
 - `incomplete`：Evidence/Coverage 不完整，或 Force Re-review 稳定性不足。
 
-指标包括 closure rate、fix-induced rate、reintroduced rate、Session run number 和 deterministic invariant candidate 数量。
+报告会显式输出 `reviews-to-convergence`（收敛时为该 Session 的 run number，未收敛时为 `pending`）、closure rate、new finding 数量、reintroduced 数量、`likely-fix-induced` 数量、deterministic-preventable 数量，并保留 fix-induced rate 与 reintroduced rate。`likely-fix-induced` 始终只是启发式信号，不会被表述为已证明的因果关系。
 
 ## Changed causal anchor
 
-Finding 仍必须锚定 staged diff 中精确的 changed line。模型可以额外提供 `supportingLocations`，用于指向未修改的症状代码、依赖实现、测试、配置或状态展示。
+Finding 必须锚定 staged diff 中精确的 changed causal span：`file`、`line`、`endLine` 必须完整落在同一个 added/modified range 内。模型可以额外提供 `supportingLocations`，用于指向未修改的症状代码、依赖实现、测试、配置或状态展示。
 
-这样可以覆盖“changed 状态转换导致 unchanged LCD 分支显示错误”一类问题，而无需恢复 nearest-line 映射。未修改位置只作为 supporting evidence；Problems 诊断仍落在精确的 changed causal line。
+这样可以覆盖“changed 状态转换导致 unchanged LCD 分支显示错误”一类问题，而无需恢复 nearest-line 映射。未修改位置只作为 supporting evidence；Problems 诊断仍落在精确的 changed causal span。
 
 ## Deterministic invariant
 
