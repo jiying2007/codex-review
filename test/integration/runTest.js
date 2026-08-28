@@ -37,9 +37,27 @@ const approvalIndex=args.indexOf('--ask-for-approval');
 if(execIndex<0||approvalIndex<0||approvalIndex>execIndex||args[approvalIndex+1]!=='never'){console.error("error: unexpected argument '--ask-for-approval'");process.exit(2);}
 const delay=Number(process.env.CODEX_REVIEW_IT_DELAY_MS||0);
 const mode=process.env.CODEX_REVIEW_IT_MODE||'normal';
-const findings=[{severity:'medium',category:'correctness',file:'a.c',line:mode==='farline'?500:1,endLine:mode==='farline'?500:1,title:'测试问题',description:'测试诊断',suggestion:'修复它',confidence:0.9}];
-if(mode==='malformed')findings.push({severity:'high',category:'correctness',file:'not-staged.c',line:1,endLine:1,title:'无效路径',description:'应被丢弃',suggestion:'',confidence:1});
-setTimeout(()=>console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify({summary:'发现问题',findings})}})),delay);
+const schemaIndex=args.indexOf('--output-schema');
+const schemaPath=schemaIndex>=0?String(args[schemaIndex+1]||''):'';
+let payload;
+if(schemaPath.includes('review-hypothesis-schema')){
+  const hypotheses=[{
+    severity:'medium',category:'correctness',file:'a.c',line:mode==='farline'?500:1,endLine:mode==='farline'?500:1,
+    claim:'测试诊断',suggestion:'修复它',modelConfidence:0.9,assumptions:[],requiredSymbols:[],rootCauseSymbol:'value',claimClass:'incorrect-value',
+    supportingLocations:[],scopeDisposition:'in_scope',scopeReason:'The changed assignment is the direct review target.',scopeInvariant:'',
+    invariantCandidate:false,invariantText:''
+  }];
+  if(mode==='malformed')hypotheses.push({
+    severity:'high',category:'correctness',file:'not-staged.c',line:1,endLine:1,claim:'应被丢弃',suggestion:'',modelConfidence:1,
+    assumptions:[],requiredSymbols:[],rootCauseSymbol:'bad',claimClass:'invalid-path',supportingLocations:[],scopeDisposition:'in_scope',scopeReason:'invalid test case',scopeInvariant:'',invariantCandidate:false,invariantText:''
+  });
+  payload={hypotheses};
+}else if(schemaPath.includes('review-verification-schema')){
+  payload={results:[]};
+}else{
+  payload={summary:'',findings:[]};
+}
+setTimeout(()=>console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify(payload)}})),delay);
 `);
 
   if (process.platform === 'win32') {
