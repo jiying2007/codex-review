@@ -87,6 +87,11 @@ function invariantMatches(scope, value) {
   const target = String(value || '').trim();
   return Boolean(scope?.present && target && scope.invariants.includes(target));
 }
+function scopeDispositionAllowsPublish(scope, disposition, invariant) {
+  if (!scope?.present) return true;
+  if (String(disposition || 'in_scope') === 'in_scope') return true;
+  return invariantMatches(scope, invariant);
+}
 
 module.exports = {
   REVIEW_SCOPE_FILE,
@@ -97,5 +102,6 @@ module.exports = {
   defaultReviewScope,
   loadReviewScope,
   scopePromptBlock,
-  invariantMatches
+  invariantMatches,
+  scopeDispositionAllowsPublish
 };
