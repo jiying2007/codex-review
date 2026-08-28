@@ -37,19 +37,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('src/codex.js'); s=p.read_text()
-          for old,new in [
-            ('contextBudgetBytes=evidence.budgetBytes','contextBudgetBytes:evidence.budgetBytes'),
-            ('reviewChunkCount=evidence.chunks.length','reviewChunkCount:evidence.chunks.length'),
-            ('plannedChunkCount=evidence.chunks.length','plannedChunkCount:evidence.chunks.length')]:
-              s=s.replace(old,new)
-          p.write_text(s)
-          PY
           node --check src/codex.js
+          node --check src/semantic-review.js
+          node --check src/review-scope.js
+          node --check src/review-lineage.js
+          node --check src/convergence.js
           python3 scripts/finalize-semantic-review.py
+          python3 scripts/finalize-convergence.py
+          node --check extension.js
           node --check src/codex.js
+          node --check src/semantic-review.js
+          node --check src/review-scope.js
+          node --check src/review-lineage.js
+          node --check src/convergence.js
       - name: Verify package lock
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Run full Review CI
@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf dist codex-review-safe-*.vsix
-          git rm scripts/finalize-semantic-review.py
+          git rm scripts/finalize-semantic-review.py scripts/finalize-convergence.py
           git restore --staged --worktree .github/workflows/semantic-review-v4.2.0-finalize.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
