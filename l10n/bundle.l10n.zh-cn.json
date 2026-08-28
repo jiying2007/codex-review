@@ -127,5 +127,6 @@
   "Select a resolution": "选择处理结果",
   "Optional resolution note": "可选的处理备注",
   "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.": "Finding Resolution 已保存；将使用更新后的 Ledger 复用缓存 ReviewKey。",
-  "Finding resolutions cleared.": "Finding Resolution 已清除。"
+  "Finding resolutions cleared.": "Finding Resolution 已清除。",
+  "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms": "Codex Review Safe 环境正常：{0}；{1}；Provider {2}（{3}）；真实结构化探测 {4} ms"
 }

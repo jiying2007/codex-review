@@ -10,6 +10,7 @@ const {
 } = require('./review-support');
 const { readPolicySectionAtHead } = require('./codex-safe-core/policy');
 const { fingerprintPolicy } = require('./codex-safe-core/safe-contract');
+const { normalizeCodexRuntimeOptions } = require('./codex-safe-core/codex-runtime');
 const { resolveReviewProfile } = require('./codex-safe-core/quality-platform');
 const { t } = require('./i18n');
 
@@ -22,6 +23,35 @@ function readProjectRulesAtHead(repoRoot, headOid, token) {
     headOid,
     section: 'review',
     token
+  });
+}
+
+function runtimeOptions(config, project) {
+  const providerMode = String(getUserOnlySetting(config, 'providerMode', 'openai') || 'openai').trim();
+  const provider = providerMode === 'openai-compatible'
+    ? {
+        mode: providerMode,
+        baseUrl: String(getUserOnlySetting(config, 'providerBaseUrl', '') || '').trim(),
+        apiKeyEnv: String(getUserOnlySetting(config, 'providerApiKeyEnv', 'OPENAI_API_KEY') || '').trim()
+      }
+    : { mode: providerMode };
+  const projectOperationSeconds = project.timeoutSeconds === undefined
+    ? undefined
+    : Math.round(clampNumber(project.timeoutSeconds, 120, 10, 300, 'timeoutSeconds'));
+  const operationSeconds = projectOperationSeconds ?? Math.round(clampNumber(
+    getUserOnlySetting(config, 'reviewTimeoutSeconds', 600), 600, 30, 1800, 'reviewTimeoutSeconds'
+  ));
+  const requestSeconds = Math.round(clampNumber(
+    getUserOnlySetting(config, 'requestTimeoutSeconds', 180), 180, 10, Math.min(900, operationSeconds), 'requestTimeoutSeconds'
+  ));
+  return normalizeCodexRuntimeOptions({
+    provider,
+    timeouts: {
+      connectMs: Math.round(clampNumber(getUserOnlySetting(config, 'connectTimeoutSeconds', 15), 15, 1, 120, 'connectTimeoutSeconds')) * 1000,
+      requestMs: Math.min(requestSeconds, operationSeconds) * 1000,
+      operationMs: operationSeconds * 1000,
+      idleMs: Math.round(clampNumber(getUserOnlySetting(config, 'streamIdleTimeoutSeconds', 60), 60, 5, 600, 'streamIdleTimeoutSeconds')) * 1000
+    }
   });
 }
 
@@ -62,9 +92,11 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   if (extraInstructions.length > 5000) throw new Error(t('The combined extraInstructions must not exceed 5000 characters.'));
 
   const reviewRules = Object.freeze({ ...(project.rules || {}) });
+  const codexRuntime = runtimeOptions(config, project);
   const options = {
     codexPath,
     model,
+    codexRuntime,
     profile: profile.name,
     profileConfig: profile,
     sarifFiles,
@@ -75,7 +107,6 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     maxFindings: Math.round(clampNumber(project.maxFindings ?? getUserOnlySetting(config, 'maxFindings', 40), 40, 1, 100, 'maxFindings')),
     severityThreshold,
     confidenceThreshold,
-    timeoutSeconds: Math.round(clampNumber(project.timeoutSeconds ?? getUserOnlySetting(config, 'timeoutSeconds', 120), 120, 10, 300, 'timeoutSeconds')),
     extraInstructions,
     reviewRules,
     policySource,
@@ -88,7 +119,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     maxFindings: options.maxFindings,
     severityThreshold: options.severityThreshold,
     confidenceThreshold: options.confidenceThreshold,
-    timeoutSeconds: options.timeoutSeconds,
+    codexRuntime: options.codexRuntime,
     extraInstructions: options.extraInstructions,
     reviewRules: options.reviewRules,
     projectPolicyFingerprint: options.projectPolicyFingerprint,
@@ -101,5 +132,6 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
 module.exports = {
   RAW_DIFF_HARD_LIMIT_BYTES,
   readProjectRulesAtHead,
+  runtimeOptions,
   getEffectiveOptions
 };

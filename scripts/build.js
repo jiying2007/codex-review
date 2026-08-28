@@ -11,7 +11,7 @@ const runtimeModules = [
   'semantic-evidence.js', 'semantic-review.js', 'review-cache.js', 'finding-ledger.js', 'review-scope.js', 'review-lineage.js', 'convergence.js', 'causal-anchor.js', 'code-intelligence.js'
 ];
 const coreModules = [
-  'index.js', 'safe-contract.js', 'codex-cli.js', 'process-runner.js',
+  'index.js', 'safe-contract.js', 'codex-runtime.js', 'codex-cli.js', 'process-runner.js',
   'git-repository.js', 'context-builder.js', 'efficiency-planner.js', 'quality-platform.js', 'semantic-review.js', 'policy.js', 'review-rules.js'
 ];
 const coreRuntimeData = ['core-contract.json'];
