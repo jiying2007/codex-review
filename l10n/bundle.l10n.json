@@ -127,5 +127,6 @@
   "Select a resolution": "Select a resolution",
   "Optional resolution note": "Optional resolution note",
   "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.": "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.",
-  "Finding resolutions cleared.": "Finding resolutions cleared."
+  "Finding resolutions cleared.": "Finding resolutions cleared.",
+  "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms": "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms"
 }

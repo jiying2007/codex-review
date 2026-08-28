@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.3.0 - 2026-08-28
+
+- Add the shared Core v4.6 Codex Runtime/Provider Contract with explicit OpenAI-compatible relay configuration while preserving `--ignore-user-config`.
+- Split per-request and whole-review timeouts, force relay traffic to Responses HTTP/SSE, add live Environment Check, and surface provider/DNS/TLS/auth/rate-limit/model/timeout diagnostics without exposing secrets.
+
 ## 4.2.0 - 2026-08-28
 
 ### Evidence-centric semantic review

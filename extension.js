@@ -39,6 +39,7 @@ const { createReviewReceiptStore } = require('./src/receipts');
 const {
   resolveCodexExecutable,
   probeCodexCapabilities,
+  probeCodexRuntime,
   runCodexReview,
   runCodexPatchProposal,
   isCliCompatibilityError
@@ -579,15 +580,19 @@ async function checkEnvironment() {
   const repoRoot = repositories[0]?.root || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   const headOid = await getHeadOid(repoRoot);
   const options = await getEffectiveOptions(repoRoot, headOid);
-  const resolved = await resolveCodexExecutable(options.codexPath);
-  await probeCodexCapabilities(resolved, options.model);
+  const runtime = await probeCodexRuntime({ codexPath: options.codexPath, model: options.model, runtime: options.codexRuntime });
   const { stdout: gitVersion } = await runProcess('git', ['--version'], { timeoutMs: 10000, prepared: false });
-  vscode.window.showInformationMessage(t('Codex Review Safe environment is ready: {0}; {1}; required CLI capabilities OK', resolved.version || resolved.executable, gitVersion.trim()));
+  const endpoint = runtime.provider.endpointHost || 'Codex default';
+  vscode.window.showInformationMessage(t('Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms', runtime.codexVersion || options.codexPath, gitVersion.trim(), runtime.provider.mode, endpoint, runtime.durationMs));
 }
 
 function friendlyError(error) {
-  const detail = error?.stderr || error?.message || String(error);
-  if (error?.code === 'ETIMEDOUT') return t('{0}. Increase safeCodexReview.timeoutSeconds, or check Codex network/login status.', detail);
+  const detail = error?.message || error?.stderr || String(error);
+  const provider = error?.provider;
+  const meta = provider ? ` Provider: ${provider.mode}${provider.endpointHost ? ` @ ${provider.endpointHost}` : ''}.` : '';
+  const timing = Number.isFinite(error?.elapsedMs) ? ` Elapsed: ${Math.round(error.elapsedMs / 100) / 10}s${Number.isFinite(error?.lastActivityMs) ? `; last activity ${Math.round(error.lastActivityMs / 100) / 10}s ago` : ''}.` : '';
+  const diagnostic = error?.diagnosticTail ? ` Diagnostic: ${String(error.diagnosticTail).slice(-1200)}` : '';
+  if (String(error?.code || '').startsWith('ECODEX_')) return `${detail}${meta}${timing}${diagnostic}`;
   return detail;
 }
 
