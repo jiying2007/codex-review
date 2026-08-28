@@ -61,12 +61,12 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
   const evidence={...rawEvidence,chunks:bytePlan.chunks,complete:rawEvidence.complete&&bytePlan.complete,coverageGaps};
   const changedLineRanges=parseChangedLineRanges(diff),deadline=Date.now()+options.timeoutSeconds*1000,tokenBudget=configuredTokenBudget(options,profile),usage={...usageShape()},models=new Set();
   const hypothesisBudget=tokenBudget>0?Math.max(1,Math.floor(tokenBudget*HYPOTHESIS_TOKEN_SHARE)):0;
-  let estimatedTokens=0,resolvedVersion='not-run',modelHypothesisCount=0;
+  let estimatedTokens=0,resolvedVersion='not-run',modelHypothesisCount=0,processedChunks=0;
   const hypotheses=[],rejectedHypotheses=[];
 
   for(const chunk of evidence.chunks){
     const remainingMs=deadline-Date.now(); if(remainingMs<=0){const error=new Error('Codex review timed out before all hypothesis chunks completed.');error.code='ETIMEDOUT';throw error;}
-    const prompt=buildHypothesisPrompt({...options,reviewProfile:profile.name,focusCategories:profile.focusCategories},chunk.paths,chunk.index,evidence.chunks.length);
+    const prompt=buildHypothesisPrompt({...options,reviewProfile:profile.name,focusCategories:profile.focusCategories},chunk.paths,chunk.index,evidence.chunks.length,extraEvidence.scope);
     const chunkEvidence=renderEvidenceForPaths(semanticEvidence,chunk.paths,{maxBytes:Math.min(96*1024,Math.max(24*1024,chunkBudgetBytes)),maxEntries:32});
     const input=[prompt,'',`Review execution profile: ${profile.name}; focus: ${profile.focusCategories.join(', ')}`,chunkEvidence.text,'','--- STAGED REVIEW TARGET START ---',chunk.text,'--- STAGED REVIEW TARGET END ---',''].filter(Boolean).join('\n');
     const riskScore=scoreEvidenceRisk({paths:chunk.paths,text:chunk.text}),model=selectModel({model:options.model,fastModel:options.fastModel,riskScore});
@@ -75,7 +75,7 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
     const result=await sharedCodexCli.runStructuredCodex({codexPath:options.codexPath,model,timeoutMs:remainingMs,schema:hypothesisSchema(options),input,schemaFileName:'review-hypothesis-schema.json',token,maxStdoutBytes:6*1024*1024,maxStderrBytes:1024*1024,processOptions:{detached:process.platform!=='win32'},maxEstimatedTokens:hypothesisBudget>0?Math.max(1,hypothesisBudget-estimatedTokens):0,estimatedOutputTokens});
     estimatedTokens+=result.requestEstimate?.totalTokens||estimate.totalTokens;usageAdd(usage,result.usage);resolvedVersion=result.resolved.version||resolvedVersion;models.add(model||'cli-default');
     const validated=validateHypothesisResult(result.parsed,options,chunk.paths,changedLineRanges,diff);
-    hypotheses.push(...validated.hypotheses);rejectedHypotheses.push(...validated.rejected);modelHypothesisCount+=validated.modelHypothesisCount;
+    hypotheses.push(...validated.hypotheses);rejectedHypotheses.push(...validated.rejected);modelHypothesisCount+=validated.modelHypothesisCount;processedChunks++;
   }
 
   const uniqueHypotheses=dedupeHypotheses(hypotheses).slice(0,options.maxFindings);
@@ -99,7 +99,7 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
     }
   }
 
-  const materialized=materializeVerifiedFindings(uniqueHypotheses,verificationResults,semanticEvidence,extraEvidence.resolutions||[],options);
+  const materialized=materializeVerifiedFindings(uniqueHypotheses,verificationResults,semanticEvidence,extraEvidence.resolutions||[],options,extraEvidence.scope);
   const combinedRejected=[...rejectedHypotheses.map(item=>({index:item.index,reason:item.reason})),...materialized.rejectedFindings.map((item,index)=>({index:modelHypothesisCount+index,reason:item.rejectionReason||'semantic_verification_rejected'}))];
   const resultSet={summary:'',findings:materialized.findings,suppressedFindings:materialized.suppressedFindings,rejectedFindings:combinedRejected,modelFindingCount:modelHypothesisCount};
   evidence.coverageGaps=coverageGaps;
@@ -109,7 +109,17 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
   const statusCounts={verified:0,insufficient_evidence:0,contradicted:0,suppressed_by_resolution:0};
   for(const item of verificationResults) if(statusCounts[item.verificationStatus]!==undefined)statusCounts[item.verificationStatus]++;
   review.semanticVerification={hypotheses:uniqueHypotheses.length,rejectedHypotheses:rejectedHypotheses.length,verifierCalled,statusCounts,evidenceManifestDigest:semanticEvidence.manifest.manifestDigest};
-  review.executionMeta={codexVersion:resolvedVersion,model:[...models].join(',')||options.model||'cli-default',reviewProfile:profile.name,contextBudgetBytes:evidence.budgetBytes,totalContextBudgetBytes:totalBudgetBytes,inputDiffBytes:evidence.inputDiffBytes,reviewChunkCount:evidence.chunks.length,plannedChunkCount=evidence.chunks.length,reviewChunkLimit:evidence.maxChunks,tokenBudget,estimatedTokens,usage,evidenceManifestDigest:semanticEvidence.manifest.manifestDigest,impactNodes:semanticEvidence.impact?.nodes?.length||0,impactBytes:semanticEvidence.impact?.bytes||0,impactTruncated:semanticEvidence.impact?.truncated===true,callSymbolCount:[...semanticEvidence.callSymbolsByPath.values()].reduce((sum,items)=>sum+items.length,0),semanticEvidenceEntries:semanticEvidence.manifest.entries.length,analyzerFindings:(extraEvidence.analyzerFindings||[]).length,coverageVerdict:review.coverageVerdict,coverageGaps:review.coverageGaps,excludedEvidence:evidence.excluded};return review;
+  review.executionMeta={
+    codexVersion:resolvedVersion,model:[...models].join(',')||options.model||'cli-default',reviewProfile:profile.name,
+    contextBudgetBytes:evidence.budgetBytes,totalContextBudgetBytes:totalBudgetBytes,inputDiffBytes:evidence.inputDiffBytes,
+    reviewChunkCount:processedChunks,plannedChunkCount:evidence.chunks.length,reviewChunkLimit:evidence.maxChunks,
+    tokenBudget,estimatedTokens,usage,evidenceManifestDigest:semanticEvidence.manifest.manifestDigest,
+    impactNodes:semanticEvidence.impact?.nodes?.length||0,impactBytes:semanticEvidence.impact?.bytes||0,impactTruncated:semanticEvidence.impact?.truncated===true,
+    callSymbolCount:[...semanticEvidence.callSymbolsByPath.values()].reduce((sum,items)=>sum+items.length,0),semanticEvidenceEntries:semanticEvidence.manifest.entries.length,
+    analyzerFindings:(extraEvidence.analyzerFindings||[]).length,scopeFingerprint:extraEvidence.scope?.fingerprint||'',scopePhase:extraEvidence.scope?.phase||'unspecified',
+    coverageVerdict:review.coverageVerdict,coverageGaps:review.coverageGaps,excludedEvidence:evidence.excluded
+  };
+  return review;
 }
 function patchSchema(){return{type:'object',additionalProperties:false,properties:{patch:{type:'string',minLength:1,maxLength:262144},rationale:{type:'string',maxLength:1200}},required:['patch','rationale']};}
 async function runCodexPatchProposal(diff,stagedPaths,options,finding,token){
