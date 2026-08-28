@@ -5,28 +5,10 @@
   "version": "4.2.0",
   "publisher": "jiying2007",
   "license": "SEE LICENSE IN LICENSE",
-  "engines": {
-    "vscode": "^1.90.0"
-  },
-  "extensionKind": [
-    "workspace"
-  ],
-  "categories": [
-    "SCM Providers",
-    "Other"
-  ],
-  "keywords": [
-    "git",
-    "review",
-    "code review",
-    "codex",
-    "source control",
-    "diagnostics",
-    "staged",
-    "ai",
-    "scm",
-    "safe"
-  ],
+  "engines": { "vscode": "^1.90.0" },
+  "extensionKind": ["workspace"],
+  "categories": ["SCM Providers", "Other"],
+  "keywords": ["git", "review", "code review", "codex", "source control", "diagnostics", "staged", "ai", "scm", "safe"],
   "activationEvents": [
     "onCommand:safeCodexReview.reviewStaged",
     "onCommand:safeCodexReview.clearReview",
@@ -40,232 +22,62 @@
   ],
   "main": "./dist/extension.js",
   "capabilities": {
-    "untrustedWorkspaces": {
-      "supported": false,
-      "description": "%capability.untrusted%"
-    },
-    "virtualWorkspaces": {
-      "supported": false,
-      "description": "%capability.virtual%"
-    }
+    "untrustedWorkspaces": { "supported": false, "description": "%capability.untrusted%" },
+    "virtualWorkspaces": { "supported": false, "description": "%capability.virtual%" }
   },
   "contributes": {
     "commands": [
-      {
-        "command": "safeCodexReview.reviewStaged",
-        "title": "%command.review.title%",
-        "category": "%extension.displayName%",
-        "icon": "$(shield)"
-      },
-      {
-        "command": "safeCodexReview.clearReview",
-        "title": "%command.clear.title%",
-        "category": "%extension.displayName%",
-        "icon": "$(clear-all)"
-      },
-      {
-        "command": "safeCodexReview.showOutput",
-        "title": "%command.showOutput.title%",
-        "category": "%extension.displayName%"
-      },
-      {
-        "command": "safeCodexReview.checkEnvironment",
-        "title": "%command.checkEnvironment.title%",
-        "category": "%extension.displayName%"
-      },
-      {
-        "command": "safeCodexReview.importSarif",
-        "title": "%command.importSarif.title%",
-        "category": "%extension.displayName%",
-        "icon": "$(file-code)"
-      },
-      {
-        "command": "safeCodexReview.generateFix",
-        "title": "%command.generateFix.title%",
-        "category": "%extension.displayName%",
-        "icon": "$(tools)"
-      },
-      {
-        "command": "safeCodexReview.forceReviewStaged",
-        "title": "%command.forceReview.title%",
-        "category": "%extension.displayName%",
-        "icon": "$(sync)"
-      },
-      {
-        "command": "safeCodexReview.resolveFinding",
-        "title": "%command.resolveFinding.title%",
-        "category": "%extension.displayName%",
-        "icon": "$(feedback)"
-      },
-      {
-        "command": "safeCodexReview.clearFindingResolutions",
-        "title": "%command.clearResolutions.title%",
-        "category": "%extension.displayName%"
-      }
+      { "command": "safeCodexReview.reviewStaged", "title": "%command.review.title%", "category": "%extension.displayName%", "icon": "$(shield)" },
+      { "command": "safeCodexReview.clearReview", "title": "%command.clear.title%", "category": "%extension.displayName%", "icon": "$(clear-all)" },
+      { "command": "safeCodexReview.showOutput", "title": "%command.showOutput.title%", "category": "%extension.displayName%" },
+      { "command": "safeCodexReview.checkEnvironment", "title": "%command.checkEnvironment.title%", "category": "%extension.displayName%" },
+      { "command": "safeCodexReview.importSarif", "title": "%command.importSarif.title%", "category": "%extension.displayName%", "icon": "$(file-code)" },
+      { "command": "safeCodexReview.generateFix", "title": "%command.generateFix.title%", "category": "%extension.displayName%", "icon": "$(tools)" },
+      { "command": "safeCodexReview.forceReviewStaged", "title": "%command.forceReview.title%", "category": "%extension.displayName%", "icon": "$(sync)" },
+      { "command": "safeCodexReview.resolveFinding", "title": "%command.resolveFinding.title%", "category": "%extension.displayName%", "icon": "$(feedback)" },
+      { "command": "safeCodexReview.clearFindingResolutions", "title": "%command.clearResolutions.title%", "category": "%extension.displayName%" }
     ],
     "menus": {
       "scm/title": [
-        {
-          "command": "safeCodexReview.reviewStaged",
-          "when": "scmProvider == git && isWorkspaceTrusted",
-          "group": "navigation@7"
-        }
+        { "command": "safeCodexReview.reviewStaged", "when": "scmProvider == git && isWorkspaceTrusted", "group": "navigation@7" }
       ],
       "commandPalette": [
-        {
-          "command": "safeCodexReview.reviewStaged",
-          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
-        },
-        {
-          "command": "safeCodexReview.clearReview"
-        },
-        {
-          "command": "safeCodexReview.showOutput"
-        },
-        {
-          "command": "safeCodexReview.checkEnvironment",
-          "when": "isWorkspaceTrusted"
-        },
-        {
-          "command": "safeCodexReview.importSarif",
-          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
-        },
-        {
-          "command": "safeCodexReview.generateFix",
-          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
-        },
-        {
-          "command": "safeCodexReview.forceReviewStaged",
-          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
-        },
-        {
-          "command": "safeCodexReview.resolveFinding",
-          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
-        },
-        {
-          "command": "safeCodexReview.clearFindingResolutions",
-          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
-        }
+        { "command": "safeCodexReview.reviewStaged", "when": "workspaceFolderCount > 0 && isWorkspaceTrusted" },
+        { "command": "safeCodexReview.clearReview" },
+        { "command": "safeCodexReview.showOutput" },
+        { "command": "safeCodexReview.checkEnvironment", "when": "isWorkspaceTrusted" },
+        { "command": "safeCodexReview.importSarif", "when": "workspaceFolderCount > 0 && isWorkspaceTrusted" },
+        { "command": "safeCodexReview.generateFix", "when": "workspaceFolderCount > 0 && isWorkspaceTrusted" },
+        { "command": "safeCodexReview.forceReviewStaged", "when": "workspaceFolderCount > 0 && isWorkspaceTrusted" },
+        { "command": "safeCodexReview.resolveFinding", "when": "workspaceFolderCount > 0 && isWorkspaceTrusted" },
+        { "command": "safeCodexReview.clearFindingResolutions", "when": "workspaceFolderCount > 0 && isWorkspaceTrusted" }
       ]
     },
-    "jsonValidation": [
-      {
-        "fileMatch": ".codex-safe.json",
-        "url": "./dist/codex-safe.schema.json"
-      }
-    ],
+    "jsonValidation": [{ "fileMatch": ".codex-safe.json", "url": "./dist/codex-safe.schema.json" }],
     "configuration": {
       "title": "%extension.displayName%",
       "properties": {
-        "safeCodexReview.codexPath": {
-          "type": "string",
-          "default": "codex",
-          "scope": "machine",
-          "description": "%config.codexPath%"
-        },
-        "safeCodexReview.model": {
-          "type": "string",
-          "default": "",
-          "scope": "application",
-          "description": "%config.model%"
-        },
+        "safeCodexReview.codexPath": { "type": "string", "default": "codex", "scope": "machine", "description": "%config.codexPath%" },
+        "safeCodexReview.model": { "type": "string", "default": "", "scope": "application", "description": "%config.model%" },
         "safeCodexReview.language": {
-          "type": "string",
-          "enum": [
-            "zh-CN",
-            "en"
-          ],
-          "default": "zh-CN",
-          "scope": "application",
-          "description": "%config.language%",
-          "enumDescriptions": [
-            "%config.language.zhCN%",
-            "%config.language.en%"
-          ]
+          "type": "string", "enum": ["zh-CN", "en"], "default": "zh-CN", "scope": "application", "description": "%config.language%",
+          "enumDescriptions": ["%config.language.zhCN%", "%config.language.en%"]
         },
         "safeCodexReview.profile": {
-          "type": "string",
-          "enum": [
-            "quick",
-            "standard",
-            "deep",
-            "security",
-            "embedded"
-          ],
-          "default": "standard",
-          "scope": "application",
-          "description": "%config.profile%",
-          "enumDescriptions": [
-            "%config.profile.quick%",
-            "%config.profile.standard%",
-            "%config.profile.deep%",
-            "%config.profile.security%",
-            "%config.profile.embedded%"
-          ]
+          "type": "string", "enum": ["quick", "standard", "deep", "security", "embedded"], "default": "standard", "scope": "application", "description": "%config.profile%",
+          "enumDescriptions": ["%config.profile.quick%", "%config.profile.standard%", "%config.profile.deep%", "%config.profile.security%", "%config.profile.embedded%"]
         },
         "safeCodexReview.sarifFiles": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 512
-          },
-          "maxItems": 8,
-          "default": [],
-          "scope": "application",
-          "description": "%config.sarifFiles%"
+          "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 512 }, "maxItems": 8, "default": [], "scope": "application", "description": "%config.sarifFiles%"
         },
-        "safeCodexReview.maxDiffBytes": {
-          "type": "number",
-          "default": 524288,
-          "minimum": 4096,
-          "maximum": 2097152,
-          "scope": "application",
-          "description": "%config.maxDiffBytes%"
-        },
-        "safeCodexReview.maxFindings": {
-          "type": "number",
-          "default": 40,
-          "minimum": 1,
-          "maximum": 100,
-          "scope": "application",
-          "description": "%config.maxFindings%"
-        },
+        "safeCodexReview.maxDiffBytes": { "type": "number", "default": 524288, "minimum": 4096, "maximum": 2097152, "scope": "application", "description": "%config.maxDiffBytes%" },
+        "safeCodexReview.maxFindings": { "type": "number", "default": 40, "minimum": 1, "maximum": 100, "scope": "application", "description": "%config.maxFindings%" },
         "safeCodexReview.severityThreshold": {
-          "type": "string",
-          "enum": [
-            "critical",
-            "high",
-            "medium",
-            "low",
-            "info"
-          ],
-          "default": "low",
-          "scope": "application",
-          "description": "%config.severityThreshold%"
+          "type": "string", "enum": ["critical", "high", "medium", "low", "info"], "default": "low", "scope": "application", "description": "%config.severityThreshold%"
         },
-        "safeCodexReview.confidenceThreshold": {
-          "type": "number",
-          "default": 0.7,
-          "minimum": 0,
-          "maximum": 1,
-          "scope": "application",
-          "description": "%config.confidenceThreshold%"
-        },
-        "safeCodexReview.timeoutSeconds": {
-          "type": "number",
-          "default": 120,
-          "minimum": 10,
-          "maximum": 300,
-          "scope": "application",
-          "description": "%config.timeoutSeconds%"
-        },
-        "safeCodexReview.extraInstructions": {
-          "type": "string",
-          "default": "",
-          "scope": "application",
-          "description": "%config.extraInstructions%"
-        }
+        "safeCodexReview.confidenceThreshold": { "type": "number", "default": 0.7, "minimum": 0, "maximum": 1, "scope": "application", "description": "%config.confidenceThreshold%" },
+        "safeCodexReview.timeoutSeconds": { "type": "number", "default": 120, "minimum": 10, "maximum": 300, "scope": "application", "description": "%config.timeoutSeconds%" },
+        "safeCodexReview.extraInstructions": { "type": "string", "default": "", "scope": "application", "description": "%config.extraInstructions%" }
       }
     }
   },
@@ -291,21 +103,11 @@
     "governance": "node src/codex-safe-core/scripts/verify-actions-pins.js .github/workflows && node src/codex-safe-core/scripts/verify-non-goals.js .",
     "diagnostics": "node src/codex-safe-core/scripts/family-diagnostics.js"
   },
-  "devDependencies": {
-    "@vscode/test-electron": "3.1.0",
-    "@vscode/vsce": "3.9.2"
-  },
-  "extensionDependencies": [
-    "vscode.git"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/jiying2007/codex-review.git"
-  },
+  "devDependencies": { "@vscode/test-electron": "3.1.0", "@vscode/vsce": "3.9.2" },
+  "extensionDependencies": ["vscode.git"],
+  "repository": { "type": "git", "url": "https://github.com/jiying2007/codex-review.git" },
   "homepage": "https://github.com/jiying2007/codex-review#readme",
-  "bugs": {
-    "url": "https://github.com/jiying2007/codex-review/issues"
-  },
+  "bugs": { "url": "https://github.com/jiying2007/codex-review/issues" },
   "pricing": "Free",
   "preview": false,
   "icon": "images/icon.png",
