@@ -119,5 +119,13 @@
   "Patch applied to the working tree. Inspect it, stage the intended changes, then re-review.": "补丁已应用到 working tree。请检查并 Stage 需要的修改，然后重新审查。",
   "Re-review": "重新审查",
   "The reviewed staged snapshot changed. Generate the fix again from a current review.": "已审查的 staged snapshot 已变化。请基于最新审查重新生成修复。",
-  "Configured SARIF evidence could not be loaded: {0}": "无法加载已配置的 SARIF 证据：{0}"
+  "Configured SARIF evidence could not be loaded: {0}": "无法加载已配置的 SARIF 证据：{0}",
+  "Review cache hit: reused the validated result for the same immutable ReviewKey.": "Review 缓存命中：复用同一不可变 ReviewKey 的已验证结果。",
+  "Force re-review detected unstable model findings; unstable findings were suppressed.": "强制重新 Review 检测到不稳定模型 Finding；不稳定 Finding 已被抑制。",
+  "No completed review with a resolvable finding is available.": "没有可处理 Finding 的已完成 Review。",
+  "Select a verified finding to resolve": "选择一个已验证 Finding 进行处理",
+  "Select a resolution": "选择处理结果",
+  "Optional resolution note": "可选的处理备注",
+  "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.": "Finding Resolution 已保存；将使用更新后的 Ledger 复用缓存 ReviewKey。",
+  "Finding resolutions cleared.": "Finding Resolution 已清除。"
 }

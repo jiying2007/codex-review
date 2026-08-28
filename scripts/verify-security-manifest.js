@@ -34,11 +34,16 @@ requireTrustedWhen(paletteItems, 'safeCodexReview.reviewStaged');
 requireTrustedWhen(paletteItems, 'safeCodexReview.checkEnvironment');
 requireTrustedWhen(paletteItems, 'safeCodexReview.importSarif');
 requireTrustedWhen(paletteItems, 'safeCodexReview.generateFix');
+requireTrustedWhen(paletteItems, 'safeCodexReview.forceReviewStaged');
+requireTrustedWhen(paletteItems, 'safeCodexReview.resolveFinding');
+requireTrustedWhen(paletteItems, 'safeCodexReview.clearFindingResolutions');
 
 assert.match(source, /function assertTrustedWorkspace\(\)[\s\S]*?!vscode\.workspace\.isTrusted/, 'runtime Workspace Trust guard is missing');
 assert.match(source, /async function reviewStaged\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'reviewStaged must enforce Workspace Trust first');
 assert.match(source, /async function importSarifEvidence\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'importSarifEvidence must enforce Workspace Trust first');
 assert.match(source, /async function generateFixProposal\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'generateFixProposal must enforce Workspace Trust first');
+assert.match(source, /async function resolveFinding\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'resolveFinding must enforce Workspace Trust first');
+assert.match(source, /async function clearFindingResolutions\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'clearFindingResolutions must enforce Workspace Trust first');
 assert.match(source, /async function checkEnvironment\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'checkEnvironment must enforce Workspace Trust first');
 
 require('./verify-product-docs');

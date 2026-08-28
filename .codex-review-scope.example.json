@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "phase": "production-aging-v1",
+  "goals": [
+    "Pause and resume the current production-aging thermal loads safely."
+  ],
+  "invariants": [
+    "Common remains the sole managed-load lifecycle executor.",
+    "A normal thermal pause must not reset the current effective aging duration.",
+    "Any partial managed-load resume failure must roll all managed heat loads back off."
+  ],
+  "nonGoals": [
+    "MCU emergency-stop protocol",
+    "cross-reboot fatal latch",
+    "TF state schema migration",
+    "shared UART generation or drain framework"
+  ],
+  "managedPaths": [
+    "app_product_test/"
+  ],
+  "complexityBudget": "minimal",
+  "notes": "Scope constrains remediation breadth; it never makes an explicit changed-line invariant violation acceptable."
+}

@@ -11,7 +11,7 @@ const policyModule = fs.readFileSync('src/policy.js', 'utf8');
 const reviewModule = fs.readFileSync('src/review.js', 'utf8');
 const codexModule = fs.readFileSync('src/codex.js', 'utf8');
 
-for (const modulePath of ['./src/i18n', './src/review-support', './src/process', './src/git', './src/policy', './src/review', './src/report', './src/receipts', './src/codex', './src/quality']) {
+for (const modulePath of ['./src/i18n', './src/review-support', './src/process', './src/git', './src/policy', './src/review', './src/report', './src/receipts', './src/codex', './src/quality', './src/semantic-evidence', './src/semantic-review', './src/review-cache', './src/finding-ledger', './src/review-scope', './src/review-lineage', './src/convergence']) {
   assert.match(extension, new RegExp(`require\\(['\"]${modulePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['\"]\\)`), `extension.js must import ${modulePath}`);
 }
 
@@ -19,8 +19,8 @@ assert.strictEqual(fs.existsSync('src/core.js'), false, 'ambiguous Review src/co
 assert.strictEqual(fs.existsSync('src/safe-contract.js'), false, 'legacy src/safe-contract.js shim must not return');
 assert.strictEqual(fs.existsSync('safe-core.lock.json'), false, 'legacy Safe Core lock must not return');
 assert.strictEqual(fs.existsSync('scripts/safe-core.js'), false, 'legacy Safe Core sync script must not return');
-for (const name of ['index.js','safe-contract.js','codex-cli.js','process-runner.js','git-repository.js','context-builder.js','efficiency-planner.js','quality-platform.js','policy.js','review-rules.js','core-contract.json']) {
-  assert.strictEqual(fs.existsSync(path.join('src','codex-safe-core',name)), true, `Safe Core v4.4 runtime missing ${name}`);
+for (const name of ['index.js','safe-contract.js','codex-cli.js','process-runner.js','git-repository.js','context-builder.js','efficiency-planner.js','quality-platform.js','semantic-review.js','policy.js','review-rules.js','core-contract.json']) {
+  assert.strictEqual(fs.existsSync(path.join('src','codex-safe-core',name)), true, `Safe Core v4.5 runtime missing ${name}`);
 }
 assert.doesNotMatch(extension, /\b__test\b/, 'extension.js must not expose a transitional private test surface');
 assert.doesNotMatch(extension, /require\(['\"]child_process['\"]\)/, 'extension.js must not own subprocess execution');
@@ -32,7 +32,12 @@ assert.match(policyModule, /\.\/codex-safe-core\/policy/, 'Review policy must de
 assert.match(reviewModule, /\.\/codex-safe-core\/review-rules/, 'Review deterministic rules must delegate to Core');
 assert.match(codexModule, /buildReviewEvidenceChunks/, 'Review evidence chunking must delegate to Core');
 assert.match(codexModule, /efficiency-planner/, 'Review token/risk budgeting must delegate to Core');
-assert.match(codexModule, /quality-platform/, 'Review profile/analyzer/patch validation must delegate to Core');
+assert.match(codexModule, /quality-platform/, 'Review profile/patch validation must delegate to Core');
+assert.match(codexModule, /semantic-review/, 'Review semantic verification contracts must delegate to Core');
+assert.doesNotMatch(fs.readFileSync('src/semantic-evidence.js','utf8'), /fs\.readFileSync/, 'semantic dependency evidence must never read the working tree');
+assert.match(fs.readFileSync('src/semantic-evidence.js','utf8'), /require\(['\"]\.\/code-intelligence['\"]\)/, 'semantic-evidence must own the code-intelligence provider seam');
+assert.doesNotMatch(extension, /require\(['\"]\.\/src\/code-intelligence['\"]\)/, 'extension must not bypass semantic-evidence to import code-intelligence directly');
+assert.match(fs.readFileSync('src/semantic-review.js','utf8'), /require\(['\"]\.\/causal-anchor['\"]\)/, 'semantic-review must delegate causal anchoring to the headless causal-anchor module');
 for (const symbol of ['estimateRequestTokens','scoreEvidenceRisk','selectChunksWithinByteBudget','maxEstimatedTokens','requestEstimate','usage']) assert.match(codexModule,new RegExp(`\\b${symbol}\\b`),`Review efficiency adapter must retain ${symbol}`);
 assert.doesNotMatch(reviewModule, /nearestChangedLine|maxDistance\s*=\s*3/, 'nearest-line compatibility residue must not return');
 for (const catalog of ['l10n/bundle.l10n.json','l10n/bundle.l10n.zh-cn.json']) {
@@ -65,4 +70,4 @@ for (const file of ['test.js', ...collectJsFiles('test')]) {
   assert.doesNotMatch(source, /src[\\/]safe-contract\.js|require\(['\"]\.\/src\/safe-contract['\"]\)/, `${file} must not depend on a removed contract shim`);
 }
 
-console.log('Review runtime boundaries verified against Codex Safe Core v4.4 with quality/impact planning, exact-line-only publication and contract manifest.');
+console.log('Review runtime boundaries verified against Codex Safe Core v4.5 with index-pinned semantic evidence, exact-line-only publication and evidence-backed verification.');
