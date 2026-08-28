@@ -26,22 +26,27 @@ jobs:
           git -C src/codex-safe-core fetch origin "${CORE_SHA}" --depth=1
           git -C src/codex-safe-core checkout --detach "${CORE_SHA}"
           python3 - <<'PY'
-          import os
+          import json,os
           from pathlib import Path
           core=os.environ['CORE_SHA']; old_core=os.environ['OLD_CORE_SHA']
-          p=Path('package.json'); s=p.read_text(); s=s.replace('"version": "4.2.0"','"version": "4.3.0"',1)
-          needle='        "safeCodexReview.model": { "type": "string", "default": "", "scope": "application", "description": "%config.model%" },\n'
-          insert=needle + '''        "safeCodexReview.providerMode": { "type": "string", "enum": ["openai", "openai-compatible"], "default": "openai", "scope": "application", "description": "Codex provider runtime: built-in OpenAI or an explicitly configured OpenAI-compatible Responses endpoint." },\n        "safeCodexReview.providerBaseUrl": { "type": "string", "default": "", "scope": "application", "description": "HTTPS base URL for openai-compatible mode. User Codex config.toml is intentionally ignored." },\n        "safeCodexReview.providerApiKeyEnv": { "type": "string", "default": "OPENAI_API_KEY", "scope": "application", "description": "Environment-variable name containing the provider API key. The secret value is never stored in VS Code settings." },\n        "safeCodexReview.connectTimeoutSeconds": { "type": "number", "default": 15, "minimum": 1, "maximum": 120, "scope": "application", "description": "Provider connection timeout in seconds." },\n        "safeCodexReview.requestTimeoutSeconds": { "type": "number", "default": 180, "minimum": 10, "maximum": 900, "scope": "application", "description": "Maximum time for one Codex model request." },\n        "safeCodexReview.reviewTimeoutSeconds": { "type": "number", "default": 600, "minimum": 30, "maximum": 1800, "scope": "application", "description": "Whole Review operation deadline across hypothesis and verification requests." },\n        "safeCodexReview.streamIdleTimeoutSeconds": { "type": "number", "default": 60, "minimum": 5, "maximum": 600, "scope": "application", "description": "Maximum idle time for a provider response stream." },\n'''
-          if '"safeCodexReview.providerMode"' not in s:
-            if needle not in s: raise SystemExit('package provider insertion anchor missing')
-            s=s.replace(needle,insert,1)
-          else:
-            s=s.replace('"safeCodexReview.providerMode": { "type": "string", "enum": ["openai", "openai-compatible"], "default": "openai", "scope": "machine"','"safeCodexReview.providerMode": { "type": "string", "enum": ["openai", "openai-compatible"], "default": "openai", "scope": "application"')
-            s=s.replace('"safeCodexReview.providerBaseUrl": { "type": "string", "default": "", "scope": "machine"','"safeCodexReview.providerBaseUrl": { "type": "string", "default": "", "scope": "application"')
-            s=s.replace('"safeCodexReview.providerApiKeyEnv": { "type": "string", "default": "OPENAI_API_KEY", "scope": "machine"','"safeCodexReview.providerApiKeyEnv": { "type": "string", "default": "OPENAI_API_KEY", "scope": "application"')
-          old='        "safeCodexReview.timeoutSeconds": { "type": "number", "default": 120, "minimum": 10, "maximum": 300, "scope": "application", "description": "%config.timeoutSeconds%" },\n'
-          s=s.replace(old,'',1)
-          p.write_text(s)
+          p=Path('package.json'); data=json.loads(p.read_text()); data['version']='4.3.0'
+          props=data['contributes']['configuration']['properties']
+          runtime_props={
+            'safeCodexReview.providerMode': {'type':'string','enum':['openai','openai-compatible'],'default':'openai','scope':'application','description':'Codex provider runtime: built-in OpenAI or an explicitly configured OpenAI-compatible Responses endpoint.'},
+            'safeCodexReview.providerBaseUrl': {'type':'string','default':'','scope':'application','description':'HTTPS base URL for openai-compatible mode. User Codex config.toml is intentionally ignored.'},
+            'safeCodexReview.providerApiKeyEnv': {'type':'string','default':'OPENAI_API_KEY','scope':'application','description':'Environment-variable name containing the provider API key. The secret value is never stored in VS Code settings.'},
+            'safeCodexReview.connectTimeoutSeconds': {'type':'number','default':15,'minimum':1,'maximum':120,'scope':'application','description':'Provider connection timeout in seconds.'},
+            'safeCodexReview.requestTimeoutSeconds': {'type':'number','default':180,'minimum':10,'maximum':900,'scope':'application','description':'Maximum time for one Codex model request.'},
+            'safeCodexReview.reviewTimeoutSeconds': {'type':'number','default':600,'minimum':30,'maximum':1800,'scope':'application','description':'Whole Review operation deadline across hypothesis and verification requests.'},
+            'safeCodexReview.streamIdleTimeoutSeconds': {'type':'number','default':60,'minimum':5,'maximum':600,'scope':'application','description':'Maximum idle time for a provider response stream.'}
+          }
+          rebuilt={}
+          for k,v in props.items():
+            if k=='safeCodexReview.timeoutSeconds': continue
+            rebuilt[k]=v
+            if k=='safeCodexReview.model': rebuilt.update(runtime_props)
+          data['contributes']['configuration']['properties']=rebuilt
+          p.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
 
           p=Path('extension.js'); s=p.read_text()
           old='''  resolveCodexExecutable,\n  probeCodexCapabilities,\n  runCodexReview,'''; new='''  resolveCodexExecutable,\n  probeCodexCapabilities,\n  probeCodexRuntime,\n  runCodexReview,'''
@@ -60,25 +65,24 @@ jobs:
             s=s.replace(old,new,1)
           p.write_text(s)
 
+          key='Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms'
+          for name,value in [('l10n/bundle.l10n.json',key),('l10n/bundle.l10n.zh-cn.json','Codex Review Safe 环境正常：{0}；{1}；Provider {2}（{3}）；真实结构化探测 {4} ms')]:
+            p=Path(name); doc=json.loads(p.read_text()); doc[key]=value; p.write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n')
+
           for name,heading,text in [
-            ('README.md','## Codex provider runtime','''Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` now performs a live structured provider probe.\n'''),
-            ('README.zh-CN.md','## Codex Provider Runtime','''Codex Review Safe 为保持 Safe Contract 会主动忽略 `~/.codex/config.toml`。使用 OpenAI-compatible 中转站时，将 `safeCodexReview.providerMode` 设为 `openai-compatible`，配置 `safeCodexReview.providerBaseUrl`，并让 `safeCodexReview.providerApiKeyEnv` 指向 VS Code 进程可见的 API Key 环境变量。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 现在会真实执行一次结构化 Provider 探测。\n''')]:
-            p=Path(name); s=p.read_text();
-            if heading not in s: s=s.rstrip()+f'\n\n{heading}\n\n{text}'
-            p.write_text(s)
-          p=Path('CHANGELOG.md'); s=p.read_text(); marker='# Changelog\n'
-          entry='''\n## 4.3.0 - 2026-08-28\n\n- Add the shared Core v4.6 Codex Runtime/Provider Contract with explicit OpenAI-compatible relay configuration while preserving `--ignore-user-config`.\n- Split per-request and whole-review timeouts, force relay traffic to Responses HTTP/SSE, add live Environment Check, and surface provider/DNS/TLS/auth/rate-limit/model/timeout diagnostics without exposing secrets.\n'''
-          if '## 4.3.0 - 2026-08-28' not in s:
-            if marker not in s: raise SystemExit('changelog header missing')
-            s=s.replace(marker,marker+entry,1)
-          p.write_text(s)
+            ('README.md','## Codex provider runtime','Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` now performs a live structured provider probe.\n'),
+            ('README.zh-CN.md','## Codex Provider Runtime','Codex Review Safe 为保持 Safe Contract 会主动忽略 `~/.codex/config.toml`。使用 OpenAI-compatible 中转站时，将 `safeCodexReview.providerMode` 设为 `openai-compatible`，配置 `safeCodexReview.providerBaseUrl`，并让 `safeCodexReview.providerApiKeyEnv` 指向 VS Code 进程可见的 API Key 环境变量。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 现在会真实执行一次结构化 Provider 探测。\n')]:
+            p=Path(name); x=p.read_text()
+            if heading not in x: p.write_text(x.rstrip()+f'\n\n{heading}\n\n{text}')
+          p=Path('CHANGELOG.md'); x=p.read_text(); marker='# Changelog\n'; entry='\n## 4.3.0 - 2026-08-28\n\n- Add the shared Core v4.6 Codex Runtime/Provider Contract with explicit OpenAI-compatible relay configuration while preserving `--ignore-user-config`.\n- Split per-request and whole-review timeouts, force relay traffic to Responses HTTP/SSE, add live Environment Check, and surface provider/DNS/TLS/auth/rate-limit/model/timeout diagnostics without exposing secrets.\n'
+          if '## 4.3.0 - 2026-08-28' not in x: p.write_text(x.replace(marker,marker+entry,1))
           for name in ['scripts/release.test.js','.codex-safe.example.json']:
-            p=Path(name); s=p.read_text();
-            if old_core in s: p.write_text(s.replace(old_core,core))
-            elif core not in s: raise SystemExit(f'Core provenance missing in {name}')
+            p=Path(name); x=p.read_text()
+            if old_core in x: p.write_text(x.replace(old_core,core))
+            elif core not in x: raise SystemExit(f'Core provenance missing in {name}')
           PY
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          git add package.json package-lock.json extension.js src/policy.js src/codex.js README.md README.zh-CN.md CHANGELOG.md scripts/release.test.js .codex-safe.example.json src/codex-safe-core
+          git add -A
           git diff --cached --check
           npm ci --ignore-scripts --no-audit --no-fund
           npm run ci
