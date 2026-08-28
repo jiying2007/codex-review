@@ -1,5 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const { transitionBetween, buildReviewSessionKey } = require('../src/review-lineage');
 const { evaluateConvergence } = require('../src/convergence');
 
@@ -42,4 +43,11 @@ const converged = evaluateConvergence({ findings:[], coverageVerdict:'complete',
 assert.equal(converged.state, 'converged');
 assert.equal(converged.closureRate, 1);
 assert.equal(converged.reviewsToConvergence, 3);
+
+const controllerSource = fs.readFileSync('extension.js','utf8');
+const finalSnapshotGate = controllerSource.indexOf('const snapshotAfterPublish = await getRepositorySnapshot(repoRoot);');
+const lineagePersist = controllerSource.indexOf('const lineage = await reviewLineage.record(repoRoot');
+assert.ok(finalSnapshotGate >= 0 && lineagePersist > finalSnapshotGate, 'lineage must persist only after the final publish snapshot gate');
+assert.ok(controllerSource.indexOf('findings: result.rawReview.findings') > lineagePersist, 'lineage must preserve verified raw findings rather than resolution-filtered visible findings');
+
 console.log('Review lineage and convergence tests passed.');
