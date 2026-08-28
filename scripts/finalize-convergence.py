@@ -33,7 +33,7 @@ p.write_text(s)
 
 # Package/build/test surface.
 p = ROOT / 'package.json'; pkg = json.loads(p.read_text())
-for file in ['src/review-scope.js','src/review-lineage.js','src/convergence.js']:
+for file in ['src/review-scope.js','src/review-lineage.js','src/convergence.js','src/causal-anchor.js']:
     marker = f'node --check {file}'
     if marker not in pkg['scripts']['check']:
         pkg['scripts']['check'] = pkg['scripts']['check'].replace(' && node scripts/release.test.js', f' && {marker} && node scripts/release.test.js')
@@ -46,7 +46,7 @@ for test in ['test/review-lineage.test.js','test/causal-scope.test.js','test/sem
 p.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
 
 p = ROOT / 'scripts/build.js'; s = p.read_text()
-s = s.replace("'semantic-evidence.js', 'semantic-review.js', 'review-cache.js', 'finding-ledger.js', 'code-intelligence.js'", "'semantic-evidence.js', 'semantic-review.js', 'review-cache.js', 'finding-ledger.js', 'review-scope.js', 'review-lineage.js', 'convergence.js', 'code-intelligence.js'")
+s = s.replace("'semantic-evidence.js', 'semantic-review.js', 'review-cache.js', 'finding-ledger.js', 'code-intelligence.js'", "'semantic-evidence.js', 'semantic-review.js', 'review-cache.js', 'finding-ledger.js', 'review-scope.js', 'review-lineage.js', 'convergence.js', 'causal-anchor.js', 'code-intelligence.js'")
 p.write_text(s)
 
 # Correct module layering: extension owns product orchestration; code-intelligence stays behind semantic-evidence.
@@ -54,10 +54,10 @@ p = ROOT / 'scripts/verify-module-boundaries.js'; s = p.read_text()
 s = s.replace("'./src/semantic-evidence', './src/semantic-review', './src/review-cache', './src/finding-ledger', './src/code-intelligence']", "'./src/semantic-evidence', './src/semantic-review', './src/review-cache', './src/finding-ledger', './src/review-scope', './src/review-lineage', './src/convergence']")
 anchor = "assert.doesNotMatch(fs.readFileSync('src/semantic-evidence.js','utf8'), /fs\\.readFileSync/, 'semantic dependency evidence must never read the working tree');"
 if anchor in s and "semantic-evidence must own the code-intelligence provider seam" not in s:
-    s = s.replace(anchor, anchor + "\nassert.match(fs.readFileSync('src/semantic-evidence.js','utf8'), /require\\(['\\\"]\\.\\/code-intelligence['\\\"]\\)/, 'semantic-evidence must own the code-intelligence provider seam');\nassert.doesNotMatch(extension, /require\\(['\\\"]\\.\\/src\\/code-intelligence['\\\"]\\)/, 'extension must not bypass semantic-evidence to import code-intelligence directly');")
+    s = s.replace(anchor, anchor + "\nassert.match(fs.readFileSync('src/semantic-evidence.js','utf8'), /require\\(['\\\"]\\.\\/code-intelligence['\\\"]\\)/, 'semantic-evidence must own the code-intelligence provider seam');\nassert.doesNotMatch(extension, /require\\(['\\\"]\\.\\/src\\/code-intelligence['\\\"]\\)/, 'extension must not bypass semantic-evidence to import code-intelligence directly');\nassert.match(fs.readFileSync('src/semantic-review.js','utf8'), /require\\(['\\\"]\\.\\/causal-anchor['\\\"]\\)/, 'semantic-review must delegate causal anchoring to the headless causal-anchor module');")
 p.write_text(s)
 
-# Product docs and scope example must ship in the VSIX/repository package where appropriate.
+# Product docs.
 p = ROOT / 'docs/SEMANTIC_REVIEW.md'; s = p.read_text()
 if 'Review lineage and Scope Contract' not in s:
     s += "\n\n## Review lineage and Scope Contract\n\nReview 4.2 can read an optional `.codex-review-scope.json` from HEAD and records cross-index Review Lineage inside one HEAD/Policy/Scope/Profile session. See [Review Convergence](REVIEW_CONVERGENCE.md).\n"
