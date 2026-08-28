@@ -47,7 +47,6 @@ jobs:
             if k=='safeCodexReview.model': rebuilt.update(runtime_props)
           data['contributes']['configuration']['properties']=rebuilt
           p.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
-
           p=Path('extension.js'); s=p.read_text()
           old='''  resolveCodexExecutable,\n  probeCodexCapabilities,\n  runCodexReview,'''; new='''  resolveCodexExecutable,\n  probeCodexCapabilities,\n  probeCodexRuntime,\n  runCodexReview,'''
           if 'probeCodexRuntime,' not in s:
@@ -64,11 +63,9 @@ jobs:
             if old not in s: raise SystemExit('friendlyError anchor missing')
             s=s.replace(old,new,1)
           p.write_text(s)
-
           key='Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms'
           for name,value in [('l10n/bundle.l10n.json',key),('l10n/bundle.l10n.zh-cn.json','Codex Review Safe 环境正常：{0}；{1}；Provider {2}（{3}）；真实结构化探测 {4} ms')]:
             p=Path(name); doc=json.loads(p.read_text()); doc[key]=value; p.write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n')
-
           for name,heading,text in [
             ('README.md','## Codex provider runtime','Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` now performs a live structured provider probe.\n'),
             ('README.zh-CN.md','## Codex Provider Runtime','Codex Review Safe 为保持 Safe Contract 会主动忽略 `~/.codex/config.toml`。使用 OpenAI-compatible 中转站时，将 `safeCodexReview.providerMode` 设为 `openai-compatible`，配置 `safeCodexReview.providerBaseUrl`，并让 `safeCodexReview.providerApiKeyEnv` 指向 VS Code 进程可见的 API Key 环境变量。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 现在会真实执行一次结构化 Provider 探测。\n')]:
@@ -85,7 +82,7 @@ jobs:
           git add -A
           git diff --cached --check
           npm ci --ignore-scripts --no-audit --no-fund
-          npm run ci
+          xvfb-run -a npm run ci
           rm .github/workflows/finalize-runtime-provider.yml
           git add -A
           git diff --cached --check
