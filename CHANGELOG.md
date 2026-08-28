@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.2.0 - 2026-08-28
+
+### Evidence-centric semantic review
+
+- Bind dependency context to the Git Index, never the unstaged working tree, and resolve ordinary C/C++ call symbols to bounded declaration/definition evidence.
+- Split model work into hypothesis and evidence-verification stages; high model confidence cannot publish an external-semantics finding without supporting evidence.
+- Add immutable Evidence Manifests, stable ReviewKeys/Finding IDs, same-subject result caching, evidence-scoped human resolutions, Force Re-review stability suppression, and chunk-scoped evidence.
+- Add HEAD-pinned Scope Contracts, cross-index Review Lineage, changed causal anchors with unchanged supporting locations, convergence metrics, deterministic invariant candidates, and repeated-review hard-positive regression cases.
+- Add a hard-negative gate for ownership-replacing APIs such as `VSAPISTRING_Trim`, plus an index-safe discovery adapter boundary for future Tree-sitter/SCIP/LSP providers.
+
 ## Unreleased
 
 ## 4.1.1 - 2026-08-27

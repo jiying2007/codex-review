@@ -119,5 +119,13 @@
   "Patch applied to the working tree. Inspect it, stage the intended changes, then re-review.": "Patch applied to the working tree. Inspect it, stage the intended changes, then re-review.",
   "Re-review": "Re-review",
   "The reviewed staged snapshot changed. Generate the fix again from a current review.": "The reviewed staged snapshot changed. Generate the fix again from a current review.",
-  "Configured SARIF evidence could not be loaded: {0}": "Configured SARIF evidence could not be loaded: {0}"
+  "Configured SARIF evidence could not be loaded: {0}": "Configured SARIF evidence could not be loaded: {0}",
+  "Review cache hit: reused the validated result for the same immutable ReviewKey.": "Review cache hit: reused the validated result for the same immutable ReviewKey.",
+  "Force re-review detected unstable model findings; unstable findings were suppressed.": "Force re-review detected unstable model findings; unstable findings were suppressed.",
+  "No completed review with a resolvable finding is available.": "No completed review with a resolvable finding is available.",
+  "Select a verified finding to resolve": "Select a verified finding to resolve",
+  "Select a resolution": "Select a resolution",
+  "Optional resolution note": "Optional resolution note",
+  "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.": "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.",
+  "Finding resolutions cleared.": "Finding resolutions cleared."
 }

@@ -38,3 +38,8 @@ Users can resolve a verified finding as `fixed`, `false_positive`, `accepted_ris
 - dependency context is index-pinned and untrusted;
 - findings must still anchor to exact staged changed lines;
 - safe fix proposals remain preview-first, working-tree-only, and never stage/commit/push/merge automatically.
+
+
+## Review lineage and Scope Contract
+
+Review 4.2 can read an optional `.codex-review-scope.json` from HEAD and records cross-index Review Lineage inside one HEAD/Policy/Scope/Profile session. See [Review Convergence](REVIEW_CONVERGENCE.md).

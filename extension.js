@@ -43,7 +43,16 @@ const {
   runCodexPatchProposal,
   isCliCompatibilityError
 } = require('./src/codex');
-const { collectImpactEvidence, loadSarifFiles, importSarifFile, applyValidatedPatch } = require('./src/quality');
+const { loadSarifFiles, importSarifFile, applyValidatedPatch } = require('./src/quality');
+const { collectSemanticEvidence } = require('./src/semantic-evidence');
+const { createReviewCache } = require('./src/review-cache');
+const { createFindingLedger, RESOLUTION_VALUES } = require('./src/finding-ledger');
+const { loadReviewScope } = require('./src/review-scope');
+const { createReviewLineageStore, buildReviewSessionKey } = require('./src/review-lineage');
+const { evaluateConvergence } = require('./src/convergence');
+const { applyResolutionLedger, suppressUnstableFindings } = require('./src/semantic-review');
+const { computeReviewKey, canonicalJson, sha256, SEMANTIC_REVIEW_VERSION, digestAnalyzerEvidence } = require('./src/codex-safe-core/semantic-review');
+const { REVIEW_PROMPT_CONTRACT_VERSION } = require('./src/codex-safe-core/safe-contract');
 
 let outputChannel;
 let diagnosticCollection;
@@ -57,6 +66,9 @@ let fileWatcher;
 let fileWatcherSubscriptions = [];
 const activeReviews = new Map();
 let reviewReceiptStore;
+let reviewCache;
+let findingLedger;
+let reviewLineage;
 let nextReviewId = 1;
 
 function log(message) {
@@ -320,13 +332,37 @@ function linkCancellation(externalToken, internalSource) {
   return externalToken.onCancellationRequested(() => internalSource.cancel());
 }
 
-async function reviewStaged(commandArgs = []) {
+function reviewOptionsFingerprint(options) {
+  const profile = options.profileConfig || {};
+  return sha256(canonicalJson({
+    semanticReviewVersion: SEMANTIC_REVIEW_VERSION,
+    language: options.language,
+    profile: options.profile,
+    profileConfig: { evidenceFactor: profile.evidenceFactor, tokenFactor: profile.tokenFactor, impactDepth: profile.impactDepth, maxImpactFiles: profile.maxImpactFiles, analyzerMode: profile.analyzerMode, focusCategories: profile.focusCategories },
+    model: options.model || '', fastModel: options.fastModel || '',
+    maxDiffBytes: options.maxDiffBytes, contextBudgetBytes: options.contextBudgetBytes, totalContextBudgetBytes: options.totalContextBudgetBytes,
+    maxTokenBudget: options.maxTokenBudget, maxFindings: options.maxFindings, confidenceThreshold: options.confidenceThreshold,
+    extraInstructions: options.extraInstructions || ''
+  }));
+}
+function semanticSubjectKey(snapshot, diffFingerprint, options, analyzerDigest, scopeFingerprint) {
+  return sha256(canonicalJson({
+    semanticReviewVersion: SEMANTIC_REVIEW_VERSION,
+    headOid: snapshot.headOid, indexFingerprint: snapshot.indexFingerprint, diffFingerprint,
+    policyFingerprint: options.policyFingerprint, profile: options.profile, analyzerDigest, scopeFingerprint,
+    promptContractVersion: REVIEW_PROMPT_CONTRACT_VERSION,
+    modelIdentity: `${options.model || 'cli-default'}|${options.fastModel || ''}`,
+    optionsFingerprint: reviewOptionsFingerprint(options)
+  }));
+}
+
+async function reviewStaged(commandArgs = [], { force = false } = {}) {
   assertTrustedWorkspace();
   const repositoryInfo = await chooseRepository(commandArgs);
   if (!repositoryInfo) return;
   const repoRoot = repositoryInfo.root;
   const { key, state } = beginReview(repoRoot);
-  log('review started');
+  log(force ? 'force re-review started' : 'review started');
   try {
     const result = await vscode.window.withProgress({ location: vscode.ProgressLocation.SourceControl, title: t('Codex is reviewing Staged Changes…'), cancellable: true }, async (_progress, uiToken) => {
       const linked = linkCancellation(uiToken, state.cancelSource);
@@ -341,6 +377,7 @@ async function reviewStaged(commandArgs = []) {
         }
         const snapshotBefore = await getRepositorySnapshot(repoRoot, token);
         const options = await getEffectiveOptions(repoRoot, snapshotBefore.headOid, token);
+        const scope = await loadReviewScope(repoRoot, snapshotBefore.headOid, token);
         const [diff, stagedChangeMetadata, binaryPathSet, submodulePathSet] = await Promise.all([
           getStagedDiff(repoRoot, token), getStagedChangeMetadata(repoRoot, token), getBinaryPathSet(repoRoot, token), getSubmodulePathSet(repoRoot, token)
         ]);
@@ -360,14 +397,52 @@ async function reviewStaged(commandArgs = []) {
         }
         const changedLineRanges = parseChangedLineRanges(diff);
         const diffFingerprint = crypto.createHash('sha256').update(diff, 'utf8').digest('hex');
-        log(`input prepared: files=${stagedPaths.length}, rawDiffBytes=${diffBytes}, modelBudgetBytes=${options.maxDiffBytes}`);
-        const impact = await collectImpactEvidence(repoRoot, diff, options.profileConfig, token);
         let configuredSarif = [];
         try { configuredSarif = loadSarifFiles(repoRoot, options.sarifFiles); }
         catch (error) { log(t('Configured SARIF evidence could not be loaded: {0}', error?.message || error)); }
         const analyzerFindings = [...configuredSarif, ...(importedSarifByRepo.get(key) || [])];
-        const review = await runCodexReview(diff, stagedPaths, options, token, { impact, analyzerFindings });
-        return { review, snapshot: snapshotAfter, changedLineRanges, stagedChangeMetadata, binaryPathSet, submodulePathSet, stagedPolicyChange, diffFingerprint, diffBytes, diff, options };
+        const analyzerDigest = digestAnalyzerEvidence(analyzerFindings);
+        const subjectKey = semanticSubjectKey(snapshotAfter, diffFingerprint, options, analyzerDigest, scope.fingerprint);
+        const previousCached = reviewCache.getBySubjectKey(repoRoot, subjectKey);
+        let rawReview, reviewKey, evidenceManifestDigest = previousCached?.evidenceManifestDigest || '', cacheHit = false;
+
+        if (previousCached && !force) {
+          rawReview = previousCached.review;
+          reviewKey = previousCached.reviewKey;
+          cacheHit = true;
+          log(t('Review cache hit: reused the validated result for the same immutable ReviewKey.'));
+        } else {
+          log(`input prepared: files=${stagedPaths.length}, rawDiffBytes=${diffBytes}, modelBudgetBytes=${options.maxDiffBytes}`);
+          const semanticEvidence = await collectSemanticEvidence(repoRoot, diff, stagedPaths, snapshotAfter, options.profileConfig, analyzerFindings, token, diffFingerprint);
+          evidenceManifestDigest = semanticEvidence.manifest.manifestDigest;
+          reviewKey = computeReviewKey({
+            subject: snapshotAfter, diffFingerprint, policyFingerprint: options.policyFingerprint, profile: options.profile,
+            evidenceManifestDigest, analyzerDigest, promptContractVersion: REVIEW_PROMPT_CONTRACT_VERSION,
+            modelIdentity: `${options.model || 'cli-default'}|${options.fastModel || ''}`, optionsFingerprint: reviewOptionsFingerprint(options)
+          });
+          const exactCached = !force ? reviewCache.get(repoRoot, reviewKey) : null;
+          if (exactCached) {
+            rawReview = exactCached.review; cacheHit = true;
+            log(t('Review cache hit: reused the validated result for the same immutable ReviewKey.'));
+          } else {
+            const modelReview = await runCodexReview(diff, stagedPaths, options, token, { semanticEvidence, analyzerFindings, resolutions: [], scope });
+            rawReview = force && previousCached ? suppressUnstableFindings(previousCached.review, modelReview, options.language) : modelReview;
+            if (force && rawReview.stability?.stable === false) {
+              log(t('Force re-review detected unstable model findings; unstable findings were suppressed.'));
+            } else {
+              await reviewCache.put(repoRoot, { subjectKey, reviewKey, evidenceManifestDigest, findingSetDigest: rawReview.findingSetDigest, review: rawReview });
+            }
+          }
+        }
+        rawReview.executionMeta = { ...(rawReview.executionMeta || {}), reviewKey, cacheHit, evidenceManifestDigest, scopeFingerprint: scope.fingerprint, scopePhase: scope.phase };
+        const sessionKey = buildReviewSessionKey({ headOid: snapshotAfter.headOid, policyFingerprint: options.policyFingerprint, scopeFingerprint: scope.fingerprint, profile: options.profile });
+        const lineage = await reviewLineage.record(repoRoot, { sessionKey, phase: scope.phase, reviewKey, subjectKey, coverageVerdict: rawReview.coverageVerdict, findings: rawReview.findings });
+        const review = applyResolutionLedger(rawReview, findingLedger.list(repoRoot), options.language);
+        review.scope = { present: scope.present, source: scope.source, phase: scope.phase, complexityBudget: scope.complexityBudget, goals: scope.goals, invariants: scope.invariants, nonGoals: scope.nonGoals, managedPaths: scope.managedPaths, fingerprint: scope.fingerprint };
+        review.lineage = lineage;
+        review.convergence = evaluateConvergence(review, lineage, scope);
+        review.executionMeta = { ...(review.executionMeta || {}), reviewKey, cacheHit, evidenceManifestDigest, scopeFingerprint: scope.fingerprint, scopePhase: scope.phase };
+        return { rawReview, review, subjectKey, reviewKey, evidenceManifestDigest, cacheHit, snapshot: snapshotAfter, changedLineRanges, stagedChangeMetadata, binaryPathSet, submodulePathSet, stagedPolicyChange, diffFingerprint, diffBytes, diff, options };
       } finally { linked.dispose(); }
     });
     if (!result) return;
@@ -390,11 +465,11 @@ async function reviewStaged(commandArgs = []) {
       return;
     }
     if (result.stagedPolicyChange) result.review.policyNotice = t('{0} is modified in the staged changes. This review still uses the policy from HEAD; the new policy takes effect after commit.', PROJECT_RULES_FILE);
-    const reviewInputMeta = buildReviewInputMeta(result.snapshot, result.diffFingerprint, result.diffBytes, [...result.stagedChangeMetadata.keys()], currentUnstagedPathSet, {
+    const reviewInputMeta = { ...buildReviewInputMeta(result.snapshot, result.diffFingerprint, result.diffBytes, [...result.stagedChangeMetadata.keys()], currentUnstagedPathSet, {
       ...result.review.executionMeta, policySource: result.options.policySource, policyFingerprint: result.options.policyFingerprint
-    });
+    }), reviewKey: result.reviewKey, cacheHit: result.cacheHit, evidenceManifestDigest: result.evidenceManifestDigest };
     reviewSnapshotsByRepo.set(normalizeFsPath(repoRoot), result.snapshot);
-    lastReviewsByRepo.set(normalizeFsPath(repoRoot), { repoRoot, review: result.review, options: result.options, snapshot: result.snapshot, stagedPaths: [...result.stagedChangeMetadata.keys()], diff: result.diff });
+    lastReviewsByRepo.set(normalizeFsPath(repoRoot), { repoRoot, rawReview: result.rawReview, review: result.review, options: result.options, snapshot: result.snapshot, stagedPaths: [...result.stagedChangeMetadata.keys()], diff: result.diff, subjectKey: result.subjectKey, reviewKey: result.reviewKey });
     const receipt = createReviewReceipt(result.review, reviewInputMeta);
     try { await reviewReceiptStore.persist(repoRoot, receipt); }
     catch (error) { log(`review receipt persistence unavailable: code=${error?.code || error?.name || 'ERROR'}`); }
@@ -410,16 +485,17 @@ async function reviewStaged(commandArgs = []) {
       const message = allRejected
         ? t('Codex Review Safe: the model returned {0} findings, but all were rejected by format/path validation. See the report.', rejectedCount)
         : t('Codex Review Safe: {0}; showing {1} findings{2}.', result.review.verdict, visibleFindings, thresholdNote);
-      const viewReportAction = t('View Report');
-      const openProblemsAction = t('Open Problems');
+      const viewReportAction = t('View Report'), openProblemsAction = t('Open Problems');
       void vscode.window.showWarningMessage(message, viewReportAction, openProblemsAction).then(action => {
         if (action === viewReportAction) outputChannel.show(true);
         if (action === openProblemsAction) void vscode.commands.executeCommand('workbench.actions.view.problems');
       }, error => log(`warning notification failed: ${error?.message || error}`));
     }
-    log('review completed');
+    log(force ? 'force re-review completed' : 'review completed');
   } finally { finishReview(key, state.id); }
 }
+
+async function forceReviewStaged(commandArgs = []) { return reviewStaged(commandArgs, { force: true }); }
 
 async function importSarifEvidence(commandArgs = []) {
   assertTrustedWorkspace();
@@ -455,6 +531,30 @@ async function generateFixProposal(commandArgs = []) {
   if(next===reReview) await vscode.commands.executeCommand('safeCodexReview.reviewStaged');
 }
 
+async function resolveFinding(commandArgs = []) {
+  assertTrustedWorkspace();
+  const repositoryInfo = await chooseRepository(commandArgs); if (!repositoryInfo) return;
+  const repoRoot = repositoryInfo.root, key = normalizeFsPath(repoRoot), last = lastReviewsByRepo.get(key);
+  const candidates = (last?.rawReview?.findings || []).filter(finding => finding.stableFindingId && finding.evidenceDigest && !finding.deterministic);
+  if (!candidates.length) { vscode.window.showInformationMessage(t('No completed review with a resolvable finding is available.')); return; }
+  const selected = await vscode.window.showQuickPick(candidates.map(finding => ({ label:`[${finding.severity.toUpperCase()}] ${finding.title}`, description:`${finding.file}:${finding.line}`, finding })), { placeHolder:t('Select a verified finding to resolve') });
+  if (!selected) return;
+  const picked = await vscode.window.showQuickPick(RESOLUTION_VALUES.map(value => ({ label:value, value })), { placeHolder:t('Select a resolution') });
+  if (!picked) return;
+  const note = await vscode.window.showInputBox({ prompt:t('Optional resolution note'), ignoreFocusOut:true, validateInput:value => value.length > 1000 ? 'Resolution note must not exceed 1000 characters.' : undefined });
+  if (note === undefined) return;
+  await findingLedger.resolve(repoRoot, { stableFindingId:selected.finding.stableFindingId, evidenceDigest:selected.finding.evidenceDigest, resolution:picked.value, actor:'local-user', note });
+  vscode.window.showInformationMessage(t('Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.'));
+  await reviewStaged(commandArgs, { force:false });
+}
+async function clearFindingResolutions(commandArgs = []) {
+  assertTrustedWorkspace();
+  const repositoryInfo = await chooseRepository(commandArgs); if (!repositoryInfo) return;
+  await findingLedger.clear(repositoryInfo.root);
+  vscode.window.showInformationMessage(t('Finding resolutions cleared.'));
+  if (lastReviewsByRepo.has(normalizeFsPath(repositoryInfo.root))) await reviewStaged(commandArgs, { force:false });
+}
+
 async function clearReview() {
   diagnosticCollection.clear();
   diagnosticUrisByRepo.clear();
@@ -462,8 +562,8 @@ async function clearReview() {
   reportsByRepo.clear();
   importedSarifByRepo.clear();
   lastReviewsByRepo.clear();
-  try { await reviewReceiptStore?.clear(); }
-  catch (error) { log(`review receipt cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`); }
+  try { await reviewReceiptStore?.clear(); await reviewCache?.clear(); }
+  catch (error) { log(`review state cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`); }
   for (const timer of gitInvalidationTimers.values()) clearTimeout(timer);
   gitInvalidationTimers.clear();
   for (const disposable of fileWatcherSubscriptions) { try { disposable.dispose(); } catch {} }
@@ -494,6 +594,12 @@ function friendlyError(error) {
 function activate(context) {
   reviewReceiptStore = createReviewReceiptStore(context.globalState);
   reviewReceiptStore.restore();
+  reviewCache = createReviewCache(context.globalState);
+  reviewCache.restore();
+  findingLedger = createFindingLedger(context.globalState);
+  findingLedger.restore();
+  reviewLineage = createReviewLineageStore(context.globalState);
+  reviewLineage.restore();
   outputChannel = vscode.window.createOutputChannel('Codex Review Safe');
   diagnosticCollection = vscode.languages.createDiagnosticCollection('codex-review-safe');
   context.subscriptions.push(outputChannel, diagnosticCollection);
@@ -506,6 +612,9 @@ function activate(context) {
         if (error?.code !== 'ECANCELLED') vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error)));
       }
     }),
+    vscode.commands.registerCommand('safeCodexReview.forceReviewStaged', async (...args) => { try { await forceReviewStaged(args); } catch (error) { if (error?.code !== 'ECANCELLED') vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
+    vscode.commands.registerCommand('safeCodexReview.resolveFinding', async (...args) => { try { await resolveFinding(args); } catch (error) { vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
+    vscode.commands.registerCommand('safeCodexReview.clearFindingResolutions', async (...args) => { try { await clearFindingResolutions(args); } catch (error) { vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
     vscode.commands.registerCommand('safeCodexReview.clearReview', clearReview),
     vscode.commands.registerCommand('safeCodexReview.showOutput', () => outputChannel.show(true)),
     vscode.commands.registerCommand('safeCodexReview.importSarif', async (...args) => { try { await importSarifEvidence(args); } catch (error) { vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
@@ -520,7 +629,9 @@ function activate(context) {
     getLatestReviewReceipt: repoRoot => reviewReceiptStore.getLatest(repoRoot),
     getReviewReceipts: repoRoot => reviewReceiptStore.getReceipts(repoRoot),
     getReviewReceiptStatus: (repoRoot, snapshot) => reviewReceiptStore.getStatus(repoRoot, snapshot),
-    getReviewEvidenceForRange: (repoRoot, baseRef, headRef = 'HEAD', token) => reviewReceiptStore.getEvidenceForRange(repoRoot, baseRef, headRef, token)
+    getReviewEvidenceForRange: (repoRoot, baseRef, headRef = 'HEAD', token) => reviewReceiptStore.getEvidenceForRange(repoRoot, baseRef, headRef, token),
+    getFindingResolutions: repoRoot => findingLedger.list(repoRoot),
+    getReviewLineage: repoRoot => reviewLineage.list(repoRoot)
   };
 }
 
@@ -532,6 +643,9 @@ function deactivate() {
   reportsByRepo.clear();
   reviewReceiptStore?.resetMemory();
   reviewReceiptStore = undefined;
+  reviewCache = undefined;
+  findingLedger = undefined;
+  reviewLineage = undefined;
   for (const timer of gitInvalidationTimers.values()) clearTimeout(timer);
   gitInvalidationTimers.clear();
   for (const disposable of fileWatcherSubscriptions) { try { disposable.dispose(); } catch {} }

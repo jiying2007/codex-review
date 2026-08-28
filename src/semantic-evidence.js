@@ -11,6 +11,7 @@ const {
   sha256
 } = require('./codex-safe-core/semantic-review');
 const { extractImpactSignals, buildImpactEvidenceGraph } = require('./codex-safe-core/quality-platform');
+const { rehydrateDiscoveryCandidates } = require('./code-intelligence');
 
 const MAX_INDEX_FILE_BYTES = 128 * 1024;
 const MAX_SYMBOLS = 64;
@@ -180,16 +181,18 @@ function analyzerBlocks(findings=[]) {
     return {entry:normalizeEvidenceEntry({kind:'analyzer',source:'sarif',path:item.file,line:item.line,endLine:item.endLine||item.line,content,relatedPaths:[item.file]}),content};
   });
 }
-async function collectSemanticEvidence(repoRoot,diff,stagedPaths,snapshot,profile,analyzerFindings,token,diffFingerprint='') {
+async function collectSemanticEvidence(repoRoot,diff,stagedPaths,snapshot,profile,analyzerFindings,token,diffFingerprint='',discoveryCandidates=[]) {
   const [impact,symbols]=await Promise.all([collectIndexImpactEvidence(repoRoot,diff,profile,token),collectIndexSymbolEvidence(repoRoot,diff,stagedPaths,token)]);
-  const raw=[...stagedBlocks(diff),...impactBlocks(impact),...symbols.blocks,...analyzerBlocks(analyzerFindings)];
+  const discoveryBlocks=await rehydrateDiscoveryCandidates(discoveryCandidates,{readIndexText:file=>readIndexText(repoRoot,file,token),snippet,classifySymbolLine,relatedPaths:stagedPaths});
+  const raw=[...stagedBlocks(diff),...impactBlocks(impact),...symbols.blocks,...discoveryBlocks,...analyzerBlocks(analyzerFindings)];
   const deduped=new Map();for(const block of raw)if(!deduped.has(block.entry.id))deduped.set(block.entry.id,block);
   const blocks=[...deduped.values()];
   const manifest=buildEvidenceManifest(blocks.map(block=>block.entry),{headOid:snapshot?.headOid,indexFingerprint:snapshot?.indexFingerprint,diffFingerprint});
   return {impact,callSymbolsByPath:symbols.callSymbolsByPath,blocks,manifest,analyzerDigest:digestAnalyzerEvidence(analyzerFindings)};
 }
-function renderEvidenceForPaths(evidence,paths,{maxBytes=96*1024,maxEntries=32}={}) {
-  const selected=selectEvidenceForPaths(evidence?.manifest?.entries||[],paths,{maxBytes,maxEntries});
+function renderEvidenceForPaths(evidence,paths,{maxBytes=96*1024,maxEntries=32,includeStaged=false}={}) {
+  const sourceEntries=(evidence?.manifest?.entries||[]).filter(entry=>includeStaged||entry.kind!=='staged');
+  const selected=selectEvidenceForPaths(sourceEntries,paths,{maxBytes,maxEntries});
   const contentById=new Map((evidence?.blocks||[]).map(block=>[block.entry.id,block.content]));
   const text=selected.entries.map(entry=>`--- EVIDENCE ${entry.id} kind=${entry.kind} source=${entry.source} path=${entry.path}${entry.symbol?` symbol=${entry.symbol}`:''} ---\n${contentById.get(entry.id)||''}\n--- END EVIDENCE ${entry.id} ---`).join('\n');
   return {...selected,text};

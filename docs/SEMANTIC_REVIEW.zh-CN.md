@@ -38,3 +38,8 @@ ReviewKey 绑定 HEAD、Index fingerprint、diff fingerprint、policy fingerprin
 - dependency context 绑定 Git Index 并始终按不可信数据处理；
 - Finding 仍必须精确落在 staged changed line；
 - Safe Fix 继续保持先预览、只改 working tree，绝不自动 stage/commit/push/merge。
+
+
+## Review Lineage 与 Scope Contract
+
+Review 4.2 可从 HEAD 读取可选 `.codex-review-scope.json`，并在同一 HEAD/Policy/Scope/Profile Session 内记录跨 index 的 Review Lineage。参见 [Review 收敛机制](REVIEW_CONVERGENCE.zh-CN.md)。
