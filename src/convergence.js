@@ -25,6 +25,7 @@ function evaluateConvergence(review, lineage = null, scope = null) {
   const closureRate = previousCount > 0 ? clamp01(fixed / previousCount) : 0;
   const fixInducedRate = added > 0 ? clamp01(likelyFixInduced / added) : 0;
   const reintroducedRate = added > 0 ? clamp01(reintroduced / added) : 0;
+  const runNumber = Number(lineage?.runNumber || 1);
   let state = 'active';
   if (!coverageComplete || !stabilityOk) state = 'incomplete';
   else if (!findings.length) state = 'converged';
@@ -35,7 +36,8 @@ function evaluateConvergence(review, lineage = null, scope = null) {
     state,
     coverageComplete,
     stabilityOk,
-    runNumber: Number(lineage?.runNumber || 1),
+    runNumber,
+    reviewsToConvergence: state === 'converged' ? runNumber : null,
     fixed,
     added,
     unchanged: (transition.unchangedIds || []).length,
