@@ -21,6 +21,8 @@ const validation = (pkg.contributes?.jsonValidation || []).find(item => item.fil
 assert.ok(validation, '.codex-safe.json validation contribution is required');
 assert.strictEqual(validation.url, './dist/codex-safe.schema.json', 'Marketplace schema must resolve from dist only');
 assert.notStrictEqual(validation.url, './src/codex-safe-core/codex-safe.schema.json', 'source/submodule schema must not be a Marketplace runtime path');
+const policyExample = JSON.parse(fs.readFileSync(path.join(root, '.codex-safe.example.json'), 'utf8'));
+assert.ok(!Object.prototype.hasOwnProperty.call(policyExample, 'pr'), 'retired PR policy surface must not return');
 
 const scmItems = pkg.contributes?.menus?.['scm/title'] || [];
 const paletteItems = pkg.contributes?.menus?.commandPalette || [];
@@ -48,4 +50,4 @@ assert.match(source, /async function checkEnvironment\([^)]*\)\s*\{\s*assertTrus
 
 require('./verify-product-docs');
 
-console.log('Review security manifest, dist-only schema, trust boundary, and product documentation checks passed.');
+console.log('Review security manifest, dist-only schema, retired PR boundary, trust boundary, and product documentation checks passed.');

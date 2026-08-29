@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/ada3733a0d938b763fd241628da86990af7cfad7/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/9efb165bb8f2b9b71aeb944f978bc5740629979b/codex-safe.schema.json",
   "schemaVersion": 3,
   "commit": { "language": "zh-CN", "scopePolicy": "flexible", "autoInferScope": true, "styleHistoryLimit": 12 },
   "review": {
@@ -14,6 +14,5 @@
       "forbiddenPathPrefixes": []
     }
   },
-  "reviewService": { "maxContextBytes": 262144, "maxContextFiles": 12, "contextLines": 20, "skipGeneratedFiles": true, "blockUnreviewableFiles": false },
-  "pr": { "language": "zh-CN", "includePullRequestTemplate": true }
+  "reviewService": { "maxContextBytes": 262144, "maxContextFiles": 12, "contextLines": 20, "skipGeneratedFiles": true, "blockUnreviewableFiles": false }
 }
