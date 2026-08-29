@@ -80,11 +80,9 @@ staged changes
 Codex Review Safe → Review Receipt v4
     ↓
 Codex Commit Safe → Commit Receipt v4
-    ↓
-Codex PR Safe → PR narrative + provenance
 ```
 
-三个插件可以独立使用；一起使用时 provenance 更完整。
+Review Safe 和 Commit Safe 都可以独立使用；一起使用时 provenance 更完整。PR/MR 创建和元数据由 SCM 原生 UI、CLI 或 API 负责；Codex PR Safe 已退役。
 
 ## 安装、升级与验证
 

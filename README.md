@@ -80,11 +80,9 @@ staged changes
 Codex Review Safe → Review Receipt v4
     ↓
 Codex Commit Safe → Commit Receipt v4
-    ↓
-Codex PR Safe → PR narrative + provenance
 ```
 
-Each product remains independently useful; provenance becomes richer when they are used together.
+Each product remains independently useful; provenance becomes richer when Review Safe and Commit Safe are used together. Create and manage PR/MR metadata with the SCM's native UI, CLI or API; Codex PR Safe is retired.
 
 ## Install, upgrade and verify
 

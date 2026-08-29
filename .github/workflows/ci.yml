@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
-          node-version: '22'
+          node-version: '22.22.2'
           cache: npm
       - run: npm run verify:lock
       - run: npm ci --ignore-scripts --no-audit --no-fund
@@ -45,7 +45,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
-          node-version: '22'
+          node-version: '22.22.2'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Ensure Linux Extension Host dependencies
@@ -70,7 +70,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
-          node-version: '22'
+          node-version: '22.22.2'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
@@ -88,7 +88,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
-          node-version: '22'
+          node-version: '22.22.2'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
@@ -104,7 +104,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
-          node-version: '22'
+          node-version: '22.22.2'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
@@ -120,7 +120,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
-          node-version: '22'
+          node-version: '22.22.2'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run package
