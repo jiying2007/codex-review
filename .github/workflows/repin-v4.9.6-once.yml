@@ -24,11 +24,19 @@ jobs:
           git checkout -- .github/workflows/family-release-guard.yml
           node <<'NODE'
           const fs=require('fs');
-          const p=JSON.parse(fs.readFileSync('product-contract.json','utf8'));p.safeCoreVersion='4.9.6';fs.writeFileSync('product-contract.json',JSON.stringify(p,null,2)+'\n');
-          for(const f of ['README.md','README.zh-CN.md','SUPPORT.md']){if(!fs.existsSync(f))continue;let s=fs.readFileSync(f,'utf8').replaceAll(process.env.OLD_SHA,process.env.NEW_SHA);fs.writeFileSync(f,s);}
+          const p=JSON.parse(fs.readFileSync('product-contract.json','utf8'));
+          p.safeCoreVersion='4.9.6';
+          fs.writeFileSync('product-contract.json',JSON.stringify(p,null,2)+'\n');
+          for(const f of ['README.md','README.zh-CN.md','SUPPORT.md']){
+            if(!fs.existsSync(f)) continue;
+            let s=fs.readFileSync(f,'utf8').replaceAll(process.env.OLD_SHA,process.env.NEW_SHA);
+            fs.writeFileSync(f,s);
+          }
           NODE
           git config user.name jiying2007
           git config user.email 33591504+jiying2007@users.noreply.github.com
-          git add .codex-safe.example.json product-contract.json README.md README.zh-CN.md SUPPORT.md scripts/verify-manifest.js scripts/release.test.js src/codex-safe-core
+          for f in .codex-safe.example.json product-contract.json README.md README.zh-CN.md SUPPORT.md scripts/verify-manifest.js scripts/release.test.js src/codex-safe-core; do
+            test ! -e "$f" || git add "$f"
+          done
           git commit -m 'chore(family): pin Review to Core v4.9.6'
           git push origin HEAD:repin-core-v4.9.6
