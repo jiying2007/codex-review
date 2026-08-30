@@ -48,6 +48,7 @@ assert.match(source, /async function resolveFinding\([^)]*\)\s*\{\s*assertTruste
 assert.match(source, /async function clearFindingResolutions\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'clearFindingResolutions must enforce Workspace Trust first');
 assert.match(source, /async function checkEnvironment\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'checkEnvironment must enforce Workspace Trust first');
 
+require('../src/codex-safe-core/scripts/verify-consumer-product-contract').verify(root,require('../product-contract.json').safeCoreCommit,'codex-review-safe');
 require('./verify-product-docs');
 
 console.log('Review security manifest, dist-only schema, retired PR boundary, trust boundary, and product documentation checks passed.');
