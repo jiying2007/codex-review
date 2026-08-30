@@ -2,6 +2,8 @@
 
 Before opening an issue, run **Codex Review Safe: Check Codex Environment** and capture the Review Safe Output channel.
 
+Current runtime trust root: Codex Safe Core v4.9.1 at exact commit `f4544a302c5053cf0a41e30944933554825e8ecc`. `product-contract.json` and the `src/codex-safe-core` gitlink are authoritative; immutable historical schema URLs and release notes remain provenance records, not moving dependencies.
+
 Include:
 
 - extension version;
@@ -17,4 +19,4 @@ Do not attach credentials, private source code, raw proprietary diffs, prompts o
 
 Expected product boundaries are not bugs: working-tree-only edits are not reviewed; Review Safe does not modify source, commit, push or create PRs; missing Safe Contract capabilities fail closed.
 
-中文：提 Issue 前先运行 **检查 Codex 环境** 并查看 Output。请提供插件/VS Code/Codex/Git/OS 版本、远端环境类型、Workspace Trust 状态和错误码/消息；不要上传凭据、私有源码或完整专有 diff。仅 working tree 修改不参与 Review，以及不自动修改源码/Commit/Push/PR，均属于产品设计边界。
+中文：提 Issue 前先运行 **检查 Codex 环境** 并查看 Output。当前运行时 Trust Root 为 Codex Safe Core v4.9.1，精确提交 `f4544a302c5053cf0a41e30944933554825e8ecc`；以 `product-contract.json` 与 `src/codex-safe-core` gitlink 为准。请提供插件/VS Code/Codex/Git/OS 版本、远端环境类型、Workspace Trust 状态和错误码/消息；不要上传凭据、私有源码或完整专有 diff。仅 working tree 修改不参与 Review，以及不自动修改源码/Commit/Push/PR，均属于产品设计边界。
