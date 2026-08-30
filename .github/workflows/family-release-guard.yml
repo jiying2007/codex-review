@@ -5,7 +5,7 @@ permissions:
   contents: read
 jobs:
   guard:
-    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@f4544a302c5053cf0a41e30944933554825e8ecc
+    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@f43505e9e34b8da1170aafc72673569183137b04
     with:
       product: codex-review-safe
-      expected_core_sha: f4544a302c5053cf0a41e30944933554825e8ecc
+      expected_core_sha: f43505e9e34b8da1170aafc72673569183137b04
