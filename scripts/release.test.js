@@ -25,7 +25,9 @@ assert.strictEqual(updateChangelog(source, '1.0.1'), '# Changelog\n\n## Unreleas
 assert.throws(() => updateChangelog('# Changelog\n\n## Unreleased\n\n## 1.0.0\n', '1.0.1'), /Unreleased 区域为空/);
 
 const root=path.resolve(__dirname,'..');
-const expectedCore='d06383ecf58b8153ddbd9d0b26a4f83b6e0515c2';
+const productContract=require('../product-contract.json');
+const expectedCore=productContract.safeCoreCommit;
+assert.match(expectedCore,/^[0-9a-f]{40}$/);
 const gitlink=execFileSync('git',['ls-files','--stage','src/codex-safe-core'],{cwd:root,encoding:'utf8'}).trim();
 assert.match(gitlink,new RegExp(`^160000 ${expectedCore} 0\\tsrc/codex-safe-core$`));
 const policyExample=JSON.parse(fs.readFileSync(path.join(root,'.codex-safe.example.json'),'utf8'));
@@ -43,4 +45,4 @@ assert.equal(renovate.minimumReleaseAge,'3 days');
 const verification=fs.readFileSync(path.join(root,'VERIFY_RELEASE.md'),'utf8');
 assert.match(verification,/gh attestation verify codex-review-safe-<version>\.vsix -R jiying2007\/codex-review/);
 
-console.log('Release helper, exact Core/schema provenance, retired PR boundary, Marketplace artifact reuse, attestation and dependency governance tests passed.');
+console.log('Release helper, Product Contract-bound Core/schema provenance, retired PR boundary, Marketplace artifact reuse, attestation and dependency governance tests passed.');
