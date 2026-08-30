@@ -1,0 +1,34 @@
+name: Repin Review Core v4.9.6 once
+on:
+  push:
+permissions:
+  contents: write
+jobs:
+  repin:
+    if: github.ref == 'refs/heads/repin-core-v4.9.6'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: repin-core-v4.9.6
+          persist-credentials: true
+          submodules: recursive
+      - name: Repin exact Core trust root
+        env:
+          NEW_SHA: 43e818dc9ae91051f55374a9f9a47b9df6420cd6
+          OLD_SHA: 25ef338202fb9c6262b86e4af2e9ba3444fdc9df
+        shell: bash
+        run: |
+          set -euo pipefail
+          node src/codex-safe-core/scripts/repin-consumer.js . "$NEW_SHA"
+          git checkout -- .github/workflows/family-release-guard.yml
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('product-contract.json','utf8'));p.safeCoreVersion='4.9.6';fs.writeFileSync('product-contract.json',JSON.stringify(p,null,2)+'\n');
+          for(const f of ['README.md','README.zh-CN.md','SUPPORT.md']){if(!fs.existsSync(f))continue;let s=fs.readFileSync(f,'utf8').replaceAll(process.env.OLD_SHA,process.env.NEW_SHA);fs.writeFileSync(f,s);}
+          NODE
+          git config user.name jiying2007
+          git config user.email 33591504+jiying2007@users.noreply.github.com
+          git add .codex-safe.example.json product-contract.json README.md README.zh-CN.md SUPPORT.md scripts/verify-manifest.js scripts/release.test.js src/codex-safe-core
+          git commit -m 'chore(family): pin Review to Core v4.9.6'
+          git push origin HEAD:repin-core-v4.9.6
