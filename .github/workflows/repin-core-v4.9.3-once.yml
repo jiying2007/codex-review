@@ -1,0 +1,35 @@
+name: Repin Core v4.9.3 once
+on:
+  push:
+permissions:
+  contents: write
+jobs:
+  repin:
+    if: github.ref == 'refs/heads/repin-core-v4.9.3'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: repin-core-v4.9.3
+          persist-credentials: true
+      - name: Repin exact Core and remove one-shot workflow
+        env:
+          OLD_SHA: f43505e9e34b8da1170aafc72673569183137b04
+          NEW_SHA: 2011591e76cf73c0890b702a5bcd3499de91bbbc
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'); const old=process.env.OLD_SHA, neu=process.env.NEW_SHA;
+          for(const p of ['.codex-safe.example.json','.github/workflows/family-release-guard.yml','SUPPORT.md']){
+            let s=fs.readFileSync(p,'utf8').replaceAll(old,neu).replaceAll('v4.9.2','v4.9.3'); fs.writeFileSync(p,s);
+          }
+          const p='product-contract.json', j=JSON.parse(fs.readFileSync(p)); j.safeCoreVersion='4.9.3'; j.safeCoreCommit=neu; fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');
+          NODE
+          git update-index --cacheinfo 160000,$NEW_SHA,src/codex-safe-core
+          rm .github/workflows/repin-core-v4.9.3-once.yml
+          git config user.name jiying2007
+          git config user.email 33591504+jiying2007@users.noreply.github.com
+          git add .codex-safe.example.json .github/workflows/family-release-guard.yml SUPPORT.md product-contract.json .github/workflows/repin-core-v4.9.3-once.yml
+          git commit -m 'chore(family): repin Review to Core v4.9.3'
+          git push origin HEAD:repin-core-v4.9.3
