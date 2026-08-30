@@ -12,32 +12,24 @@ jobs:
         with:
           ref: fix-review-time-v4.3.4
           persist-credentials: true
-      - name: Add receipt-bound local and UTC review time
+      - name: Repin current Core trust root and current schema examples
+        env:
+          OLD_SHA: 2011591e76cf73c0890b702a5bcd3499de91bbbc
+          LEGACY_SCHEMA_SHA: 10393a0035ce5168b3d0e88822af0d74fe85ec6c
+          NEW_SHA: bc367cf3fbc57d7060bce343fcf4a6d5312f7ab8
         shell: bash
         run: |
           set -euo pipefail
           node <<'NODE'
-          const fs=require('fs');
-          function replace(path,from,to){let s=fs.readFileSync(path,'utf8');if(!s.includes(from))throw new Error(`missing pattern ${path}`);fs.writeFileSync(path,s.replace(from,to));}
-          replace('src/report.js',
-            "function pct(value) { return `${(Math.max(0, Math.min(1, Number(value) || 0)) * 100).toFixed(0)}%`; }\n",
-            "function pct(value) { return `${(Math.max(0, Math.min(1, Number(value) || 0)) * 100).toFixed(0)}%`; }\nfunction pad2(value) { return String(value).padStart(2, '0'); }\nfunction formatReviewTime(value, language = 'en') {\n  if (typeof value !== 'string' || !value) return '';\n  const date = new Date(value);\n  if (Number.isNaN(date.getTime())) return '';\n  const offsetMinutes = -date.getTimezoneOffset();\n  const sign = offsetMinutes >= 0 ? '+' : '-';\n  const absolute = Math.abs(offsetMinutes);\n  const offset = `UTC${sign}${pad2(Math.floor(absolute / 60))}:${pad2(absolute % 60)}`;\n  const local = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;\n  return language === 'zh-CN' ? `审查时间: ${local} ${offset} (UTC: ${date.toISOString()})` : `Review time: ${local} ${offset} (UTC: ${date.toISOString()})`;\n}\n");
-          replace('src/report.js',
-            "  lines.push(t('Review execution: model {0}, Codex CLI {1}', reviewInputMeta.model || 'cli-default', reviewInputMeta.codexVersion || 'unknown'));\n",
-            "  lines.push(t('Review execution: model {0}, Codex CLI {1}', reviewInputMeta.model || 'cli-default', reviewInputMeta.codexVersion || 'unknown'));\n  const reviewTime = formatReviewTime(reviewInputMeta.reviewCreatedAt, options.language);\n  if (reviewTime) lines.push(reviewTime);\n");
-          replace('src/report.js',"module.exports = { buildReviewReport };","module.exports = { buildReviewReport, formatReviewTime };");
-          replace('extension.js',
-            "    const receipt = createReviewReceipt(result.review, reviewInputMeta);\n    try { await reviewReceiptStore.persist(repoRoot, receipt); }",
-            "    const receipt = createReviewReceipt(result.review, reviewInputMeta);\n    reviewInputMeta.reviewCreatedAt = receipt.createdAt;\n    try { await reviewReceiptStore.persist(repoRoot, receipt); }");
-          replace('test.js',
-            "    meta\n  );\n  assert.match(report, /Coverage verdict: complete/);",
-            "    { ...meta, reviewCreatedAt: receipt.createdAt }\n  );\n  assert.match(report, /Coverage verdict: complete/);\n  assert.match(report, /Review time: .* UTC[+-]\\d{2}:\\d{2} \\(UTC: 2026-08-22T00:00:00.000Z\\)/);");
-          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));pkg.version='4.3.4';fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');
-          const contract=JSON.parse(fs.readFileSync('product-contract.json','utf8'));contract.productVersion='4.3.4';fs.writeFileSync('product-contract.json',JSON.stringify(contract,null,2)+'\n');
-          let c=fs.readFileSync('CHANGELOG.md','utf8');const e=`## 4.3.4 - 2026-08-30\n\n- Bind the human Review report to the exact Review Receipt v4 timestamp.\n- Show host-local review time with an explicit numeric UTC offset and retain the canonical UTC \`...Z\` value in the same line.\n- Keep machine receipts canonical UTC and unchanged; this is a human observability improvement only.\n\n`;if(!c.startsWith('# Changelog\n\n'))throw new Error('unexpected changelog');fs.writeFileSync('CHANGELOG.md','# Changelog\n\n'+e+c.slice('# Changelog\n\n'.length));
+          const fs=require('fs'),old=process.env.OLD_SHA,legacy=process.env.LEGACY_SCHEMA_SHA,neu=process.env.NEW_SHA;
+          const contract=JSON.parse(fs.readFileSync('product-contract.json','utf8'));contract.safeCoreVersion='4.9.4';contract.safeCoreCommit=neu;fs.writeFileSync('product-contract.json',JSON.stringify(contract,null,2)+'\n');
+          for(const p of ['.codex-safe.example.json','SUPPORT.md']){let s=fs.readFileSync(p,'utf8').replaceAll(old,neu).replaceAll('v4.9.3','v4.9.4');fs.writeFileSync(p,s);}
+          for(const p of ['README.md','README.zh-CN.md']){let s=fs.readFileSync(p,'utf8').replaceAll(legacy,neu);fs.writeFileSync(p,s);}
           NODE
+          git update-index --cacheinfo 160000,$NEW_SHA,src/codex-safe-core
           git config user.name jiying2007
           git config user.email 33591504+jiying2007@users.noreply.github.com
-          git add src/report.js extension.js test.js package.json product-contract.json CHANGELOG.md
-          git commit -m 'fix(review): show receipt-bound review time in v4.3.4'
+          git add product-contract.json .codex-safe.example.json SUPPORT.md README.md README.zh-CN.md
+          git add -u src/codex-safe-core
+          git commit -m 'chore(family): pin Review v4.3.4 to Core v4.9.4'
           git push origin HEAD:fix-review-time-v4.3.4
