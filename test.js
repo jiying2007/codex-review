@@ -221,9 +221,10 @@ function initRepo(repo) {
     { ...consolidated, summary: 'review' },
     { severityThreshold: 'low', confidenceThreshold: 0.7, policySource: 'head-policy' },
     new Map([[consolidated.findings[0], { published: true, mappedLine: 10, reason: 'exact' }]]),
-    meta
+    { ...meta, reviewCreatedAt: receipt.createdAt }
   );
   assert.match(report, /Coverage verdict: complete/);
+  assert.match(report, /Review time: .* UTC[+-]\d{2}:\d{2} \(UTC: 2026-08-22T00:00:00.000Z\)/);
   assert.match(report, /Review policy: head-policy/);
   assert.match(report, /\[MEDIUM\]/);
 

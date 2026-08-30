@@ -51,7 +51,7 @@ Remote SSH、Dev Containers、Codespaces、WSL 场景下，需要在对应远端
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/10393a0035ce5168b3d0e88822af0d74fe85ec6c/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/bc367cf3fbc57d7060bce343fcf4a6d5312f7ab8/codex-safe.schema.json",
   "schemaVersion": 3,
   "review": {
     "language": "zh-CN",
