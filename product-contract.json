@@ -1,7 +1,7 @@
 {
   "productContractVersion": 1,
   "productId": "codex-review-safe",
-  "productVersion": "4.3.3",
+  "productVersion": "4.3.4",
   "safeCoreVersion": "4.9.3",
   "safeCoreCommit": "2011591e76cf73c0890b702a5bcd3499de91bbbc",
   "safeCoreMajorVersion": 4,

@@ -4,6 +4,18 @@ const { t } = require('./i18n');
 const { severityPasses, shortFingerprint } = require('./review');
 
 function pct(value) { return `${(Math.max(0, Math.min(1, Number(value) || 0)) * 100).toFixed(0)}%`; }
+function pad2(value) { return String(value).padStart(2, '0'); }
+function formatReviewTime(value, language = 'en') {
+  if (typeof value !== 'string' || !value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const absolute = Math.abs(offsetMinutes);
+  const offset = `UTC${sign}${pad2(Math.floor(absolute / 60))}:${pad2(absolute % 60)}`;
+  const local = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+  return language === 'zh-CN' ? `审查时间: ${local} ${offset} (UTC: ${date.toISOString()})` : `Review time: ${local} ${offset} (UTC: ${date.toISOString()})`;
+}
 function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   const visibleFindings = review.findings.filter(finding => severityPasses(finding.severity, options.severityThreshold));
   const hiddenCount = review.findings.length - visibleFindings.length;
@@ -17,6 +29,8 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   lines.push(t('Review policy: {0}', options.policySource));
   lines.push(t('Review input: HEAD {0}, index {1}, diff {2}, {3} staged files, {4} bytes', shortFingerprint(reviewInputMeta.headOid), shortFingerprint(reviewInputMeta.indexFingerprint), shortFingerprint(reviewInputMeta.diffFingerprint), reviewInputMeta.stagedFileCount ?? 0, reviewInputMeta.diffBytes ?? 0));
   lines.push(t('Review execution: model {0}, Codex CLI {1}', reviewInputMeta.model || 'cli-default', reviewInputMeta.codexVersion || 'unknown'));
+  const reviewTime = formatReviewTime(reviewInputMeta.reviewCreatedAt, options.language);
+  if (reviewTime) lines.push(reviewTime);
 
   const meta = review.executionMeta || {};
   if (meta.reviewKey || reviewInputMeta.reviewKey) lines.push(`ReviewKey: ${shortFingerprint(meta.reviewKey || reviewInputMeta.reviewKey)}${meta.cacheHit || reviewInputMeta.cacheHit ? ' [cache-hit]' : ' [model-run]'}`);
@@ -109,4 +123,4 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   return lines.join('\n');
 }
 
-module.exports = { buildReviewReport };
+module.exports = { buildReviewReport, formatReviewTime };

@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.3.4 - 2026-08-30
+
+- Bind the human Review report to the exact Review Receipt v4 timestamp.
+- Show host-local review time with an explicit numeric UTC offset and retain the canonical UTC `...Z` value in the same line.
+- Keep machine receipts canonical UTC and unchanged; this is a human observability improvement only.
+
 
 ## 4.3.3
 

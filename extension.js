@@ -472,6 +472,7 @@ async function reviewStaged(commandArgs = [], { force = false } = {}) {
     reviewSnapshotsByRepo.set(normalizeFsPath(repoRoot), result.snapshot);
     lastReviewsByRepo.set(normalizeFsPath(repoRoot), { repoRoot, rawReview: result.rawReview, review: result.review, options: result.options, snapshot: result.snapshot, stagedPaths: [...result.stagedChangeMetadata.keys()], diff: result.diff, subjectKey: result.subjectKey, reviewKey: result.reviewKey });
     const receipt = createReviewReceipt(result.review, reviewInputMeta);
+    reviewInputMeta.reviewCreatedAt = receipt.createdAt;
     try { await reviewReceiptStore.persist(repoRoot, receipt); }
     catch (error) { log(`review receipt persistence unavailable: code=${error?.code || error?.name || 'ERROR'}`); }
     renderOutput(repoRoot, result.review, result.options, publishMeta, reviewInputMeta);
