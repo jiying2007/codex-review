@@ -1,6 +1,6 @@
 # Security
 
-Codex Review Safe 3.x follows the **Codex Safe Core v3** implementation line while keeping **Safe Contract v2** unchanged. Security-sensitive shared primitives are owned by the pinned `codex-safe-core` submodule; this repository owns Review-specific finding, diagnostic and report behavior only.
+Codex Review Safe follows the **Codex Safe Core v4** implementation line while keeping **Safe Contract v2** unchanged. Security-sensitive shared primitives are owned by the pinned `codex-safe-core` submodule; this repository owns Review-specific finding, diagnostic and report behavior only.
 
 ## Trust boundaries
 
@@ -56,7 +56,7 @@ Repository policy cannot configure Codex executable/model, environment variables
 
 `maxDiffBytes` is a bounded Review Evidence budget, not the raw-diff limit.
 
-Safe Core v3 parses unified diff hunks into **coverage-preserving Review Evidence Chunks**:
+Safe Core v4 parses unified diff hunks into **coverage-preserving Review Evidence Chunks**:
 
 - changed hunks are never silently middle-truncated;
 - every hunk is either included in one chunk or emitted as an explicit coverage gap;

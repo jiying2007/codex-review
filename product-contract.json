@@ -1,0 +1,19 @@
+{
+  "productContractVersion": 1,
+  "productId": "codex-review-safe",
+  "productVersion": "4.3.3",
+  "safeCoreVersion": "4.9.0",
+  "safeCoreCommit": "10393a0035ce5168b3d0e88822af0d74fe85ec6c",
+  "safeCoreMajorVersion": 4,
+  "safeContractVersion": 2,
+  "policySchemaVersion": 3,
+  "minimumNodeVersion": "22.22.2",
+  "canonicalNodeVersion": "24.19.0",
+  "supportedNodeMajors": [
+    22,
+    24
+  ],
+  "reviewReceiptVersion": 4,
+  "reviewPromptContractVersion": 1,
+  "qualityPlatformVersion": 3
+}
