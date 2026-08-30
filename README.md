@@ -51,7 +51,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/25ef338202fb9c6262b86e4af2e9ba3444fdc9df/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/43e818dc9ae91051f55374a9f9a47b9df6420cd6/codex-safe.schema.json",
   "schemaVersion": 3,
   "review": {
     "language": "en",
