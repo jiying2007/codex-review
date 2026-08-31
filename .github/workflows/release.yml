@@ -198,12 +198,3 @@ jobs:
             exit 1
           fi
           gh release create "$RELEASE_TAG" "$vsix" SBOM.spdx.json SHA256SUMS --title "Codex Review Safe ${version}" --generate-notes --verify-tag
-
-  marketplace:
-    name: Publish VS Code Marketplace
-    needs: [validate, release]
-    if: needs.validate.outputs.publish == 'true'
-    uses: ./.github/workflows/marketplace.yml
-    with:
-      tag: ${{ needs.validate.outputs.tag }}
-    secrets: inherit
