@@ -1,0 +1,32 @@
+name: Fix Policy v4 Test Once
+on:
+  push:
+    branches: [repin-safe-core-v4.10.1]
+    paths: [.github/workflows/_fix-policy-v4-test-once.yml]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: repin-safe-core-v4.10.1
+      - name: Fix stale Policy Schema assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('test.js')
+          s=p.read_text()
+          old='assert.strictEqual(core.POLICY_SCHEMA_VERSION, 3);'
+          new='assert.strictEqual(core.POLICY_SCHEMA_VERSION, 4);'
+          assert old in s
+          p.write_text(s.replace(old,new,1))
+          PY
+          git add test.js
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'test: align Review with Policy Schema v4'
+          git push origin HEAD:repin-safe-core-v4.10.1
