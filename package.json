@@ -2,7 +2,7 @@
   "name": "codex-review-safe",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "4.3.4",
+  "version": "4.4.0",
   "publisher": "jiying2007",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
@@ -34,7 +34,7 @@
     "onCommand:safeCodexReview.showOutput",
     "onCommand:safeCodexReview.importSarif",
     "onCommand:safeCodexReview.generateFix",
-    "onCommand:safeCodexReview.forceReviewStaged",
+    "onCommand:safeCodexReview.independentReviewStaged",
     "onCommand:safeCodexReview.resolveFinding",
     "onCommand:safeCodexReview.clearFindingResolutions"
   ],
@@ -86,8 +86,8 @@
         "icon": "$(tools)"
       },
       {
-        "command": "safeCodexReview.forceReviewStaged",
-        "title": "%command.forceReview.title%",
+        "command": "safeCodexReview.independentReviewStaged",
+        "title": "%command.independentReview.title%",
         "category": "%extension.displayName%",
         "icon": "$(sync)"
       },
@@ -135,7 +135,7 @@
           "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
         },
         {
-          "command": "safeCodexReview.forceReviewStaged",
+          "command": "safeCodexReview.independentReviewStaged",
           "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
         },
         {
@@ -322,8 +322,8 @@
     "prebuild": "npm run core:init",
     "prepackage": "npm run core:init",
     "build": "node scripts/build.js",
-    "check": "node --check extension.js && node --check test/trust/runTest.js && node --check test/trust/suite/index.js && node --check src/i18n.js && node --check src/review-support.js && node --check src/process.js && node --check src/git.js && node --check src/policy.js && node --check src/review.js && node --check src/report.js && node --check src/receipts.js && node --check src/codex.js && node --check src/quality.js && node --check src/codex-safe-core/safe-contract.js && node --check src/codex-safe-core/codex-cli.js && node --check src/codex-safe-core/process-runner.js && node --check src/codex-safe-core/git-repository.js && node --check src/codex-safe-core/context-builder.js && node --check src/codex-safe-core/efficiency-planner.js && node --check src/codex-safe-core/quality-platform.js && node --check src/codex-safe-core/policy.js && node --check src/codex-safe-core/review-rules.js && node --check scripts/build.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node --check scripts/verify-module-boundaries.js && node --check src/semantic-evidence.js && node --check src/semantic-review.js && node --check src/review-cache.js && node --check src/finding-ledger.js && node --check src/code-intelligence.js && node --check src/codex-safe-core/semantic-review.js && node --check src/review-scope.js && node --check src/review-lineage.js && node --check src/convergence.js && node --check src/causal-anchor.js && node scripts/release.test.js && node scripts/verify-security-manifest.js && node scripts/verify-module-boundaries.js && npm run governance && npm run verify:l10n && node test.js && node test/quality-platform.test.js && node test/semantic-platform.test.js && node test/review-lineage.test.js && node test/causal-scope.test.js && node test/semantic-corpus.test.js && npm run build",
-    "test:unit": "node test.js && node test/quality-platform.test.js && node test/semantic-platform.test.js && node test/review-lineage.test.js && node test/causal-scope.test.js && node test/semantic-corpus.test.js",
+    "check": "node --check extension.js && node --check test/trust/runTest.js && node --check test/trust/suite/index.js && node --check src/i18n.js && node --check src/review-support.js && node --check src/process.js && node --check src/git.js && node --check src/policy.js && node --check src/review.js && node --check src/report.js && node --check src/receipts.js && node --check src/codex.js && node --check src/quality.js && node --check src/codex-safe-core/safe-contract.js && node --check src/codex-safe-core/codex-cli.js && node --check src/codex-safe-core/process-runner.js && node --check src/codex-safe-core/git-repository.js && node --check src/codex-safe-core/context-builder.js && node --check src/codex-safe-core/efficiency-planner.js && node --check src/codex-safe-core/quality-platform.js && node --check src/codex-safe-core/policy.js && node --check src/codex-safe-core/review-rules.js && node --check scripts/build.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node --check scripts/verify-module-boundaries.js && node --check src/semantic-evidence.js && node --check src/semantic-review.js && node --check src/review-cache.js && node --check src/finding-ledger.js && node --check src/code-intelligence.js && node --check src/codex-safe-core/semantic-review.js && node --check src/review-scope.js && node --check src/review-lineage.js && node --check src/convergence.js && node --check src/causal-anchor.js && node scripts/release.test.js && node scripts/verify-security-manifest.js && node scripts/verify-module-boundaries.js && npm run governance && npm run verify:l10n && node test.js && node test/quality-platform.test.js && node test/semantic-platform.test.js && node test/review-cache.test.js && node test/review-lineage.test.js && node test/causal-scope.test.js && node test/semantic-corpus.test.js && npm run build",
+    "test:unit": "node test.js && node test/quality-platform.test.js && node test/semantic-platform.test.js && node test/review-cache.test.js && node test/review-lineage.test.js && node test/causal-scope.test.js && node test/semantic-corpus.test.js",
     "test:integration": "npm run build && node ./test/integration/runTest.js",
     "test:trust": "npm run build && node ./test/trust/runTest.js",
     "test": "npm run test:unit",
