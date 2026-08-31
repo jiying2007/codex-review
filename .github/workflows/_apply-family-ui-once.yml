@@ -1,0 +1,39 @@
+name: Apply Review Family UI Once
+on:
+  push:
+    branches: [feat/family-scm-ui-contract]
+    paths: [.github/workflows/_apply-family-ui-once.yml]
+permissions: { contents: write }
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { ref: feat/family-scm-ui-contract, submodules: recursive }
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with: { node-version: '22.22.2' }
+      - shell: bash
+        run: |
+          set -euo pipefail
+          core=cd9788f1280a217fbe6d0beb59682a85a8b82c4d
+          npm version 4.4.2 --no-git-tag-version --ignore-scripts
+          git -C src/codex-safe-core fetch origin "$core"
+          git -C src/codex-safe-core checkout "$core"
+          node <<'NODE'
+          const fs=require('fs');
+          const pkg=require('./package.json');
+          pkg.contributes.menus['scm/title']=[{command:'safeCodexReview.reviewStaged',when:'scmProvider == git && isWorkspaceTrusted',group:'navigation@5'}];
+          if(!pkg.scripts.check.includes('verify-family-ui-contract.js')) pkg.scripts.check=pkg.scripts.check.replace('npm run governance','node src/codex-safe-core/scripts/verify-family-ui-contract.js . && npm run governance');
+          fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');
+          const c=require('./product-contract.json');c.productVersion='4.4.2';c.safeCoreVersion='4.10.2';c.safeCoreCommit='cd9788f1280a217fbe6d0beb59682a85a8b82c4d';fs.writeFileSync('product-contract.json',JSON.stringify(c,null,2)+'\n');
+          let s=fs.readFileSync('scripts/verify-security-manifest.js','utf8');
+          s=s.replace("requireTrustedWhen(scmItems, 'safeCodexReview.independentReviewStaged');", "assert.ok(!scmItems.some(entry => entry.command === 'safeCodexReview.independentReviewStaged'), 'Independent Review must remain a secondary action outside scm/title');");
+          fs.writeFileSync('scripts/verify-security-manifest.js',s);
+          for(const f of ['README.md','README.zh-CN.md','.codex-safe.example.json']){if(fs.existsSync(f)){let t=fs.readFileSync(f,'utf8');t=t.replaceAll('76418b80533c644e3ab01045290cd3cdd355622c','cd9788f1280a217fbe6d0beb59682a85a8b82c4d').replaceAll('4.10.1','4.10.2');fs.writeFileSync(f,t);}}
+          let ch=fs.readFileSync('CHANGELOG.md','utf8');if(!ch.includes('## 4.4.2'))ch=ch.replace(/^# Changelog\s*/,'# Changelog\n\n## 4.4.2\n\n- Align the primary VS Code SCM toolbar with the Family UI Contract: Review is the single `navigation@5` primary action; Independent Review remains a secondary trusted action.\n- Repin to immutable Safe Core 4.10.2.\n\n');fs.writeFileSync('CHANGELOG.md',ch);
+          NODE
+          git add package.json package-lock.json product-contract.json scripts/verify-security-manifest.js README.md README.zh-CN.md .codex-safe.example.json CHANGELOG.md src/codex-safe-core
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'feat(ui): make Review the first Family SCM action'
+          git push origin HEAD:feat/family-scm-ui-contract
