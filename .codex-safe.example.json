@@ -1,6 +1,6 @@
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/43e818dc9ae91051f55374a9f9a47b9df6420cd6/codex-safe.schema.json",
-  "schemaVersion": 3,
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/57440a00030941020d5c3e9e01ced3c06062f42e/codex-safe.schema.json",
+  "schemaVersion": 4,
   "commit": {
     "language": "zh-CN",
     "scopePolicy": "flexible",
@@ -14,16 +14,12 @@
     "maxFindings": 40,
     "rules": {
       "requireTestsForCodeChanges": false,
-      "codePathPrefixes": [
-        "src/"
-      ],
-      "testPathPrefixes": [
-        "test/",
-        "tests/"
-      ],
+      "codePathPrefixes": ["src/"],
+      "testPathPrefixes": ["test/", "tests/"],
       "forbiddenPathPrefixes": []
     }
   },
+  "change": {},
   "reviewService": {
     "maxContextBytes": 262144,
     "maxContextFiles": 12,
