@@ -20,22 +20,22 @@ A release is valid only when:
 
 Use strict semantic versioning: `vMAJOR.MINOR.PATCH`. The tag must equal `v<package.json.version>` and remain immutable. Family v4 is the current hard-cut protocol line; do not restore legacy policy/receipt semantics, nearest-line relocation, copied Core runtime, or compatibility shims.
 
-## Workflow-closed release flow
+## Auditable release flow
 
-The repository release path is intentionally server-side and auditable:
+The repository release path is intentionally server-side and auditable, with the original separation between immutable GitHub release creation and external Marketplace distribution:
 
 1. create `release/vX.Y.Z` from current `main`, or run **Prepare Release** with `X.Y.Z`;
 2. `.github/workflows/prepare-release.yml` deterministically updates only `package.json`, `package-lock.json`, `product-contract.json`, and `CHANGELOG.md`, then commits those release metadata files to that release branch;
 3. open the release branch as a PR to `main` and require the normal CI, dependency, family-governance and family-release gates;
 4. merge the release PR only after all gates pass;
-5. the `main` push runs `.github/workflows/release.yml`, which re-runs release Extension Host gates, packages the VSIX, generates SBOM/checksums, creates provenance attestations, creates the immutable tag and GitHub Release, and then calls the Marketplace workflow directly;
-6. `.github/workflows/marketplace.yml` downloads the exact immutable GitHub Release VSIX, verifies checksum, attestation and package boundary, then publishes that exact binary to VS Code Marketplace;
-7. `.github/workflows/release-integrity.yml` verifies the completed release and every published asset after the complete Release workflow succeeds;
+5. the `main` push runs `.github/workflows/release.yml`, which re-runs release Extension Host gates, packages the VSIX, generates SBOM/checksums, creates provenance attestations, and creates the immutable tag and GitHub Release;
+6. after the immutable GitHub Release exists, run `.github/workflows/marketplace.yml` independently with `workflow_dispatch` and the exact release tag; it downloads the exact immutable GitHub Release VSIX, verifies checksum, attestation and package boundary, then publishes that exact binary to VS Code Marketplace;
+7. `.github/workflows/release-integrity.yml` verifies the completed immutable GitHub Release and every published GitHub Release asset after the Release workflow succeeds;
 8. `.github/workflows/cleanup-merged-branches.yml` removes same-repository merged PR branches only when the branch still points to the exact merged head SHA; missing branches are skipped and branches that advanced after merge are preserved.
 
-The manual `workflow_dispatch` entry on Marketplace is a recovery path for re-publishing the same validated immutable Release VSIX with `--skip-duplicate`; it is not the normal release path.
+Marketplace is deliberately not a child job of the Release workflow. A Marketplace credential, service, or distribution failure must not turn an already-valid immutable GitHub Release into a failed source release. Re-run the standalone Marketplace workflow for the same immutable tag after resolving the external distribution issue; `--skip-duplicate` keeps recovery idempotent.
 
-Local `release:*` scripts remain useful for diagnostics and emergency operator workflows, but routine publication must use the repository workflows above.
+Local `release:*` scripts remain useful for diagnostics and emergency operator workflows, but routine GitHub publication must use the repository Release workflow and routine Marketplace publication must use the standalone Marketplace workflow above.
 
 ## Package boundary
 
@@ -64,13 +64,13 @@ GitHub Release is the **single binary source of truth**. Marketplace publication
 
 Marketplace workflows must never run `vsce package` or `npm run package`; a second build would create a second artifact identity.
 
-Stable `@vscode/vsce` 3.9.x still uses `VSCE_PAT`. Do not adopt prerelease/next tooling merely to remove the PAT. Hard-switch to trusted OIDC publishing only after a stable `vsce` release officially ships the required OIDC option, then remove the PAT path rather than keeping dual authentication modes.
+Stable `@vscode/vsce` 3.9.x uses `VSCE_PAT`. Keep this original stable publishing path until a stable `vsce` release officially provides the required trusted-publishing interface; do not introduce prerelease tooling or dual authentication modes into the production release path.
 
 ## Failure policy
 
 - transient runner/network failure: rerun the failed job or workflow attempt;
-- source/test/package defect: fix through a new PR and publish a new version;
-- Marketplace failure after an immutable GitHub Release exists: fix only the distribution credential/runtime issue, then use the Marketplace recovery dispatch for the same tag; never rebuild the VSIX;
+- source/test/package defect before immutable GitHub Release creation: fix through a new PR and publish a new version;
+- Marketplace failure after an immutable GitHub Release exists: fix only the distribution credential/runtime issue, then dispatch the standalone Marketplace workflow for the same tag; never rebuild the VSIX;
 - never delete, recreate, overwrite or force-move an existing release tag/asset to hide a defective release.
 
 ## Stable identity
