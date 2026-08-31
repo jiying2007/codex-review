@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 4.4.0
+
 - Hard-cut whole-review verdict caching into deterministic Evidence Cache plus explicit Judgment Replay history; legacy `semanticRuns.v1` state is purged rather than migrated.
 - Split `ReviewSubjectKey` from `ReviewRunId`; the same immutable subject can now have multiple genuine fresh review runs.
 - Replace Force Re-review with blind **Independent Review**: deterministic evidence may be reused, but previous findings, suppressed hypotheses, coverage conclusions, and model explanations are never reviewer input.
