@@ -1,0 +1,38 @@
+name: Fix Review Policy v4 Once
+on:
+  push:
+    branches: [repin-safe-core-v4.10.1]
+    paths: [.github/workflows/_fix-review-policy-v4-once.yml]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: repin-safe-core-v4.10.1
+      - name: Complete Policy v4 test migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const p='test.js';
+          let s=fs.readFileSync(p,'utf8');
+          const replacements=[
+            ["assert.strictEqual(receipt.policySchemaVersion, 3);","assert.strictEqual(receipt.policySchemaVersion, 4);"],
+            ["schemaVersion: 3,\n      review: { severityThreshold: 'low'","schemaVersion: 4,\n      review: { severityThreshold: 'low'"],
+            ["JSON.stringify({ schemaVersion: 3, review: { severityThreshold: 'critical' } })","JSON.stringify({ schemaVersion: 4, review: { severityThreshold: 'critical' } })"],
+            ["codex-review-safe-v2-","codex-review-safe-v3-"],
+            ["JSON.stringify({ schemaVersion: 2, review: {} })","JSON.stringify({ schemaVersion: 3, review: {} })"],
+            ["/schemaVersion must be 3/","/schemaVersion must be 4/"]
+          ];
+          for(const [from,to] of replacements){if(!s.includes(from))throw new Error(`missing expected fixture: ${from}`);s=s.replace(from,to);}
+          fs.writeFileSync(p,s);
+          NODE
+          git add test.js
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'test: complete Review Policy Schema v4 migration'
+          git push origin HEAD:repin-safe-core-v4.10.1
