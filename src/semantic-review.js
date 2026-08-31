@@ -171,21 +171,8 @@ function applyResolutionLedger(review,records=[],language='en'){
   semanticVerification.statusCounts.suppressed_by_resolution=(semanticVerification.statusCounts.suppressed_by_resolution||0)+moved;
   return recomputeReview({...review,findings:kept,suppressedFindings:suppressed,semanticVerification},language);
 }
-function suppressUnstableFindings(previousReview,currentReview,language='en') {
-  if(!previousReview) return recomputeReview({...currentReview,stability:{compared:false,stable:true,unstableFindingIds:[]}},language);
-  const previous=new Map((previousReview.findings||[]).filter(f=>!f.deterministic).map(f=>[f.stableFindingId,f]));
-  const current=new Map((currentReview.findings||[]).filter(f=>!f.deterministic).map(f=>[f.stableFindingId,f]));
-  const unstable=new Set();
-  for(const [id,finding] of previous){const other=current.get(id);if(!other||other.severity!==finding.severity||other.verificationStatus!==finding.verificationStatus||other.evidenceDigest!==finding.evidenceDigest)unstable.add(id);}
-  for(const id of current.keys())if(!previous.has(id))unstable.add(id);
-  if(!unstable.size)return recomputeReview({...currentReview,stability:{compared:true,stable:true,unstableFindingIds:[]}},language);
-  const kept=[],suppressed=[...(currentReview.suppressedFindings||[])];
-  for(const finding of currentReview.findings||[]){if(finding.deterministic||!unstable.has(finding.stableFindingId))kept.push(finding);else suppressed.push({...finding,suppressionReason:'unstable_repeated_review'});}
-  const coverageGaps=[...(currentReview.coverageGaps||[]),`unstable_repeated_review:${unstable.size}`];
-  return recomputeReview({...currentReview,findings:kept,suppressedFindings:suppressed,coverageGaps,coverageVerdict:'incomplete',stability:{compared:true,stable:false,unstableFindingIds:[...unstable]}},language);
-}
 
 module.exports={
   ALLOWED_CATEGORIES,SUPPORT_KINDS,SCOPE_DISPOSITIONS,hypothesisSchema,verificationSchema,buildHypothesisPrompt,validateHypothesis,validateHypothesisResult,
-  prepareVerification,buildVerificationInput,validateVerificationResult,materializeVerifiedFindings,semanticSummary,recomputeReview,applyResolutionLedger,suppressUnstableFindings,stagedEvidenceRef
+  prepareVerification,buildVerificationInput,validateVerificationResult,materializeVerifiedFindings,semanticSummary,recomputeReview,applyResolutionLedger,stagedEvidenceRef
 };
