@@ -17,6 +17,7 @@ function stabilityReason(stability) {
   if (Number(stability?.cachedVerdictRuns || 0) > 0) return 'judgment_cache_used';
   if (Number(stability?.freshInferenceRuns || 0) < required) return 'fresh_runs_missing';
   if (Number(stability?.blindFreshRuns || 0) < required) return 'blind_context_missing';
+  if (Number(stability?.completeFreshRuns || 0) < required || stability?.latestRequiredRunsCoverageComplete !== true) return 'fresh_coverage_incomplete';
   if (stability?.stable !== true) return 'finding_disagreement';
   return 'stable';
 }
@@ -27,9 +28,10 @@ function evaluateConvergence(review, lineage = null, scope = null) {
   const stability = lineage?.stability || review?.stability || {};
   const requiredFreshRuns = Math.max(2, Number(stability.requiredFreshRuns || 2));
   const freshInferenceRuns = Number(stability.freshInferenceRuns || 0);
+  const completeFreshRuns = Number(stability.completeFreshRuns || 0);
   const blindFreshRuns = Number(stability.blindFreshRuns || 0);
   const cachedVerdictRuns = Number(stability.cachedVerdictRuns || 0);
-  const provenanceComplete = freshInferenceRuns >= requiredFreshRuns && blindFreshRuns >= requiredFreshRuns && cachedVerdictRuns === 0;
+  const provenanceComplete = freshInferenceRuns >= requiredFreshRuns && completeFreshRuns >= requiredFreshRuns && stability.latestRequiredRunsCoverageComplete === true && blindFreshRuns >= requiredFreshRuns && cachedVerdictRuns === 0;
   const stabilityOk = provenanceComplete && stability.stable === true;
   const fixed = (transition.fixedIds || []).length;
   const added = (transition.newIds || []).length;
@@ -55,6 +57,7 @@ function evaluateConvergence(review, lineage = null, scope = null) {
     stabilityReason: stabilityReason(stability),
     requiredFreshRuns,
     freshInferenceRuns,
+    completeFreshRuns,
     blindFreshRuns,
     independentReviewRuns: Number(stability.independentReviewRuns || 0),
     cachedVerdictRuns,
