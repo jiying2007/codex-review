@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 4.4.1 - 2026-08-31
+
+- Publish the already-validated Review Safe main line on immutable Safe Core v4.10.1 (`76418b80533c644e3ab01045290cd3cdd355622c`) and Policy Schema v4.
+- No Review runtime authority, Safe Contract v2, Review Receipt v4, prompt contract, or model behavior change.
+
 - Restore the original release boundary: the Release workflow ends at the validated immutable GitHub Release, while VS Code Marketplace publication is an independent `workflow_dispatch` that consumes the exact Release VSIX. External Marketplace credential/service failures no longer invalidate an already-successful GitHub source release.
 
 ## 4.4.0
