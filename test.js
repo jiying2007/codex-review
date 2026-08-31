@@ -47,7 +47,7 @@ function initRepo(repo) {
 (async () => {
   assert.strictEqual(core.SAFE_CORE_VERSION, 4);
   assert.strictEqual(core.SAFE_CONTRACT_VERSION, 2);
-  assert.strictEqual(core.POLICY_SCHEMA_VERSION, 3);
+  assert.strictEqual(core.POLICY_SCHEMA_VERSION, 4);
   assert.strictEqual(core.REVIEW_RECEIPT_SCHEMA_VERSION, 4);
   assert.strictEqual(unit.PROJECT_RULES_FILE, '.codex-safe.json');
   assert.strictEqual(unit.severityPasses('high', 'medium'), true);
@@ -134,7 +134,7 @@ function initRepo(repo) {
   assert.strictEqual(receipt.schemaVersion, 4);
   assert.strictEqual(receipt.safeCoreVersion, 4);
   assert.strictEqual(receipt.safeContractVersion, 2);
-  assert.strictEqual(receipt.policySchemaVersion, 3);
+  assert.strictEqual(receipt.policySchemaVersion, 4);
   assert.strictEqual(receipt.promptContractVersion, 1);
   assert.strictEqual(receipt.kind, 'codex-review');
   assert.strictEqual(receipt.subject.type, 'git-index');
@@ -156,30 +156,30 @@ function initRepo(repo) {
   try {
     initRepo(policyRepo);
     fs.writeFileSync(path.join(policyRepo, '.codex-safe.json'), JSON.stringify({
-      schemaVersion: 3,
+      schemaVersion: 4,
       review: { severityThreshold: 'low', confidenceThreshold: 0.8, maxFindings: 40, rules: { requireTestsForCodeChanges: true } }
     }));
     fs.writeFileSync(path.join(policyRepo, 'a.c'), 'int a = 1;\n');
     gitRun(policyRepo, ['add', '.codex-safe.json', 'a.c']);
     gitRun(policyRepo, ['commit', '-m', 'base policy']);
     const head = gitRun(policyRepo, ['rev-parse', 'HEAD']);
-    fs.writeFileSync(path.join(policyRepo, '.codex-safe.json'), JSON.stringify({ schemaVersion: 3, review: { severityThreshold: 'critical' } }));
+    fs.writeFileSync(path.join(policyRepo, '.codex-safe.json'), JSON.stringify({ schemaVersion: 4, review: { severityThreshold: 'critical' } }));
     gitRun(policyRepo, ['add', '.codex-safe.json']);
     const policy = await unit.readProjectRulesAtHead(policyRepo, head);
     assert.strictEqual(policy.rules.severityThreshold, 'low');
     assert.strictEqual(policy.rules.confidenceThreshold, 0.8);
     assert.strictEqual(policy.rules.rules.requireTestsForCodeChanges, true);
     await assert.rejects(async () => {
-      const badRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-v2-'));
+      const badRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-v3-'));
       try {
         initRepo(badRepo);
-        fs.writeFileSync(path.join(badRepo, '.codex-safe.json'), JSON.stringify({ schemaVersion: 2, review: {} }));
+        fs.writeFileSync(path.join(badRepo, '.codex-safe.json'), JSON.stringify({ schemaVersion: 3, review: {} }));
         fs.writeFileSync(path.join(badRepo, 'a.c'), 'x\n');
         gitRun(badRepo, ['add', '.']);
         gitRun(badRepo, ['commit', '-m', 'old policy']);
         await unit.readProjectRulesAtHead(badRepo, gitRun(badRepo, ['rev-parse', 'HEAD']));
       } finally { fs.rmSync(badRepo, { recursive: true, force: true }); }
-    }, /schemaVersion must be 3/);
+    }, /schemaVersion must be 4/);
   } finally {
     fs.rmSync(policyRepo, { recursive: true, force: true });
   }
