@@ -13,10 +13,12 @@ assert.deepStrictEqual(core.REVIEW_PROFILE_NAMES,['quick','standard','deep','sec
 assert.strictEqual(pkg.contributes.configuration.properties['safeCodexReview.profile'].default,'standard');
 assert.ok(pkg.contributes.commands.some(x=>x.command==='safeCodexReview.importSarif'));
 assert.ok(pkg.contributes.commands.some(x=>x.command==='safeCodexReview.generateFix'));
+assert.ok(pkg.contributes.commands.some(x=>x.command==='safeCodexReview.independentReviewStaged'));
+assert.ok(!pkg.contributes.commands.some(x=>x.command==='safeCodexReview.forceReviewStaged'));
 assert.match(policy,/resolveReviewProfile/); assert.match(policy,/sarifFiles/);
 assert.match(codex,/hypothesisSchema/); assert.match(codex,/verificationSchema/); assert.match(codex,/runCodexPatchProposal/); assert.match(codex,/deterministicSummary/);
 assert.match(quality,/normalizeSarif/); assert.match(quality,/validatePatchProposal/);
 assert.match(semanticEvidence,/git\(\['show'/); assert.match(semanticEvidence,/grep','--cached/); assert.match(semanticReview,/insufficient_evidence/); assert.match(semanticReview,/contradicted/);
 assert.doesNotMatch(quality,/execSync|spawnSync|child_process/);
-assert.match(extension,/importSarifEvidence/); assert.match(extension,/generateFixProposal/); assert.match(extension,/forceReviewStaged/); assert.match(extension,/resolveFinding/); assert.match(extension,/showTextDocument/);
+assert.match(extension,/importSarifEvidence/); assert.match(extension,/generateFixProposal/); assert.match(extension,/independentReviewStaged/); assert.doesNotMatch(extension,/forceReviewStaged/); assert.match(extension,/resolveFinding/); assert.match(extension,/showTextDocument/);
 console.log('Review Quality Platform adapter tests passed.');
