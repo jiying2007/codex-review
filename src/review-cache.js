@@ -52,8 +52,8 @@ function createReviewCache(globalState) {
     for (const [repo, entries] of Object.entries(evidenceRoot)) {
       if (!Array.isArray(entries)) continue;
       const valid = entries.filter(entry =>
-        entry && validHex64(entry.evidenceKey) && validHex64(entry.reviewSubjectKey) &&
-        validHex64(entry.evidenceManifestDigest) && entry.semanticEvidence && typeof entry.semanticEvidence === 'object'
+        entry && validHex64(entry.evidenceKey) && validHex64(entry.evidenceManifestDigest) &&
+        entry.semanticEvidence && typeof entry.semanticEvidence === 'object'
       ).slice(0, MAX_EVIDENCE_ENTRIES_PER_REPO);
       if (valid.length) evidenceByRepo.set(repo, valid);
     }
@@ -91,7 +91,6 @@ function createReviewCache(globalState) {
     if (!hit) return null;
     return {
       evidenceKey: hit.evidenceKey,
-      reviewSubjectKey: hit.reviewSubjectKey,
       evidenceManifestDigest: hit.evidenceManifestDigest,
       createdAt: hit.createdAt,
       semanticEvidence: hydrateEvidence(hit.semanticEvidence)
@@ -99,15 +98,14 @@ function createReviewCache(globalState) {
   }
 
   async function putEvidence(repoRoot, input) {
-    if (!input || !validHex64(input.evidenceKey) || !validHex64(input.reviewSubjectKey) || !validHex64(input.evidenceManifestDigest)) {
-      throw new Error('Evidence cache entry requires evidenceKey, ReviewSubjectKey, and Evidence Manifest digest values.');
+    if (!input || !validHex64(input.evidenceKey) || !validHex64(input.evidenceManifestDigest)) {
+      throw new Error('Evidence cache entry requires evidenceKey and Evidence Manifest digest values.');
     }
     const semanticEvidence = serializeEvidence(input.semanticEvidence);
     if (!semanticEvidence?.manifest) throw new Error('Evidence cache entry requires immutable semantic evidence.');
     const key = repoKey(repoRoot);
     const compact = {
       evidenceKey: input.evidenceKey,
-      reviewSubjectKey: input.reviewSubjectKey,
       evidenceManifestDigest: input.evidenceManifestDigest,
       createdAt: String(input.createdAt || new Date().toISOString()),
       semanticEvidence
@@ -120,11 +118,6 @@ function createReviewCache(globalState) {
 
   function getReplay(repoRoot, reviewSubjectKey) {
     const hit = (replayByRepo.get(repoKey(repoRoot)) || []).find(entry => entry.reviewSubjectKey === reviewSubjectKey);
-    return hit ? clone(hit) : null;
-  }
-
-  function getReplayByEvidenceKey(repoRoot, evidenceKey) {
-    const hit = (replayByRepo.get(repoKey(repoRoot)) || []).find(entry => entry.evidenceKey === evidenceKey);
     return hit ? clone(hit) : null;
   }
 
@@ -151,7 +144,6 @@ function createReviewCache(globalState) {
   function listEvidence(repoRoot) {
     return (evidenceByRepo.get(repoKey(repoRoot)) || []).map(entry => ({
       evidenceKey: entry.evidenceKey,
-      reviewSubjectKey: entry.reviewSubjectKey,
       evidenceManifestDigest: entry.evidenceManifestDigest,
       createdAt: entry.createdAt
     }));
@@ -177,7 +169,7 @@ function createReviewCache(globalState) {
     if (!repoRoot) await purgeLegacy();
   }
 
-  return { restore, getEvidence, putEvidence, getReplay, getReplayByEvidenceKey, putReplay, listEvidence, listReplays, purgeLegacy, clear };
+  return { restore, getEvidence, putEvidence, getReplay, putReplay, listEvidence, listReplays, purgeLegacy, clear };
 }
 
 module.exports = {
