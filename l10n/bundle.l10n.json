@@ -90,9 +90,6 @@
   "Codex Review Safe environment is ready: {0}; {1}; required CLI capabilities OK": "Codex Review Safe environment is ready: {0}; {1}; required CLI capabilities OK",
   "Review receipt is invalid and was not stored.": "Review receipt is invalid and was not stored.",
   "Verdict: {0}": "Verdict: {0}",
-  "Finding verdict: {0}": "Finding verdict: {0}",
-  "Quality verdict: {0}": "Quality verdict: {0}",
-  "Readiness verdict: {0}": "Readiness verdict: {0}",
   "Mechanical gate: {0}": "Mechanical gate: {0}",
   "Cannot verify from diff:": "Cannot verify from diff:",
   "Requirement/spec compliance cannot be established from the staged diff alone.": "Requirement/spec compliance cannot be established from the staged diff alone.",
@@ -120,13 +117,10 @@
   "Re-review": "Re-review",
   "The reviewed staged snapshot changed. Generate the fix again from a current review.": "The reviewed staged snapshot changed. Generate the fix again from a current review.",
   "Configured SARIF evidence could not be loaded: {0}": "Configured SARIF evidence could not be loaded: {0}",
-  "Review cache hit: reused the validated result for the same immutable ReviewKey.": "Review cache hit: reused the validated result for the same immutable ReviewKey.",
-  "Force re-review detected unstable model findings; unstable findings were suppressed.": "Force re-review detected unstable model findings; unstable findings were suppressed.",
   "No completed review with a resolvable finding is available.": "No completed review with a resolvable finding is available.",
   "Select a verified finding to resolve": "Select a verified finding to resolve",
   "Select a resolution": "Select a resolution",
   "Optional resolution note": "Optional resolution note",
-  "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.": "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.",
   "Finding resolutions cleared.": "Finding resolutions cleared.",
   "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms": "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms"
 }

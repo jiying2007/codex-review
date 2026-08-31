@@ -90,9 +90,6 @@
   "Codex Review Safe environment is ready: {0}; {1}; required CLI capabilities OK": "Codex Review Safe 环境正常：{0}；{1}；必需 CLI 能力正常",
   "Review receipt is invalid and was not stored.": "审查凭据无效，未予保存。",
   "Verdict: {0}": "结论：{0}",
-  "Finding verdict: {0}": "问题结论：{0}",
-  "Quality verdict: {0}": "质量结论：{0}",
-  "Readiness verdict: {0}": "就绪结论：{0}",
   "Mechanical gate: {0}": "机械门禁：{0}",
   "Cannot verify from diff:": "无法仅从 diff 验证：",
   "Requirement/spec compliance cannot be established from the staged diff alone.": "无法仅从 staged diff 确认需求或规范符合性。",
@@ -120,13 +117,10 @@
   "Re-review": "重新审查",
   "The reviewed staged snapshot changed. Generate the fix again from a current review.": "已审查的 staged snapshot 已变化。请基于最新审查重新生成修复。",
   "Configured SARIF evidence could not be loaded: {0}": "无法加载已配置的 SARIF 证据：{0}",
-  "Review cache hit: reused the validated result for the same immutable ReviewKey.": "Review 缓存命中：复用同一不可变 ReviewKey 的已验证结果。",
-  "Force re-review detected unstable model findings; unstable findings were suppressed.": "强制重新 Review 检测到不稳定模型 Finding；不稳定 Finding 已被抑制。",
   "No completed review with a resolvable finding is available.": "没有可处理 Finding 的已完成 Review。",
   "Select a verified finding to resolve": "选择一个已验证 Finding 进行处理",
   "Select a resolution": "选择处理结果",
   "Optional resolution note": "可选的处理备注",
-  "Finding resolution saved. Reusing the cached ReviewKey with the updated ledger.": "Finding Resolution 已保存；将使用更新后的 Ledger 复用缓存 ReviewKey。",
   "Finding resolutions cleared.": "Finding Resolution 已清除。",
   "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms": "Codex Review Safe 环境正常：{0}；{1}；Provider {2}（{3}）；真实结构化探测 {4} ms"
 }

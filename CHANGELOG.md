@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Hard-cut whole-review verdict caching into deterministic Evidence Cache plus explicit Judgment Replay history; legacy `semanticRuns.v1` state is purged rather than migrated.
+- Split `ReviewSubjectKey` from `ReviewRunId`; the same immutable subject can now have multiple genuine fresh review runs.
+- Replace Force Re-review with blind **Independent Review**: deterministic evidence may be reused, but previous findings, suppressed hypotheses, coverage conclusions, and model explanations are never reviewer input.
+- Treat a normal review of an identical subject as explicit result replay; replay does not advance lineage/convergence and does not create a new Review Receipt.
+- Require fresh, blind, coverage-complete provenance for convergence stability and preserve reviewer disagreement instead of suppressing findings to force agreement.
+- Make deterministic Evidence Cache judgment-agnostic and host-independent; evidence identity no longer varies with model/language/policy judgment options, while Judgment Replay can only resolve after the current ReviewSubjectKey is recomputed.
+- Split the human report into defect verdict, evidence readiness, and overall readiness, with explicit inference/evidence/replay provenance.
+- Add regression gates for cache-domain separation, same-subject multi-run lineage, independent-review trust boundaries, fresh coverage stability, layered readiness reporting, and removal of the retired Force Review command.
+
 ## 4.3.4 - 2026-08-30
 
 - Bind the human Review report to the exact Review Receipt v4 timestamp.
@@ -27,8 +38,6 @@
 - Add immutable Evidence Manifests, stable ReviewKeys/Finding IDs, same-subject result caching, evidence-scoped human resolutions, Force Re-review stability suppression, and chunk-scoped evidence.
 - Add HEAD-pinned Scope Contracts, cross-index Review Lineage, changed causal anchors with unchanged supporting locations, convergence metrics, deterministic invariant candidates, and repeated-review hard-positive regression cases.
 - Add a hard-negative gate for ownership-replacing APIs such as `VSAPISTRING_Trim`, plus an index-safe discovery adapter boundary for future Tree-sitter/SCIP/LSP providers.
-
-## Unreleased
 
 ## 4.3.2 - 2026-08-30
 
@@ -91,7 +100,7 @@
 - Route model input through Safe Core Semantic Context Budget while preserving the complete staged diff for fingerprints/line mapping/receipt evidence; enforce a fixed 8 MiB raw staged-diff safety ceiling.
 - Upgrade the public companion API and persisted Review Receipt store to contract/schema v2, including verified first-parent range evidence.
 - Standardize the Marketplace runtime on deterministic `dist/` staging plus `dist/codex-safe.schema.json`, with CI rejecting source/tests/scripts/submodule metadata in VSIX artifacts.
-- Unify CI/release gates, retain real Workspace Trust and zh-CN Extension Host coverage, and add SHA-256 plus full-SHA-pinned GitHub build-provenance attestations.
+- Unify CI/release gates, retain real Workspace Trust and zh-CN Extension Host coverage, SHA-256 plus full-SHA-pinned GitHub build-provenance attestations.
 - Rewrite English/Chinese user, security, and publishing documentation around the v2 product-family contract.
 
 ## 1.0.2

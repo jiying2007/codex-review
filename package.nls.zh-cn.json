@@ -27,7 +27,7 @@
   "config.profile.security": "安全优先",
   "config.profile.embedded": "嵌入式/并发/资源优先",
   "config.sarifFiles": "仓库内由用户或 CI 预先生成的 SARIF 文件；扩展不会执行 analyzer 命令。",
-  "command.forceReview.title": "强制重新审查 Staged Changes",
+  "command.independentReview.title": "独立复审 Staged Changes",
   "command.resolveFinding.title": "处理 Review Finding",
   "command.clearResolutions.title": "清除 Finding Resolution"
 }

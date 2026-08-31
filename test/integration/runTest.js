@@ -92,10 +92,17 @@ async function main() {
   process.env.CODEX_REVIEW_IT_REPO2 = repo2;
   process.env.CODEX_REVIEW_IT_FAKE = fake;
 
+  const launchArgs = [workspace, `--user-data-dir=${userDataDir}`, '--disable-extensions', '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes'];
+  const testLocale = String(process.env.VSCODE_TEST_LOCALE || '').trim().toLowerCase();
+  if (testLocale) {
+    launchArgs.push('--locale', testLocale);
+    if (testLocale === 'zh-cn') process.env.CODEX_REVIEW_IT_ZH_SMOKE = '1';
+  }
+
   const runOptions = {
     extensionDevelopmentPath: path.resolve(__dirname, '..', '..'),
     extensionTestsPath: path.resolve(__dirname, 'suite', 'index'),
-    launchArgs: [workspace, `--user-data-dir=${userDataDir}`, '--disable-extensions', '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes']
+    launchArgs
   };
   if (process.env.VSCODE_TEST_VERSION) runOptions.version = process.env.VSCODE_TEST_VERSION;
 
