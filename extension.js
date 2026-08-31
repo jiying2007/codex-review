@@ -55,6 +55,8 @@ const { applyResolutionLedger } = require('./src/semantic-review');
 const { computeReviewKey, canonicalJson, sha256, SEMANTIC_REVIEW_VERSION, digestAnalyzerEvidence } = require('./src/codex-safe-core/semantic-review');
 const { REVIEW_PROMPT_CONTRACT_VERSION } = require('./src/codex-safe-core/safe-contract');
 
+const REVIEW_EVIDENCE_PROTOCOL_VERSION = 2;
+
 let outputChannel;
 let diagnosticCollection;
 const diagnosticUrisByRepo = new Map();
@@ -350,15 +352,17 @@ function reviewOptionsFingerprint(options) {
     extraInstructions: options.extraInstructions || ''
   }));
 }
-function semanticEvidenceKey(snapshot, diffFingerprint, options, analyzerDigest, scopeFingerprint) {
+function semanticEvidenceKey(snapshot, diffFingerprint, profileConfig, analyzerDigest) {
+  const profile = profileConfig || {};
   return sha256(canonicalJson({
     semanticReviewVersion: SEMANTIC_REVIEW_VERSION,
-    reviewEvidenceProtocolVersion: 1,
-    headOid: snapshot.headOid, indexFingerprint: snapshot.indexFingerprint, diffFingerprint,
-    policyFingerprint: options.policyFingerprint, profile: options.profile, analyzerDigest, scopeFingerprint,
-    promptContractVersion: REVIEW_PROMPT_CONTRACT_VERSION,
-    modelIdentity: `${options.model || 'cli-default'}|${options.fastModel || ''}`,
-    optionsFingerprint: reviewOptionsFingerprint(options)
+    reviewEvidenceProtocolVersion: REVIEW_EVIDENCE_PROTOCOL_VERSION,
+    headOid: snapshot.headOid,
+    indexFingerprint: snapshot.indexFingerprint,
+    diffFingerprint,
+    analyzerDigest,
+    impactDepth: Number(profile.impactDepth || 0),
+    maxImpactFiles: Number(profile.maxImpactFiles || 0)
   }));
 }
 function computeReviewSubjectKey(snapshot, diffFingerprint, options, analyzerDigest, scopeFingerprint, evidenceManifestDigest) {
@@ -417,7 +421,7 @@ async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
         catch (error) { log(t('Configured SARIF evidence could not be loaded: {0}', error?.message || error)); }
         const analyzerFindings = [...configuredSarif, ...(importedSarifByRepo.get(key) || [])];
         const analyzerDigest = digestAnalyzerEvidence(analyzerFindings);
-        const evidenceKey = semanticEvidenceKey(snapshotAfter, diffFingerprint, options, analyzerDigest, scope.fingerprint);
+        const evidenceKey = semanticEvidenceKey(snapshotAfter, diffFingerprint, options.profileConfig, analyzerDigest);
         const sessionKey = buildReviewSessionKey({ headOid: snapshotAfter.headOid, policyFingerprint: options.policyFingerprint, scopeFingerprint: scope.fingerprint, profile: options.profile });
         let rawReview;
         let reviewSubjectKey = '';
@@ -425,58 +429,42 @@ async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
         let evidenceManifestDigest = '';
         let semanticEvidence = null;
         let evidenceCacheHit = false;
-        let evidenceState = 'not-required';
+        let evidenceState = 'fresh';
         let resultReplay = false;
         let originReviewRunId = '';
 
+        const cachedEvidence = reviewCache.getEvidence(repoRoot, evidenceKey);
+        if (cachedEvidence) {
+          semanticEvidence = cachedEvidence.semanticEvidence;
+          evidenceManifestDigest = cachedEvidence.evidenceManifestDigest;
+          evidenceCacheHit = true;
+          evidenceState = 'cache-hit';
+          log('evidence cache hit: deterministic semantic evidence reused');
+        } else {
+          log(`input prepared: files=${stagedPaths.length}, rawDiffBytes=${diffBytes}, modelBudgetBytes=${options.maxDiffBytes}`);
+          semanticEvidence = await collectSemanticEvidence(repoRoot, diff, stagedPaths, snapshotAfter, options.profileConfig, analyzerFindings, token, diffFingerprint);
+          evidenceManifestDigest = semanticEvidence.manifest.manifestDigest;
+          await reviewCache.putEvidence(repoRoot, { evidenceKey, evidenceManifestDigest, semanticEvidence });
+        }
+
+        reviewSubjectKey = computeReviewSubjectKey(snapshotAfter, diffFingerprint, options, analyzerDigest, scope.fingerprint, evidenceManifestDigest);
+
         if (!independent) {
-          const replay = reviewCache.getReplayByEvidenceKey(repoRoot, evidenceKey);
-          if (replay) {
-            rawReview = replay.review;
-            reviewSubjectKey = replay.reviewSubjectKey;
-            reviewRunId = replay.reviewRunId;
-            originReviewRunId = replay.reviewRunId;
-            evidenceManifestDigest = replay.evidenceManifestDigest;
+          const exactReplay = reviewCache.getReplay(repoRoot, reviewSubjectKey);
+          if (exactReplay) {
+            rawReview = exactReplay.review;
+            reviewRunId = exactReplay.reviewRunId;
+            originReviewRunId = exactReplay.reviewRunId;
             resultReplay = true;
-            log('result replay: identical ReviewSubject reused without a model call');
+            log('result replay: validated judgment replayed for the current ReviewSubject');
           }
         }
 
         if (!resultReplay) {
-          const cachedEvidence = reviewCache.getEvidence(repoRoot, evidenceKey);
-          if (cachedEvidence) {
-            semanticEvidence = cachedEvidence.semanticEvidence;
-            reviewSubjectKey = cachedEvidence.reviewSubjectKey;
-            evidenceManifestDigest = cachedEvidence.evidenceManifestDigest;
-            evidenceCacheHit = true;
-            evidenceState = 'cache-hit';
-            log('evidence cache hit: deterministic semantic evidence reused');
-          } else {
-            log(`input prepared: files=${stagedPaths.length}, rawDiffBytes=${diffBytes}, modelBudgetBytes=${options.maxDiffBytes}`);
-            semanticEvidence = await collectSemanticEvidence(repoRoot, diff, stagedPaths, snapshotAfter, options.profileConfig, analyzerFindings, token, diffFingerprint);
-            evidenceManifestDigest = semanticEvidence.manifest.manifestDigest;
-            reviewSubjectKey = computeReviewSubjectKey(snapshotAfter, diffFingerprint, options, analyzerDigest, scope.fingerprint, evidenceManifestDigest);
-            evidenceState = 'fresh';
-            await reviewCache.putEvidence(repoRoot, { evidenceKey, reviewSubjectKey, evidenceManifestDigest, semanticEvidence });
-          }
-
-          if (!independent) {
-            const exactReplay = reviewCache.getReplay(repoRoot, reviewSubjectKey);
-            if (exactReplay) {
-              rawReview = exactReplay.review;
-              reviewRunId = exactReplay.reviewRunId;
-              originReviewRunId = exactReplay.reviewRunId;
-              resultReplay = true;
-              log('result replay: validated judgment replayed after ReviewSubject resolution');
-            }
-          }
-
-          if (!resultReplay) {
-            reviewRunId = crypto.randomUUID();
-            const modelReview = await runCodexReview(diff, stagedPaths, options, token, { semanticEvidence, analyzerFindings, resolutions: [], scope });
-            rawReview = modelReview;
-            log(independent ? 'fresh independent model inference completed' : 'fresh model inference completed');
-          }
+          reviewRunId = crypto.randomUUID();
+          const modelReview = await runCodexReview(diff, stagedPaths, options, token, { semanticEvidence, analyzerFindings, resolutions: [], scope });
+          rawReview = modelReview;
+          log(independent ? 'fresh independent model inference completed' : 'fresh model inference completed');
         }
 
         const executionMeta = {
