@@ -12,11 +12,25 @@ function invariantCandidates(findings = []) {
   }
   return values.slice(0, 20);
 }
+function stabilityReason(stability) {
+  const required = Math.max(2, Number(stability?.requiredFreshRuns || 2));
+  if (Number(stability?.cachedVerdictRuns || 0) > 0) return 'judgment_cache_used';
+  if (Number(stability?.freshInferenceRuns || 0) < required) return 'fresh_runs_missing';
+  if (Number(stability?.blindFreshRuns || 0) < required) return 'blind_context_missing';
+  if (stability?.stable !== true) return 'finding_disagreement';
+  return 'stable';
+}
 function evaluateConvergence(review, lineage = null, scope = null) {
   const transition = lineage?.transition || {};
   const findings = review?.findings || [];
   const coverageComplete = review?.coverageVerdict === 'complete' && !(review?.coverageGaps || []).length;
-  const stabilityOk = review?.stability?.stable !== false;
+  const stability = lineage?.stability || review?.stability || {};
+  const requiredFreshRuns = Math.max(2, Number(stability.requiredFreshRuns || 2));
+  const freshInferenceRuns = Number(stability.freshInferenceRuns || 0);
+  const blindFreshRuns = Number(stability.blindFreshRuns || 0);
+  const cachedVerdictRuns = Number(stability.cachedVerdictRuns || 0);
+  const provenanceComplete = freshInferenceRuns >= requiredFreshRuns && blindFreshRuns >= requiredFreshRuns && cachedVerdictRuns === 0;
+  const stabilityOk = provenanceComplete && stability.stable === true;
   const fixed = (transition.fixedIds || []).length;
   const added = (transition.newIds || []).length;
   const reintroduced = (transition.reintroducedIds || []).length;
@@ -25,7 +39,8 @@ function evaluateConvergence(review, lineage = null, scope = null) {
   const closureRate = previousCount > 0 ? clamp01(fixed / previousCount) : 0;
   const fixInducedRate = added > 0 ? clamp01(likelyFixInduced / added) : 0;
   const reintroducedRate = added > 0 ? clamp01(reintroduced / added) : 0;
-  const runNumber = Number(lineage?.runNumber || 1);
+  const sessionRunNumber = Number(lineage?.sessionRunNumber || 1);
+  const subjectRunNumber = Number(lineage?.subjectRunNumber || 1);
   let state = 'active';
   if (!coverageComplete || !stabilityOk) state = 'incomplete';
   else if (!findings.length) state = 'converged';
@@ -36,8 +51,17 @@ function evaluateConvergence(review, lineage = null, scope = null) {
     state,
     coverageComplete,
     stabilityOk,
-    runNumber,
-    reviewsToConvergence: state === 'converged' ? runNumber : null,
+    provenanceComplete,
+    stabilityReason: stabilityReason(stability),
+    requiredFreshRuns,
+    freshInferenceRuns,
+    blindFreshRuns,
+    independentReviewRuns: Number(stability.independentReviewRuns || 0),
+    cachedVerdictRuns,
+    agreement: clamp01(stability.agreement),
+    sessionRunNumber,
+    subjectRunNumber,
+    reviewsToConvergence: state === 'converged' ? sessionRunNumber : null,
     fixed,
     added,
     unchanged: (transition.unchangedIds || []).length,
@@ -54,9 +78,9 @@ function evaluateConvergence(review, lineage = null, scope = null) {
   });
 }
 function convergenceCoverageGap(convergence) {
-  if (!convergence) return null;
-  if (convergence.state === 'incomplete') return 'convergence_incomplete';
-  return null;
+  if (!convergence || convergence.state !== 'incomplete') return null;
+  if (!convergence.coverageComplete) return 'convergence_coverage_incomplete';
+  return `convergence_stability:${convergence.stabilityReason || 'incomplete'}`;
 }
 
-module.exports = { evaluateConvergence, convergenceCoverageGap, invariantCandidates };
+module.exports = { evaluateConvergence, convergenceCoverageGap, invariantCandidates, stabilityReason };
