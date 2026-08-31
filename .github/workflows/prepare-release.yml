@@ -56,18 +56,13 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare package, lock and changelog
+      - name: Prepare package, lock, product contract and changelog
         env:
           VERSION: ${{ steps.target.outputs.version }}
           BRANCH: ${{ steps.target.outputs.branch }}
         shell: bash
         run: |
           set -euo pipefail
-          current="$(node -p "require('./package.json').version")"
-          if [[ "$current" == "$VERSION" ]]; then
-            echo "release metadata already prepared for ${VERSION}"
-            exit 0
-          fi
 
           node - "$VERSION" <<'NODE'
           const fs = require('fs');
@@ -89,10 +84,23 @@ jobs:
 
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const contract = JSON.parse(fs.readFileSync('product-contract.json', 'utf8'));
           if (!lock.packages?.['']) throw new Error('package-lock.json missing packages[""]');
-          if (compare(version, pkg.version) <= 0) throw new Error(`target version must increase: ${pkg.version} -> ${version}`);
+          if (contract.productVersion !== pkg.version) {
+            throw new Error(`product-contract/package version drift before release: ${contract.productVersion} != ${pkg.version}`);
+          }
+
+          const order = compare(version, pkg.version);
+          if (order < 0) throw new Error(`target version must not decrease: ${pkg.version} -> ${version}`);
 
           const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          if (order === 0) {
+            if (lock.version !== version || lock.packages[''].version !== version) throw new Error('lockfile version drift on prepared release');
+            if (contract.productVersion !== version) throw new Error('product contract version drift on prepared release');
+            if (!changelog.includes(`\n## ${version}\n`)) throw new Error(`CHANGELOG.md missing prepared release heading ${version}`);
+            process.exit(0);
+          }
+
           const marker = '## Unreleased';
           const start = changelog.indexOf(marker);
           if (start < 0) throw new Error('CHANGELOG.md missing ## Unreleased');
@@ -106,14 +114,17 @@ jobs:
           pkg.version = version;
           lock.version = version;
           lock.packages[''].version = version;
+          contract.productVersion = version;
           fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
           fs.writeFileSync('package-lock.json', `${JSON.stringify(lock, null, 2)}\n`);
+          fs.writeFileSync('product-contract.json', `${JSON.stringify(contract, null, 2)}\n`);
           fs.writeFileSync('CHANGELOG.md', `${changelog.slice(0, contentStart)}\n\n## ${version}\n\n${notes}\n${changelog.slice(nextHeading)}`);
           NODE
 
           test "$(node -p "require('./package.json').version")" = "$VERSION"
           test "$(node -p "require('./package-lock.json').version")" = "$VERSION"
           test "$(node -p "require('./package-lock.json').packages[''].version")" = "$VERSION"
+          test "$(node -p "require('./product-contract.json').productVersion")" = "$VERSION"
           git diff --check
           npm run verify:lock
 
@@ -125,7 +136,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- CHANGELOG.md package.json package-lock.json; then
+          if git diff --quiet -- CHANGELOG.md package.json package-lock.json product-contract.json; then
             echo "no release metadata changes to commit"
             exit 0
           fi
@@ -135,8 +146,8 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- CHANGELOG.md package.json package-lock.json
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = 'CHANGELOG.md package-lock.json package.json '
+          git add -- CHANGELOG.md package.json package-lock.json product-contract.json
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = 'CHANGELOG.md package-lock.json package.json product-contract.json '
           git diff --cached --check
           git commit -m "chore(release): prepare v${VERSION}"
           gh auth setup-git
