@@ -41,7 +41,8 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   const reviewRunId = meta.reviewRunId || reviewInputMeta.reviewRunId;
   if (reviewSubjectKey) lines.push(`ReviewSubjectKey: ${shortFingerprint(reviewSubjectKey)}`);
   if (reviewRunId) lines.push(`ReviewRunId: ${String(reviewRunId).slice(0, 18)}${meta.resultReplay || reviewInputMeta.resultReplay ? ' [result-replay]' : ' [fresh-run]'}`);
-  lines.push(`Execution provenance: mode=${meta.executionMode || reviewInputMeta.executionMode || 'standard'}, inference=${meta.inference || reviewInputMeta.inference || 'unknown'}, evidence=${meta.evidenceCacheHit || reviewInputMeta.evidenceCacheHit ? 'cache-hit' : 'fresh'}, judgment=${meta.resultReplay || reviewInputMeta.resultReplay ? 'replay-only' : 'fresh'}, context=${meta.judgmentContext || reviewInputMeta.judgmentContext || 'unknown'}`);
+  const evidenceState = meta.evidenceState || reviewInputMeta.evidenceState || (meta.evidenceCacheHit || reviewInputMeta.evidenceCacheHit ? 'cache-hit' : 'fresh');
+  lines.push(`Execution provenance: mode=${meta.executionMode || reviewInputMeta.executionMode || 'standard'}, inference=${meta.inference || reviewInputMeta.inference || 'unknown'}, evidence=${evidenceState}, judgment=${meta.resultReplay || reviewInputMeta.resultReplay ? 'replay-only' : 'fresh'}, context=${meta.judgmentContext || reviewInputMeta.judgmentContext || 'unknown'}`);
   if (meta.originReviewRunId || reviewInputMeta.originReviewRunId) lines.push(`Replay origin: ${String(meta.originReviewRunId || reviewInputMeta.originReviewRunId).slice(0, 18)}`);
   if (meta.evidenceManifestDigest || reviewInputMeta.evidenceManifestDigest) lines.push(`Evidence Manifest: ${shortFingerprint(meta.evidenceManifestDigest || reviewInputMeta.evidenceManifestDigest)}`);
   if (review.scope) {
@@ -54,14 +55,14 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
     const s = review.lineage.stability;
     if (s) {
       const status = s.stable ? 'stable' : s.compared ? `unstable (${s.unstableFindingIds?.length || 0} disagreement IDs)` : 'pending';
-      lines.push(`Independent-review stability: ${status}; fresh=${s.freshInferenceRuns || 0}/${s.requiredFreshRuns || 2}, blind=${s.blindFreshRuns || 0}, independent=${s.independentReviewRuns || 0}, cached-verdict=${s.cachedVerdictRuns || 0}, agreement=${pct(s.agreement)}`);
+      lines.push(`Independent-review stability: ${status}; fresh=${s.freshInferenceRuns || 0}/${s.requiredFreshRuns || 2}, complete=${s.completeFreshRuns || 0}, blind=${s.blindFreshRuns || 0}, independent=${s.independentReviewRuns || 0}, cached-verdict=${s.cachedVerdictRuns || 0}, agreement=${pct(s.agreement)}`);
     }
   } else if (meta.resultReplay || reviewInputMeta.resultReplay) {
     lines.push('Review lineage: unchanged [result-replay does not create a fresh lineage run]');
   }
   if (review.convergence) {
     const c = review.convergence;
-    lines.push(`Convergence: ${c.state}; reviews-to-convergence=${c.reviewsToConvergence ?? 'pending'}, stability=${c.stabilityReason || 'unknown'}, fresh=${c.freshInferenceRuns || 0}/${c.requiredFreshRuns || 2}, blind=${c.blindFreshRuns || 0}, agreement=${pct(c.agreement)}, closure=${pct(c.closureRate)}, new=${c.added || 0}, reintroduced=${c.reintroduced || 0}, likely-fix-induced=${c.likelyFixInduced || 0}, deterministic-preventable=${c.deterministicPreventableCount || 0}, fix-induced-rate=${pct(c.fixInducedRate)}, reintroduced-rate=${pct(c.reintroducedRate)}`);
+    lines.push(`Convergence: ${c.state}; reviews-to-convergence=${c.reviewsToConvergence ?? 'pending'}, stability=${c.stabilityReason || 'unknown'}, fresh=${c.freshInferenceRuns || 0}/${c.requiredFreshRuns || 2}, complete=${c.completeFreshRuns || 0}, blind=${c.blindFreshRuns || 0}, agreement=${pct(c.agreement)}, closure=${pct(c.closureRate)}, new=${c.added || 0}, reintroduced=${c.reintroduced || 0}, likely-fix-induced=${c.likelyFixInduced || 0}, deterministic-preventable=${c.deterministicPreventableCount || 0}, fix-induced-rate=${pct(c.fixInducedRate)}, reintroduced-rate=${pct(c.reintroducedRate)}`);
     if (c.invariantCandidates?.length) {
       lines.push('Suggested deterministic invariants:');
       for (const item of c.invariantCandidates.slice(0, 10)) lines.push(`- ${item}`);
