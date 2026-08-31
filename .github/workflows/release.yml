@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  attestations: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -85,7 +86,24 @@ jobs:
     needs: validate
     if: needs.validate.outputs.publish == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env: { VSCODE_TEST_VERSION: '1.90.0' }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+        with: { node-version: '22.22.2', cache: npm }
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
+      - run: xvfb-run -a npm run test:integration
+
+  integration-zh-cn:
+    name: Release Extension Host / zh-CN
+    needs: validate
+    if: needs.validate.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env: { VSCODE_TEST_LOCALE: 'zh-cn' }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
@@ -100,6 +118,7 @@ jobs:
     needs: validate
     if: needs.validate.outputs.publish == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
@@ -111,7 +130,7 @@ jobs:
 
   release:
     name: Package / attest / publish
-    needs: [validate, integration, integration-minimum, integration-trust]
+    needs: [validate, integration, integration-minimum, integration-zh-cn, integration-trust]
     if: needs.validate.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -179,3 +198,12 @@ jobs:
             exit 1
           fi
           gh release create "$RELEASE_TAG" "$vsix" SBOM.spdx.json SHA256SUMS --title "Codex Review Safe ${version}" --generate-notes --verify-tag
+
+  marketplace:
+    name: Publish VS Code Marketplace
+    needs: [validate, release]
+    if: needs.validate.outputs.publish == 'true'
+    uses: ./.github/workflows/marketplace.yml
+    with:
+      tag: ${{ needs.validate.outputs.tag }}
+    secrets: inherit
