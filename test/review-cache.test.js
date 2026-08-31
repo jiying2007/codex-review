@@ -36,14 +36,14 @@ const semanticEvidence = {
   assert.equal(cache.getEvidence(repo, evidenceKey), null);
   assert.equal(cache.getReplay(repo, reviewSubjectKey), null);
 
-  await cache.putEvidence(repo, { evidenceKey, reviewSubjectKey, evidenceManifestDigest: manifestDigest, semanticEvidence });
+  await cache.putEvidence(repo, { evidenceKey, evidenceManifestDigest: manifestDigest, semanticEvidence });
   const evidence = cache.getEvidence(repo, evidenceKey);
   assert.ok(evidence, 'deterministic evidence must be cacheable');
-  assert.equal(evidence.reviewSubjectKey, reviewSubjectKey);
   assert.equal(evidence.semanticEvidence.manifest.manifestDigest, manifestDigest);
   assert.ok(evidence.semanticEvidence.callSymbolsByPath instanceof Map, 'Map-backed symbol evidence must rehydrate');
   assert.deepEqual(evidence.semanticEvidence.callSymbolsByPath.get('a.c'), ['Foo']);
   assert.equal(Object.prototype.hasOwnProperty.call(evidence, 'review'), false, 'evidence cache must never expose a model judgment');
+  assert.equal(Object.prototype.hasOwnProperty.call(evidence, 'reviewSubjectKey'), false, 'evidence cache must not retain judgment-domain subject identity');
 
   const review = { findings: [], suppressedFindings: [{ file: 'a.c', line: 1 }], coverageVerdict: 'complete', findingSetDigest: 'e'.repeat(64) };
   await cache.putReplay(repo, { evidenceKey, reviewSubjectKey, reviewRunId, evidenceManifestDigest: manifestDigest, findingSetDigest: review.findingSetDigest, review });
@@ -51,7 +51,7 @@ const semanticEvidence = {
   assert.ok(replay, 'validated judgment may be stored only as explicit replay history');
   assert.equal(replay.reviewRunId, reviewRunId);
   assert.deepEqual(replay.review.suppressedFindings, review.suppressedFindings);
-  assert.equal(cache.getEvidence(repo, evidenceKey).reviewSubjectKey, reviewSubjectKey, 'judgment replay must not replace evidence artifacts');
+  assert.equal(Object.prototype.hasOwnProperty.call(cache.getEvidence(repo, evidenceKey), 'reviewSubjectKey'), false, 'judgment replay must not contaminate evidence artifacts');
 
   const persisted = state.snapshot()[REVIEW_CACHE_STORAGE_KEY];
   assert.equal(persisted.version, 2);
@@ -66,6 +66,7 @@ const semanticEvidence = {
   const restoredEvidence = restored.getEvidence(repo, evidenceKey);
   assert.ok(restoredEvidence.semanticEvidence.callSymbolsByPath instanceof Map);
   assert.deepEqual(restoredEvidence.semanticEvidence.callSymbolsByPath.get('a.c'), ['Foo']);
+  assert.equal(Object.prototype.hasOwnProperty.call(restoredEvidence, 'reviewSubjectKey'), false);
   assert.equal(restored.getReplay(repo, reviewSubjectKey).reviewRunId, reviewRunId);
 
   console.log('Review evidence cache and judgment replay separation tests passed.');
