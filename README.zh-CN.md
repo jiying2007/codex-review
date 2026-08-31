@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-在 VS Code 中使用本地 Codex CLI，对 **Git staged changes** 做结构化代码审查；确定性规则、精确 changed-line 校验与 coverage gate 都在本地 fail closed 执行。
+在 VS Code 中使用本地 Codex CLI，对 **Git staged changes** 做结构化代码审查；确定性规则、精确 changed-line 校验、fail-closed coverage，以及具备真实执行 provenance 的独立复审都在本地完成。
 
 ## 快速开始
 
@@ -22,28 +22,56 @@ Remote SSH、Dev Containers、Codespaces、WSL 场景下，需要在对应远端
 1. Stage 本次要审查的文件。
 2. 先运行一次 **Codex Review Safe: 检查 Codex 环境**。
 3. 从 Source Control 或 Command Palette 运行 **Codex Review Safe: Review Staged Changes**。
-4. 在 Problems 查看精确行 Finding，在 Review report 查看完整 coverage/rules/evidence。
+4. 在 Problems 查看精确行 Finding，在 Review report 查看完整 coverage/rules/evidence/provenance。
 5. 修复后重新 Stage、重新 Review，最后人工 Commit。
 
 仅 working-tree 修改不会进入本次 Review Snapshot，这是刻意的产品边界。
 
 完整安装、配置和故障排查见 [Getting Started](docs/GETTING_STARTED.zh-CN.md)。
 
+## Fresh 与 Independent Review
+
+Codex Review Safe 明确区分不可变审查对象与每一次真正执行的模型审查：
+
+- `ReviewSubjectKey` 回答“**正在审什么**”；
+- `ReviewRunId` 标识“**这一次真实发生的 fresh 模型执行**”；
+- 确定性 Semantic Evidence 可以通过 Evidence Cache 复用；
+- 上一轮模型 judgment 永远不会作为 fresh reviewer 的输入；
+- 相同 subject 的旧结果如果只是 replay，会明确标记 `[result-replay]`，且不会产生新的 lineage run、convergence run 或 Review Receipt；
+- **Independent Review Staged Changes / 独立复审 Staged Changes** 会强制执行新的 blind 模型推理，同时仍允许复用确定性 Evidence。
+
+默认 convergence 至少需要同一 subject 的两次 fresh、blind Run。如果两个独立 reviewer 不一致，系统会保留 disagreement 并维持 `incomplete`，不会为了制造“稳定”而压掉新 Finding。
+
+完整 ReviewSubject/ReviewRun、缓存、lineage 与 provenance 契约见 [Review 收敛机制](docs/REVIEW_CONVERGENCE.zh-CN.md)。
+
 ## 核心保证
 
 - 只审查 staged snapshot，并绑定 HEAD + Git 原始 index fingerprint；
 - `.codex-safe.json` 固定读取 committed HEAD，使用 Policy Schema v3；
 - Review Evidence Chunking 不静默丢 changed hunk，无法覆盖时形成明确 coverage gap；
+- Deterministic Evidence Cache 与 Model Judgment Replay 分离；
+- Independent Review 强制 fresh blind inference，不读取上一轮 accepted findings / suppressed hypotheses 作为 reviewer 输入；
+- convergence 依赖真实 fresh provenance，而不是“缓存输出完全一致”；
 - 模型 Finding 必须精确命中 post-change changed line；
 - Repository Rules 在模型之外确定性执行；
 - 低置信度 Finding 在进入 Problems/verdict 前过滤；
 - coverage 不完整或 Finding 无法验证时 fail closed；
-- Review Receipt v4 记录 immutable evidence/provenance；
+- Review Receipt v4 只为真实 fresh Review 执行记录 immutable evidence/provenance；
 - Restricted Mode 直接拒绝；
 - Safe Contract v2 使用 ephemeral、read-only、no approval，并显式关闭 shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency install；
 - 不自动修改源码、Commit、Push 或创建 PR。
 
 共享安全/runtime 只来自精确 commit-pinned 的 `codex-safe-core` v4 submodule。
+
+## 正确理解 Readiness
+
+报告把三类结论拆开：
+
+- `Defect verdict`：是否存在已经证据验证的代码 Finding；
+- `Evidence readiness`：Semantic Review / Coverage 是否完整；
+- `Overall readiness`：当前证据是否足以宣布交付就绪。
+
+因此 `no_findings` 可以与“仍缺构建/HIL/需求证据”同时成立，不会再让证据不足看起来像发现了代码缺陷。
 
 ## Repository Policy
 
