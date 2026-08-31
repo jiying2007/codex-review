@@ -16,15 +16,19 @@ function formatReviewTime(value, language = 'en') {
   const local = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
   return language === 'zh-CN' ? `审查时间: ${local} ${offset} (UTC: ${date.toISOString()})` : `Review time: ${local} ${offset} (UTC: ${date.toISOString()})`;
 }
+function defectVerdict(review) {
+  if (review.qualityVerdict === 'blocked') return 'blocked';
+  if (review.qualityVerdict === 'findings_open') return 'findings_open';
+  return 'no_findings';
+}
 function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   const visibleFindings = review.findings.filter(finding => severityPasses(finding.severity, options.severityThreshold));
   const hiddenCount = review.findings.length - visibleFindings.length;
   const lines = [];
-  lines.push(t('Finding verdict: {0}', review.verdict));
-  lines.push(t('Quality verdict: {0}', review.qualityVerdict || 'unknown'));
-  lines.push(t('Readiness verdict: {0}', review.readinessVerdict || 'needs_evidence'));
+  lines.push(`Defect verdict: ${defectVerdict(review)}`);
+  lines.push(`Evidence readiness: ${review.coverageVerdict || reviewInputMeta.coverageVerdict || 'incomplete'}`);
+  lines.push(`Overall readiness: ${review.readinessVerdict || 'needs_evidence'}`);
   lines.push(t('Mechanical gate: {0}', review.mechanicalGate || 'not_run'));
-  lines.push(`Coverage verdict: ${review.coverageVerdict || reviewInputMeta.coverageVerdict || 'incomplete'}`);
   lines.push(t('Summary: {0}', review.summary || t('None')));
   lines.push(t('Review policy: {0}', options.policySource));
   lines.push(t('Review input: HEAD {0}, index {1}, diff {2}, {3} staged files, {4} bytes', shortFingerprint(reviewInputMeta.headOid), shortFingerprint(reviewInputMeta.indexFingerprint), shortFingerprint(reviewInputMeta.diffFingerprint), reviewInputMeta.stagedFileCount ?? 0, reviewInputMeta.diffBytes ?? 0));
@@ -33,7 +37,12 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   if (reviewTime) lines.push(reviewTime);
 
   const meta = review.executionMeta || {};
-  if (meta.reviewKey || reviewInputMeta.reviewKey) lines.push(`ReviewKey: ${shortFingerprint(meta.reviewKey || reviewInputMeta.reviewKey)}${meta.cacheHit || reviewInputMeta.cacheHit ? ' [cache-hit]' : ' [model-run]'}`);
+  const reviewSubjectKey = meta.reviewSubjectKey || reviewInputMeta.reviewSubjectKey;
+  const reviewRunId = meta.reviewRunId || reviewInputMeta.reviewRunId;
+  if (reviewSubjectKey) lines.push(`ReviewSubjectKey: ${shortFingerprint(reviewSubjectKey)}`);
+  if (reviewRunId) lines.push(`ReviewRunId: ${String(reviewRunId).slice(0, 18)}${meta.resultReplay || reviewInputMeta.resultReplay ? ' [result-replay]' : ' [fresh-run]'}`);
+  lines.push(`Execution provenance: mode=${meta.executionMode || reviewInputMeta.executionMode || 'standard'}, inference=${meta.inference || reviewInputMeta.inference || 'unknown'}, evidence=${meta.evidenceCacheHit || reviewInputMeta.evidenceCacheHit ? 'cache-hit' : 'fresh'}, judgment=${meta.resultReplay || reviewInputMeta.resultReplay ? 'replay-only' : 'fresh'}, context=${meta.judgmentContext || reviewInputMeta.judgmentContext || 'unknown'}`);
+  if (meta.originReviewRunId || reviewInputMeta.originReviewRunId) lines.push(`Replay origin: ${String(meta.originReviewRunId || reviewInputMeta.originReviewRunId).slice(0, 18)}`);
   if (meta.evidenceManifestDigest || reviewInputMeta.evidenceManifestDigest) lines.push(`Evidence Manifest: ${shortFingerprint(meta.evidenceManifestDigest || reviewInputMeta.evidenceManifestDigest)}`);
   if (review.scope) {
     lines.push(`Scope: phase=${review.scope.phase || 'unspecified'}, complexity=${review.scope.complexityBudget || 'balanced'}, source=${review.scope.source || 'default'}`);
@@ -41,11 +50,18 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   }
   if (review.lineage) {
     const tr = review.lineage.transition || {};
-    lines.push(`Review lineage: session=${shortFingerprint(review.lineage.sessionKey)}, run=${review.lineage.runNumber}, new=${tr.newIds?.length || 0}, fixed=${tr.fixedIds?.length || 0}, unchanged=${tr.unchangedIds?.length || 0}, changed=${tr.changedIds?.length || 0}, reintroduced=${tr.reintroducedIds?.length || 0}, likely-fix-induced=${tr.likelyFixInducedIds?.length || 0}`);
+    lines.push(`Review lineage: session=${shortFingerprint(review.lineage.sessionKey)}, session-run=${review.lineage.sessionRunNumber}, subject-run=${review.lineage.subjectRunNumber}, transition=${review.lineage.transitionKind || 'unknown'}, new=${tr.newIds?.length || 0}, fixed=${tr.fixedIds?.length || 0}, unchanged=${tr.unchangedIds?.length || 0}, changed=${tr.changedIds?.length || 0}, reintroduced=${tr.reintroducedIds?.length || 0}, likely-fix-induced=${tr.likelyFixInducedIds?.length || 0}`);
+    const s = review.lineage.stability;
+    if (s) {
+      const status = s.stable ? 'stable' : s.compared ? `unstable (${s.unstableFindingIds?.length || 0} disagreement IDs)` : 'pending';
+      lines.push(`Independent-review stability: ${status}; fresh=${s.freshInferenceRuns || 0}/${s.requiredFreshRuns || 2}, blind=${s.blindFreshRuns || 0}, independent=${s.independentReviewRuns || 0}, cached-verdict=${s.cachedVerdictRuns || 0}, agreement=${pct(s.agreement)}`);
+    }
+  } else if (meta.resultReplay || reviewInputMeta.resultReplay) {
+    lines.push('Review lineage: unchanged [result-replay does not create a fresh lineage run]');
   }
   if (review.convergence) {
     const c = review.convergence;
-    lines.push(`Convergence: ${c.state}; reviews-to-convergence=${c.reviewsToConvergence ?? 'pending'}, closure=${pct(c.closureRate)}, new=${c.added || 0}, reintroduced=${c.reintroduced || 0}, likely-fix-induced=${c.likelyFixInduced || 0}, deterministic-preventable=${c.deterministicPreventableCount || 0}, fix-induced-rate=${pct(c.fixInducedRate)}, reintroduced-rate=${pct(c.reintroducedRate)}`);
+    lines.push(`Convergence: ${c.state}; reviews-to-convergence=${c.reviewsToConvergence ?? 'pending'}, stability=${c.stabilityReason || 'unknown'}, fresh=${c.freshInferenceRuns || 0}/${c.requiredFreshRuns || 2}, blind=${c.blindFreshRuns || 0}, agreement=${pct(c.agreement)}, closure=${pct(c.closureRate)}, new=${c.added || 0}, reintroduced=${c.reintroduced || 0}, likely-fix-induced=${c.likelyFixInduced || 0}, deterministic-preventable=${c.deterministicPreventableCount || 0}, fix-induced-rate=${pct(c.fixInducedRate)}, reintroduced-rate=${pct(c.reintroducedRate)}`);
     if (c.invariantCandidates?.length) {
       lines.push('Suggested deterministic invariants:');
       for (const item of c.invariantCandidates.slice(0, 10)) lines.push(`- ${item}`);
@@ -55,7 +71,6 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
     const counts=review.semanticVerification.statusCounts||{};
     lines.push(`Semantic verification: hypotheses=${review.semanticVerification.hypotheses||0}, verified=${counts.verified||0}, insufficient=${counts.insufficient_evidence||0}, contradicted=${counts.contradicted||0}, resolution-suppressed=${counts.suppressed_by_resolution||0}, verifier=${review.semanticVerification.verifierCalled?'model':'not-needed'}`);
   }
-  if (review.stability?.compared) lines.push(`Repeated-review stability: ${review.stability.stable?'stable':`unstable (${review.stability.unstableFindingIds?.length||0} suppressed)`}`);
   if (reviewInputMeta.unstagedOverlayPaths?.length) lines.push(t('Working tree notice: {0} staged files also have unstaged changes; those latest edits were not reviewed: {1}', reviewInputMeta.unstagedOverlayPaths.length, reviewInputMeta.unstagedOverlayPaths.slice(0, 10).join(', ')));
   if (review.policyNotice) lines.push(t('Policy notice: {0}', review.policyNotice));
   if (review.coverageGaps?.length) { lines.push('Coverage gaps:'); for (const gap of review.coverageGaps.slice(0, 20)) lines.push(`- ${gap}`); }
@@ -123,4 +138,4 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
   return lines.join('\n');
 }
 
-module.exports = { buildReviewReport, formatReviewTime };
+module.exports = { buildReviewReport, formatReviewTime, defectVerdict };
