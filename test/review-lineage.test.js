@@ -43,8 +43,8 @@ assert.equal(session1, session2);
 assert.equal(REQUIRED_FRESH_RUNS, 2);
 
 const matchingRuns = [
-  { findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } },
-  { findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'independent', judgmentContext:'blind', judgmentCacheUsed:false } }
+  { coverageVerdict:'complete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } },
+  { coverageVerdict:'complete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'independent', judgmentContext:'blind', judgmentCacheUsed:false } }
 ];
 const pending = computeSubjectStability(matchingRuns.slice(0, 1));
 assert.equal(pending.compared, false);
@@ -54,14 +54,23 @@ const stable = computeSubjectStability(matchingRuns);
 assert.equal(stable.compared, true);
 assert.equal(stable.stable, true);
 assert.equal(stable.freshInferenceRuns, 2);
+assert.equal(stable.completeFreshRuns, 2);
+assert.equal(stable.latestRequiredRunsCoverageComplete, true);
 assert.equal(stable.blindFreshRuns, 2);
 assert.equal(stable.independentReviewRuns, 1);
 assert.equal(stable.cachedVerdictRuns, 0);
 assert.equal(stable.agreement, 1);
 
+const incompleteHistory = computeSubjectStability([
+  { coverageVerdict:'incomplete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } },
+  { coverageVerdict:'complete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'independent', judgmentContext:'blind', judgmentCacheUsed:false } }
+]);
+assert.equal(incompleteHistory.stable, false, 'equal zero-finding output must not hide unstable coverage history');
+assert.equal(incompleteHistory.latestRequiredRunsCoverageComplete, false);
+
 const disagreement = computeSubjectStability([
-  { findingSetDigest:'x', findings:previous, executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } },
-  { findingSetDigest:'y', findings:current, executionProvenance:{ inference:'fresh', mode:'independent', judgmentContext:'blind', judgmentCacheUsed:false } }
+  { coverageVerdict:'complete', findingSetDigest:'x', findings:previous, executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } },
+  { coverageVerdict:'complete', findingSetDigest:'y', findings:current, executionProvenance:{ inference:'fresh', mode:'independent', judgmentContext:'blind', judgmentCacheUsed:false } }
 ]);
 assert.equal(disagreement.stable, false);
 assert.ok(disagreement.unstableFindingIds.includes('A'));
@@ -99,6 +108,7 @@ assert.ok(disagreement.unstableFindingIds.includes('C'));
   assert.equal(run2.transitionKind, 'repeat_subject');
   assert.equal(run2.stability.stable, true);
   assert.equal(run2.stability.freshInferenceRuns, 2);
+  assert.equal(run2.stability.completeFreshRuns, 2);
   assert.equal(run2.stability.independentReviewRuns, 1);
 
   const converged = evaluateConvergence(
@@ -109,6 +119,14 @@ assert.ok(disagreement.unstableFindingIds.includes('C'));
   assert.equal(converged.state, 'converged');
   assert.equal(converged.reviewsToConvergence, 2);
   assert.equal(converged.provenanceComplete, true);
+
+  const incompleteCoverageConvergence = evaluateConvergence(
+    { findings:[], coverageVerdict:'complete', coverageGaps:[] },
+    { ...run2, stability: incompleteHistory },
+    { phase:'production-aging-v1', complexityBudget:'minimal' }
+  );
+  assert.equal(incompleteCoverageConvergence.state, 'incomplete');
+  assert.equal(incompleteCoverageConvergence.stabilityReason, 'fresh_coverage_incomplete');
 
   const duplicate = await store.record('/tmp/review-lineage-test', {
     sessionKey:session, phase:'production-aging-v1', reviewRunId:'00000000-0000-4000-8000-000000000002', reviewSubjectKey:subject, evidenceKey,
