@@ -76,6 +76,10 @@ function log(message) {
   outputChannel?.appendLine(`[${new Date().toISOString()}] ${message}`);
 }
 
+function uiText(english, chinese) {
+  return String(vscode.env?.language || '').toLowerCase().startsWith('zh') ? chinese : english;
+}
+
 function assertTrustedWorkspace() {
   if (!vscode.workspace.isTrusted) {
     throw new Error(t('The current workspace is in Restricted Mode. Trust the workspace before using Codex Review Safe.'));
@@ -349,6 +353,7 @@ function reviewOptionsFingerprint(options) {
 function semanticEvidenceKey(snapshot, diffFingerprint, options, analyzerDigest, scopeFingerprint) {
   return sha256(canonicalJson({
     semanticReviewVersion: SEMANTIC_REVIEW_VERSION,
+    reviewEvidenceProtocolVersion: 1,
     headOid: snapshot.headOid, indexFingerprint: snapshot.indexFingerprint, diffFingerprint,
     policyFingerprint: options.policyFingerprint, profile: options.profile, analyzerDigest, scopeFingerprint,
     promptContractVersion: REVIEW_PROMPT_CONTRACT_VERSION,
@@ -357,11 +362,12 @@ function semanticEvidenceKey(snapshot, diffFingerprint, options, analyzerDigest,
   }));
 }
 function computeReviewSubjectKey(snapshot, diffFingerprint, options, analyzerDigest, scopeFingerprint, evidenceManifestDigest) {
-  return computeReviewKey({
+  const coreReviewKey = computeReviewKey({
     subject: snapshot, diffFingerprint, policyFingerprint: options.policyFingerprint, profile: options.profile,
     evidenceManifestDigest, analyzerDigest, promptContractVersion: REVIEW_PROMPT_CONTRACT_VERSION,
-    modelIdentity: `${options.model || 'cli-default'}|${options.fastModel || ''}`, optionsFingerprint: reviewOptionsFingerprint(options), scopeFingerprint
+    modelIdentity: `${options.model || 'cli-default'}|${options.fastModel || ''}`, optionsFingerprint: reviewOptionsFingerprint(options)
   });
+  return sha256(canonicalJson({ reviewSubjectProtocolVersion: 1, coreReviewKey, scopeFingerprint }));
 }
 
 async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
@@ -591,15 +597,23 @@ async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
     renderOutput(repoRoot, result.review, result.options, publishMeta, reviewInputMeta);
 
     if (result.resultReplay) {
-      const independentAction = t('Independent Review');
+      const independentAction = uiText('Independent Review', '独立复审');
       const viewReportAction = t('View Report');
-      void vscode.window.showInformationMessage(t('Codex Review Safe: identical ReviewSubject replayed; no new model inference was executed.'), independentAction, viewReportAction).then(action => {
+      const message = uiText(
+        'Codex Review Safe: identical ReviewSubject replayed; no new model inference was executed.',
+        'Codex Review Safe：当前 ReviewSubject 与上一轮完全相同，本次仅重放已有结果，没有执行新的模型审查。'
+      );
+      void vscode.window.showInformationMessage(message, independentAction, viewReportAction).then(action => {
         if (action === independentAction) void vscode.commands.executeCommand('safeCodexReview.independentReviewStaged');
         if (action === viewReportAction) outputChannel.show(true);
       }, error => log(`replay notification failed: ${error?.message || error}`));
     } else if (result.review.lineage?.stability?.compared && result.review.lineage.stability.stable !== true) {
       const viewReportAction = t('View Report');
-      void vscode.window.showWarningMessage(t('Codex Review Safe: fresh independent judgments disagree; convergence remains incomplete and no finding was suppressed only to force agreement.'), viewReportAction).then(action => {
+      const message = uiText(
+        'Codex Review Safe: fresh independent judgments disagree or fresh coverage is not consistently complete; convergence remains incomplete and no finding was suppressed only to force agreement.',
+        'Codex Review Safe：fresh 独立审查之间存在结论分歧，或 fresh coverage 尚未连续完整；convergence 保持 incomplete，系统不会为了强行一致而压掉 Finding。'
+      );
+      void vscode.window.showWarningMessage(message, viewReportAction).then(action => {
         if (action === viewReportAction) outputChannel.show(true);
       }, error => log(`stability notification failed: ${error?.message || error}`));
     } else {
@@ -674,7 +688,10 @@ async function resolveFinding(commandArgs = []) {
   const note = await vscode.window.showInputBox({ prompt:t('Optional resolution note'), ignoreFocusOut:true, validateInput:value => value.length > 1000 ? 'Resolution note must not exceed 1000 characters.' : undefined });
   if (note === undefined) return;
   await findingLedger.resolve(repoRoot, { stableFindingId:selected.finding.stableFindingId, evidenceDigest:selected.finding.evidenceDigest, resolution:picked.value, actor:'local-user', note });
-  vscode.window.showInformationMessage(t('Finding resolution saved. Replaying the current ReviewSubject with the updated ledger.'));
+  vscode.window.showInformationMessage(uiText(
+    'Finding resolution saved. The current ReviewSubject will be replayed with the updated human resolution ledger.',
+    'Finding Resolution 已保存；当前 ReviewSubject 会复用原始审查结果，并重新应用更新后的人工 Resolution Ledger。'
+  ));
   await reviewStaged(commandArgs, { mode:'standard' });
 }
 async function clearFindingResolutions(commandArgs = []) {
@@ -760,7 +777,7 @@ function activate(context) {
     })
   );
   return {
-    contractVersion: 3,
+    contractVersion: 2,
     getLatestReviewReceipt: repoRoot => reviewReceiptStore.getLatest(repoRoot),
     getReviewReceipts: repoRoot => reviewReceiptStore.getReceipts(repoRoot),
     getReviewReceiptStatus: (repoRoot, snapshot) => reviewReceiptStore.getStatus(repoRoot, snapshot),
