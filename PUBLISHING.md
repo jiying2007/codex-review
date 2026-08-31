@@ -4,18 +4,6 @@ Codex Review Safe releases are immutable GitHub Actions builds from a committed 
 
 ## Release source requirements
 
-Before release:
-
-```bash
-git submodule update --init --recursive
-npm run verify:lock
-npm ci --ignore-scripts --no-audit --no-fund
-npm run check
-npm run test:integration
-npm run test:trust
-npm run package
-```
-
 A release is valid only when:
 
 - package and lockfile metadata agree;
@@ -24,7 +12,7 @@ A release is valid only when:
 - Safe Core v4 / Safe Contract v2 / Policy Schema v3 / Review Receipt v4 / Prompt Contract v1 checks pass;
 - security/module-boundary, unit, exact-line, evidence coverage and deterministic-rule tests pass;
 - latest VS Code Extension Host tests pass on Linux, Windows and macOS;
-- minimum VS Code `1.90.0` and Workspace Trust tests pass;
+- minimum VS Code `1.90.0`, real Simplified-Chinese locale, and Workspace Trust tests pass;
 - official VSIX package-boundary verification passes;
 - SHA256, SPDX SBOM and GitHub build provenance are generated.
 
@@ -32,24 +20,26 @@ A release is valid only when:
 
 Use strict semantic versioning: `vMAJOR.MINOR.PATCH`. The tag must equal `v<package.json.version>` and remain immutable. Family v4 is the current hard-cut protocol line; do not restore legacy policy/receipt semantics, nearest-line relocation, copied Core runtime, or compatibility shims.
 
-## Standard release flow
+## Workflow-closed release flow
 
-```bash
-git checkout main
-git pull --ff-only
-git submodule update --init --recursive
-npm run release:prepare -- X.Y.Z
-git diff --check
-git diff
-npm run release:check
-npm run release:push
-```
+The repository release path is intentionally server-side and auditable:
 
-A committed version change on `main` owns publication. Validation jobs remain read-only; only the final release job receives `contents: write`, `id-token: write`, and `attestations: write`. Third-party Actions remain immutable full-SHA pinned.
+1. create `release/vX.Y.Z` from current `main`, or run **Prepare Release** with `X.Y.Z`;
+2. `.github/workflows/prepare-release.yml` deterministically updates only `package.json`, `package-lock.json`, and `CHANGELOG.md`, then commits the release metadata to that release branch;
+3. open the release branch as a PR to `main` and require the normal CI, dependency, family-governance and family-release gates;
+4. merge the release PR only after all gates pass;
+5. the `main` push runs `.github/workflows/release.yml`, which re-runs release Extension Host gates, packages the VSIX, generates SBOM/checksums, creates provenance attestations, creates the immutable tag and GitHub Release, and then calls the Marketplace workflow directly;
+6. `.github/workflows/marketplace.yml` downloads the exact immutable GitHub Release VSIX, verifies checksum, attestation and package boundary, then publishes that exact binary to VS Code Marketplace;
+7. `.github/workflows/release-integrity.yml` verifies the completed release and every published asset after the complete Release workflow succeeds;
+8. `.github/workflows/cleanup-merged-branches.yml` removes same-repository merged PR branches only when the branch still points to the exact merged head SHA; branches that advanced after merge are preserved.
+
+The manual `workflow_dispatch` entry on Marketplace is a recovery path for re-publishing the same validated immutable Release VSIX with `--skip-duplicate`; it is not the normal release path.
+
+Local `release:*` scripts remain useful for diagnostics and emergency operator workflows, but routine publication must use the repository workflows above.
 
 ## Package boundary
 
-The runtime package is under `dist/`; source/test/scripts/git metadata must not enter the VSIX. CI inspects the actual packaged VSIX before publication.
+The runtime package is under `dist/`; source/test/scripts/git metadata must not enter the VSIX. CI and Release both inspect the actual packaged VSIX before publication.
 
 ## Artifact integrity
 
@@ -78,8 +68,9 @@ Stable `@vscode/vsce` 3.9.x still uses `VSCE_PAT`. Do not adopt prerelease/next 
 
 ## Failure policy
 
-- transient runner/network failure: rerun failed jobs;
-- source/test/package defect: fix on `main` and publish a new version;
+- transient runner/network failure: rerun the failed job or workflow attempt;
+- source/test/package defect: fix through a new PR and publish a new version;
+- Marketplace failure after an immutable GitHub Release exists: fix only the distribution credential/runtime issue, then use the Marketplace recovery dispatch for the same tag; never rebuild the VSIX;
 - never delete, recreate, overwrite or force-move an existing release tag/asset to hide a defective release.
 
 ## Stable identity
