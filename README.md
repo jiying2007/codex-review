@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A VS Code extension that reviews **staged Git changes only** with your local Codex CLI, deterministic repository rules, exact changed-line validation, and fail-closed evidence coverage.
+A VS Code extension that reviews **staged Git changes only** with your local Codex CLI, deterministic repository rules, exact changed-line validation, fail-closed evidence coverage, and provenance-backed independent re-review.
 
 ## Start here
 
@@ -22,28 +22,56 @@ For Remote SSH, Dev Containers, Codespaces or WSL, install/authenticate Codex in
 1. Stage the files you want reviewed.
 2. Run **Codex Review Safe: Check Codex Environment** once.
 3. Run **Codex Review Safe: Review Staged Changes** from Source Control or the Command Palette.
-4. Read exact-line findings in Problems and the complete Review report.
+4. Read exact-line findings and the complete Review report.
 5. Fix issues, stage again, re-run Review, then commit manually.
 
 Working-tree-only edits are intentionally excluded from the reviewed snapshot.
 
 See [Getting Started](docs/GETTING_STARTED.md) for installation, configuration and troubleshooting.
 
+## Fresh and independent review
+
+Codex Review Safe distinguishes the immutable subject from each real model execution:
+
+- `ReviewSubjectKey` answers **what is being reviewed**;
+- `ReviewRunId` identifies **one actual fresh model run**;
+- deterministic semantic evidence may be reused through the Evidence Cache;
+- a prior model judgment is never fed into a fresh reviewer;
+- a replay of an identical subject is explicitly marked `[result-replay]` and does not create a new lineage run, convergence run, or Review Receipt;
+- **Independent Review Staged Changes** forces fresh, blind model inference while still allowing deterministic evidence reuse.
+
+For convergence, the default protocol requires at least two fresh blind runs for the same subject. If independent reviewers disagree, the disagreement remains visible and convergence stays incomplete; findings are not suppressed merely to manufacture stability.
+
+See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/ReviewRun, cache, lineage, and provenance contract.
+
 ## What it guarantees
 
 - staged snapshot only, bound to HEAD + raw Git index fingerprint;
 - Policy Schema v3 from committed HEAD `.codex-safe.json`;
 - coverage-preserving Review Evidence Chunking with explicit gaps instead of silent hunk truncation;
+- deterministic Evidence Cache is separated from model Judgment Replay;
+- independent re-review performs fresh blind inference and never consumes previous findings/suppressed hypotheses as reviewer input;
+- convergence requires fresh provenance rather than cached-output equality;
 - model findings must resolve to exact post-change changed lines;
 - deterministic repository rules run outside the model;
 - low-confidence findings are filtered before Problems/verdicts;
 - incomplete coverage or invalid findings fail closed;
-- Review Receipt v4 records immutable evidence/provenance;
+- Review Receipt v4 records immutable evidence/provenance for fresh review executions;
 - Restricted Mode is rejected;
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
 Shared safety/runtime behavior comes only from the exact commit-pinned `codex-safe-core` v4 submodule.
+
+## Reading readiness correctly
+
+The report separates:
+
+- `Defect verdict` — confirmed evidence-backed code findings;
+- `Evidence readiness` — semantic review/coverage completeness;
+- `Overall readiness` — whether current evidence is enough to claim delivery readiness.
+
+Therefore `no_findings` can correctly coexist with incomplete build/HIL/requirements evidence without implying that a code defect was found.
 
 ## Repository policy
 
