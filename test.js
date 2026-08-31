@@ -47,7 +47,7 @@ function initRepo(repo) {
 (async () => {
   assert.strictEqual(core.SAFE_CORE_VERSION, 4);
   assert.strictEqual(core.SAFE_CONTRACT_VERSION, 2);
-  assert.strictEqual(core.POLICY_SCHEMA_VERSION, 3);
+  assert.strictEqual(core.POLICY_SCHEMA_VERSION, 4);
   assert.strictEqual(core.REVIEW_RECEIPT_SCHEMA_VERSION, 4);
   assert.strictEqual(unit.PROJECT_RULES_FILE, '.codex-safe.json');
   assert.strictEqual(unit.severityPasses('high', 'medium'), true);
