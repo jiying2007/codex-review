@@ -1,0 +1,145 @@
+name: Prepare Release
+
+on:
+  push:
+    branches:
+      - 'release/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Target MAJOR.MINOR.PATCH version, for example 4.4.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prepare-release-${{ github.ref }}-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare deterministic release metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+        with:
+          node-version: '22.22.2'
+          cache: npm
+
+      - name: Resolve target release branch
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' ]]; then
+            version='${{ inputs.version }}'
+            branch="release/v${version}"
+          else
+            branch="$GITHUB_REF_NAME"
+            version="${branch#release/v}"
+          fi
+          [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
+            echo "version must be strict MAJOR.MINOR.PATCH: ${version}" >&2
+            exit 1
+          }
+          [[ "$branch" == "release/v${version}" ]] || {
+            echo "release branch must be release/v${version}: ${branch}" >&2
+            exit 1
+          }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare package, lock and changelog
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+          BRANCH: ${{ steps.target.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(node -p "require('./package.json').version")"
+          if [[ "$current" == "$VERSION" ]]; then
+            echo "release metadata already prepared for ${VERSION}"
+            exit 0
+          fi
+
+          node - "$VERSION" <<'NODE'
+          const fs = require('fs');
+          const version = process.argv[2];
+          const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+          const parse = value => {
+            const match = semver.exec(String(value || ''));
+            if (!match) throw new Error(`invalid semver: ${value}`);
+            return match.slice(1).map(Number);
+          };
+          const compare = (a, b) => {
+            const left = parse(a);
+            const right = parse(b);
+            for (let i = 0; i < 3; i += 1) {
+              if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
+            }
+            return 0;
+          };
+
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          if (!lock.packages?.['']) throw new Error('package-lock.json missing packages[""]');
+          if (compare(version, pkg.version) <= 0) throw new Error(`target version must increase: ${pkg.version} -> ${version}`);
+
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          const marker = '## Unreleased';
+          const start = changelog.indexOf(marker);
+          if (start < 0) throw new Error('CHANGELOG.md missing ## Unreleased');
+          const contentStart = start + marker.length;
+          const nextHeading = changelog.indexOf('\n## ', contentStart);
+          if (nextHeading < 0) throw new Error('CHANGELOG.md missing previous release heading');
+          const notes = changelog.slice(contentStart, nextHeading).trim();
+          if (!notes) throw new Error('CHANGELOG.md Unreleased section is empty');
+          if (changelog.includes(`\n## ${version}\n`)) throw new Error(`CHANGELOG.md already contains ${version}`);
+
+          pkg.version = version;
+          lock.version = version;
+          lock.packages[''].version = version;
+          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
+          fs.writeFileSync('package-lock.json', `${JSON.stringify(lock, null, 2)}\n`);
+          fs.writeFileSync('CHANGELOG.md', `${changelog.slice(0, contentStart)}\n\n## ${version}\n\n${notes}\n${changelog.slice(nextHeading)}`);
+          NODE
+
+          test "$(node -p "require('./package.json').version")" = "$VERSION"
+          test "$(node -p "require('./package-lock.json').version")" = "$VERSION"
+          test "$(node -p "require('./package-lock.json').packages[''].version")" = "$VERSION"
+          git diff --check
+          npm run verify:lock
+
+      - name: Commit prepared release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.target.outputs.version }}
+          BRANCH: ${{ steps.target.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- CHANGELOG.md package.json package-lock.json; then
+            echo "no release metadata changes to commit"
+            exit 0
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' ]]; then
+            git checkout -B "$BRANCH"
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- CHANGELOG.md package.json package-lock.json
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = 'CHANGELOG.md package-lock.json package.json '
+          git diff --cached --check
+          git commit -m "chore(release): prepare v${VERSION}"
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/${BRANCH}"
+
+          echo "Prepared release branch ${BRANCH}; open a PR to main and require the full repository gates before merge."
