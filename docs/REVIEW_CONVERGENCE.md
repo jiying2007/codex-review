@@ -1,6 +1,6 @@
-# Review Convergence 4.4
+# Review Convergence and Independent Review Protocol
 
-Codex Review Safe 4.4 separates **what is being reviewed** from **each execution that reviews it**. Repeated review is no longer allowed to turn a cached model judgment into fake convergence.
+Codex Review Safe separates **what is being reviewed** from **each execution that reviews it**. Repeated review is no longer allowed to turn a cached model judgment into fake convergence.
 
 ## ReviewSubject and ReviewRun
 
@@ -66,13 +66,14 @@ By default a subject needs at least two fresh, blind model runs. Stability recor
 
 - required fresh runs;
 - fresh inference runs;
+- complete fresh runs;
 - blind fresh runs;
 - independent-review runs;
 - cached-verdict runs;
 - finding-set agreement;
 - disagreement finding IDs.
 
-A cached/replayed verdict cannot satisfy the stability gate.
+The latest required fresh runs must all have complete coverage. A cached/replayed verdict cannot satisfy the stability gate.
 
 ## Convergence
 
@@ -82,9 +83,9 @@ The convergence state is:
 - `improving`: a changed subject closed more findings than it added;
 - `regressing`: a changed subject reintroduced/likely induced findings or added more than it fixed;
 - `active`: findings remain without a stronger improvement/regression signal;
-- `incomplete`: evidence coverage is incomplete, the required fresh blind runs are missing, or fresh reviewers disagree.
+- `incomplete`: evidence coverage is incomplete, the required fresh blind runs are missing/incomplete, or fresh reviewers disagree.
 
-The report exposes the reason (`fresh_runs_missing`, `blind_context_missing`, `finding_disagreement`, or `judgment_cache_used`) rather than collapsing every case into an opaque `blocked` result.
+The report exposes the reason (`fresh_runs_missing`, `blind_context_missing`, `fresh_coverage_incomplete`, `finding_disagreement`, or `judgment_cache_used`) rather than collapsing every case into an opaque `blocked` result.
 
 ## Layered readiness
 
