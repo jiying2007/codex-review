@@ -61,6 +61,7 @@ function disagreementFindingIds(left = [], right = []) {
 }
 function computeSubjectStability(runs = []) {
   const freshRuns = runs.filter(run => run.executionProvenance?.inference === 'fresh');
+  const completeFreshRuns = freshRuns.filter(run => run.coverageVerdict === 'complete');
   const digests = freshRuns.map(run => String(run.findingSetDigest || findingSetDigest(run.findings || [])));
   const counts = new Map();
   for (const digest of digests) counts.set(digest, (counts.get(digest) || 0) + 1);
@@ -68,13 +69,17 @@ function computeSubjectStability(runs = []) {
   const agreement = freshRuns.length ? modalCount / freshRuns.length : 0;
   const compared = freshRuns.length >= REQUIRED_FRESH_RUNS;
   const latestPair = freshRuns.slice(-REQUIRED_FRESH_RUNS);
-  const stable = compared && latestPair.every(run => String(run.findingSetDigest || findingSetDigest(run.findings || [])) === String(latestPair[0].findingSetDigest || findingSetDigest(latestPair[0].findings || [])));
-  const unstableFindingIds = compared && !stable ? disagreementFindingIds(latestPair[0].findings || [], latestPair[latestPair.length - 1].findings || []) : [];
+  const latestComplete = latestPair.length === REQUIRED_FRESH_RUNS && latestPair.every(run => run.coverageVerdict === 'complete');
+  const latestDigestAgreement = latestPair.length === REQUIRED_FRESH_RUNS && latestPair.every(run => String(run.findingSetDigest || findingSetDigest(run.findings || [])) === String(latestPair[0].findingSetDigest || findingSetDigest(latestPair[0].findings || [])));
+  const stable = compared && latestComplete && latestDigestAgreement;
+  const unstableFindingIds = compared && !latestDigestAgreement ? disagreementFindingIds(latestPair[0].findings || [], latestPair[latestPair.length - 1].findings || []) : [];
   return {
     compared,
     stable,
     requiredFreshRuns: REQUIRED_FRESH_RUNS,
     freshInferenceRuns: freshRuns.length,
+    completeFreshRuns: completeFreshRuns.length,
+    latestRequiredRunsCoverageComplete: latestComplete,
     independentReviewRuns: freshRuns.filter(run => run.executionProvenance?.mode === 'independent').length,
     blindFreshRuns: freshRuns.filter(run => run.executionProvenance?.judgmentContext === 'blind').length,
     cachedVerdictRuns: freshRuns.filter(run => run.executionProvenance?.judgmentCacheUsed === true).length,
