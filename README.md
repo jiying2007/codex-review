@@ -47,7 +47,7 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 ## What it guarantees
 
 - staged snapshot only, bound to HEAD + raw Git index fingerprint;
-- Policy Schema v3 from committed HEAD `.codex-safe.json`;
+- Policy Schema v4 from committed HEAD `.codex-safe.json`;
 - coverage-preserving Review Evidence Chunking with explicit gaps instead of silent hunk truncation;
 - deterministic Evidence Cache is separated from model Judgment Replay;
 - independent re-review performs fresh blind inference and never consumes previous findings/suppressed hypotheses as reviewer input;
@@ -61,7 +61,7 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
-Shared safety/runtime behavior comes only from the exact commit-pinned `codex-safe-core` v4 submodule.
+Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.10.0** submodule at `57440a00030941020d5c3e9e01ced3c06062f42e`.
 
 ## Reading readiness correctly
 
@@ -75,12 +75,12 @@ Therefore `no_findings` can correctly coexist with incomplete build/HIL/requirem
 
 ## Repository policy
 
-The only repository policy file is committed `.codex-safe.json` with `schemaVersion: 3`:
+The only repository policy file is committed `.codex-safe.json` with `schemaVersion: 4`. Safe Core owns the closed `commit`, `review`, `change`, and `reviewService` sections; Review Safe consumes only its relevant Review policy while leaving Change delivery interpretation to Codex Change Safe.
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/43e818dc9ae91051f55374a9f9a47b9df6420cd6/codex-safe.schema.json",
-  "schemaVersion": 3,
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/57440a00030941020d5c3e9e01ced3c06062f42e/codex-safe.schema.json",
+  "schemaVersion": 4,
   "review": {
     "language": "en",
     "maxDiffBytes": 524288,
@@ -94,7 +94,8 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
       "testPathPrefixes": ["test/", "tests/"],
       "forbiddenPathPrefixes": []
     }
-  }
+  },
+  "change": {}
 }
 ```
 
@@ -108,9 +109,15 @@ staged changes
 Codex Review Safe → Review Receipt v4
     ↓
 Codex Commit Safe → Commit Receipt v4
+    ↓
+manual git commit / push
+    ↓
+Codex Change Safe → Change Receipt v1
+    ↓
+GitHub PR / GitLab MR
 ```
 
-Each product remains independently useful; provenance becomes richer when Review Safe and Commit Safe are used together. Create and manage PR/MR metadata with the SCM's native UI, CLI or API; Codex PR Safe is retired.
+Each product remains independently useful. **Codex PR Safe** is retired as the former model-generated PR-description product; **Codex Change Safe** is the deterministic successor delivery stage and does not restore that narrative generator.
 
 ## Install, upgrade and verify
 
@@ -144,4 +151,4 @@ MIT
 
 ## Codex provider runtime
 
-Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` now performs a live structured provider probe.
+Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` performs a live structured provider probe.

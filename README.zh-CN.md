@@ -47,7 +47,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 ## 核心保证
 
 - 只审查 staged snapshot，并绑定 HEAD + Git 原始 index fingerprint；
-- `.codex-safe.json` 固定读取 committed HEAD，使用 Policy Schema v3；
+- `.codex-safe.json` 固定读取 committed HEAD，使用 Policy Schema v4；
 - Review Evidence Chunking 不静默丢 changed hunk，无法覆盖时形成明确 coverage gap；
 - Deterministic Evidence Cache 与 Model Judgment Replay 分离；
 - Independent Review 强制 fresh blind inference，不读取上一轮 accepted findings / suppressed hypotheses 作为 reviewer 输入；
@@ -61,7 +61,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 - Safe Contract v2 使用 ephemeral、read-only、no approval，并显式关闭 shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency install；
 - 不自动修改源码、Commit、Push 或创建 PR。
 
-共享安全/runtime 只来自精确 commit-pinned 的 `codex-safe-core` v4 submodule。
+共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.10.0**，SHA 为 `57440a00030941020d5c3e9e01ced3c06062f42e`。
 
 ## 正确理解 Readiness
 
@@ -75,12 +75,12 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 
 ## Repository Policy
 
-唯一仓库策略文件是 committed `.codex-safe.json`，必须使用 `schemaVersion: 3`：
+唯一仓库策略文件是 committed `.codex-safe.json`，必须使用 `schemaVersion: 4`。Safe Core 统一拥有闭合的 `commit`、`review`、`change`、`reviewService` section；Review Safe 只消费自身相关的 Review Policy，Change 的交付解释仍由 Codex Change Safe 负责。
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/43e818dc9ae91051f55374a9f9a47b9df6420cd6/codex-safe.schema.json",
-  "schemaVersion": 3,
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/57440a00030941020d5c3e9e01ced3c06062f42e/codex-safe.schema.json",
+  "schemaVersion": 4,
   "review": {
     "language": "zh-CN",
     "maxDiffBytes": 524288,
@@ -94,7 +94,8 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
       "testPathPrefixes": ["test/", "tests/"],
       "forbiddenPathPrefixes": []
     }
-  }
+  },
+  "change": {}
 }
 ```
 
@@ -108,9 +109,15 @@ staged changes
 Codex Review Safe → Review Receipt v4
     ↓
 Codex Commit Safe → Commit Receipt v4
+    ↓
+人工 git commit / push
+    ↓
+Codex Change Safe → Change Receipt v1
+    ↓
+GitHub PR / GitLab MR
 ```
 
-Review Safe 和 Commit Safe 都可以独立使用；一起使用时 provenance 更完整。PR/MR 创建和元数据由 SCM 原生 UI、CLI 或 API 负责；Codex PR Safe 已退役。
+每个产品都可以独立使用。**Codex PR Safe** 仅作为旧的模型生成 PR 描述产品身份退役；**Codex Change Safe** 是确定性的后继交付阶段，并不会恢复旧 Narrative Generator。
 
 ## 安装、升级与验证
 
@@ -144,4 +151,4 @@ MIT
 
 ## Codex Provider Runtime
 
-Codex Review Safe 为保持 Safe Contract 会主动忽略 `~/.codex/config.toml`。使用 OpenAI-compatible 中转站时，将 `safeCodexReview.providerMode` 设为 `openai-compatible`，配置 `safeCodexReview.providerBaseUrl`，并让 `safeCodexReview.providerApiKeyEnv` 指向 VS Code 进程可见的 API Key 环境变量。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 现在会真实执行一次结构化 Provider 探测。
+Codex Review Safe 为保持 Safe Contract 会主动忽略 `~/.codex/config.toml`。使用 OpenAI-compatible 中转站时，将 `safeCodexReview.providerMode` 设为 `openai-compatible`，配置 `safeCodexReview.providerBaseUrl`，并让 `safeCodexReview.providerApiKeyEnv` 指向 VS Code 进程可见的 API Key 环境变量。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 会真实执行一次结构化 Provider 探测。
