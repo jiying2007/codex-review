@@ -78,7 +78,16 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  console.error(error);
-  process.exit(1);
-});
+main().then(
+  () => {
+    console.log('[trust-test] complete: trusted and untrusted hosts passed');
+    // @vscode/test-electron may leave downloader/helper handles alive even after
+    // both VS Code hosts have closed. This file is a standalone test driver, so
+    // successful completion is authoritative only after main() and cleanup finish.
+    process.exit(0);
+  },
+  error => {
+    console.error(error);
+    process.exit(1);
+  }
+);
