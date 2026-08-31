@@ -32,7 +32,7 @@ function requireTrustedWhen(items, command) {
   assert.match(String(item.when || ''), /\bisWorkspaceTrusted\b/, `${command} must require isWorkspaceTrusted`);
 }
 requireTrustedWhen(scmItems, 'safeCodexReview.reviewStaged');
-requireTrustedWhen(scmItems, 'safeCodexReview.independentReviewStaged');
+assert.ok(!scmItems.some(entry => entry.command === 'safeCodexReview.independentReviewStaged'), 'Independent Review must remain a secondary action outside scm/title');
 requireTrustedWhen(paletteItems, 'safeCodexReview.reviewStaged');
 requireTrustedWhen(paletteItems, 'safeCodexReview.checkEnvironment');
 requireTrustedWhen(paletteItems, 'safeCodexReview.importSarif');

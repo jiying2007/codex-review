@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.4.2
+
+- Align the primary VS Code SCM toolbar with the Family UI Contract: Review is the single `navigation@5` primary action; Independent Review remains a secondary trusted action.
+- Repin to immutable Safe Core 4.10.2.
+
 ## Unreleased
 
 ## 4.4.1 - 2026-08-31
