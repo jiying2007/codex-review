@@ -223,7 +223,10 @@ function initRepo(repo) {
     new Map([[consolidated.findings[0], { published: true, mappedLine: 10, reason: 'exact' }]]),
     { ...meta, reviewCreatedAt: receipt.createdAt }
   );
-  assert.match(report, /Coverage verdict: complete/);
+  assert.match(report, /Defect verdict: findings_open/);
+  assert.match(report, /Evidence readiness: complete/);
+  assert.match(report, /Overall readiness: needs_evidence/);
+  assert.doesNotMatch(report, /Finding verdict:/, 'legacy overloaded finding verdict label must not return');
   assert.match(report, /Review time: .* UTC[+-]\d{2}:\d{2} \(UTC: 2026-08-22T00:00:00.000Z\)/);
   assert.match(report, /Review policy: head-policy/);
   assert.match(report, /\[MEDIUM\]/);
