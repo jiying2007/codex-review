@@ -6,6 +6,7 @@ const core=require('../src/codex-safe-core/semantic-review');
 
 const evidenceSource=fs.readFileSync('src/semantic-evidence.js','utf8');
 const semanticSource=fs.readFileSync('src/semantic-review.js','utf8');
+const cacheSource=fs.readFileSync('src/review-cache.js','utf8');
 const codexSource=fs.readFileSync('src/codex.js','utf8');
 const extensionSource=fs.readFileSync('extension.js','utf8');
 
@@ -49,9 +50,16 @@ assert.match(semanticSource,/insufficient_evidence/);
 assert.match(semanticSource,/contradicted/);
 assert.match(codexSource,/hypothesisSchema/);
 assert.match(codexSource,/verificationSchema/);
-assert.match(extensionSource,/computeReviewKey/);
+assert.match(extensionSource,/computeReviewSubjectKey/);
 assert.match(extensionSource,/createReviewCache/);
 assert.match(extensionSource,/createFindingLedger/);
-assert.match(extensionSource,/forceReviewStaged/);
+assert.match(extensionSource,/independentReviewStaged/);
+assert.match(extensionSource,/result replay: identical ReviewSubject reused without a model call/);
+assert.match(extensionSource,/fresh independent model inference completed/);
+assert.match(extensionSource,/judgmentContext: resultReplay \? 'replay' : 'blind'/);
+assert.doesNotMatch(extensionSource,/forceReviewStaged/,'legacy force-review command must be removed by the hard cut');
+assert.doesNotMatch(extensionSource,/suppressUnstableFindings/,'previous judgments must not suppress a fresh reviewer result');
+assert.match(cacheSource,/reviewArtifacts\.v2/);
+assert.doesNotMatch(cacheSource,/getBySubjectKey/,'v2 cache must not expose the old whole-review semantic cache API');
 assert.match(extensionSource,/resolveFinding/);
-console.log('Semantic Review 4.2 hard-negative and convergence gates passed.');
+console.log('Semantic Review independent-review integrity gates passed.');
