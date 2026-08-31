@@ -1,18 +1,11 @@
 name: VS Code Marketplace
 
 on:
-  workflow_call:
-    inputs:
-      tag:
-        description: 'Immutable GitHub Release tag to publish, for example v4.4.0'
-        required: true
-        type: string
   workflow_dispatch:
     inputs:
       tag:
         description: 'Immutable GitHub Release tag to publish, for example v4.4.0'
         required: true
-        type: string
 
 permissions:
   contents: read
@@ -82,5 +75,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${VSCE_PAT:-}" || { echo 'VSCE_PAT is required with stable @vscode/vsce 3.9.x. Migrate to trusted OIDC publishing only after a stable vsce release ships --oidc.' >&2; exit 1; }
+          test -n "${VSCE_PAT:-}" || { echo 'VSCE_PAT is required with stable @vscode/vsce 3.9.x.' >&2; exit 1; }
           ./node_modules/.bin/vsce publish --packagePath "release-artifacts/codex-review-safe-${{ steps.release.outputs.version }}.vsix" --pat "$VSCE_PAT" --skip-duplicate
