@@ -1,6 +1,6 @@
-# Review 收敛机制 4.4
+# Review 收敛与 Independent Review 协议
 
-Codex Review Safe 4.4 将“**正在审什么**”与“**每一次真正执行的审查**”彻底拆开。重复审查不再允许把缓存中的模型结论伪装成新的 convergence 证据。
+Codex Review Safe 将“**正在审什么**”与“**每一次真正执行的审查**”彻底拆开。重复审查不再允许把缓存中的模型结论伪装成新的 convergence 证据。
 
 ## ReviewSubject 与 ReviewRun
 
@@ -66,13 +66,14 @@ Convergence 必须由真实执行 provenance 支撑，不能只看序列化输�
 
 - required fresh runs；
 - fresh inference runs；
+- complete fresh runs；
 - blind fresh runs；
 - independent-review runs；
 - cached-verdict runs；
 - finding-set agreement；
 - disagreement finding IDs。
 
-缓存/replay 的旧 verdict 永远不能满足 stability gate。
+最近要求数量的 fresh Run 必须全部 coverage complete。缓存/replay 的旧 verdict 永远不能满足 stability gate。
 
 ## Convergence
 
@@ -82,9 +83,9 @@ Convergence 必须由真实执行 provenance 支撑，不能只看序列化输�
 - `improving`：subject 变化后关闭的旧 Finding 多于新增 Finding；
 - `regressing`：subject 变化后出现 reintroduced / likely-fix-induced，或新增 Finding 多于修复；
 - `active`：仍有 Finding，但没有更明确的改善/退化信号；
-- `incomplete`：Evidence/Coverage 不完整、缺少要求数量的 fresh blind Run，或 fresh reviewer 之间存在 disagreement。
+- `incomplete`：Evidence/Coverage 不完整、缺少要求数量的 fresh blind Run、fresh coverage 不连续完整，或 fresh reviewer 之间存在 disagreement。
 
-报告会明确给出原因：`fresh_runs_missing`、`blind_context_missing`、`finding_disagreement` 或 `judgment_cache_used`，而不是把所有情况都压成一个含义不清的 `blocked`。
+报告会明确给出原因：`fresh_runs_missing`、`blind_context_missing`、`fresh_coverage_incomplete`、`finding_disagreement` 或 `judgment_cache_used`，而不是把所有情况都压成一个含义不清的 `blocked`。
 
 ## 分层 Readiness
 
