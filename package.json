@@ -2,7 +2,7 @@
   "name": "codex-review-safe",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "4.4.0",
+  "version": "4.3.4",
   "publisher": "jiying2007",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
@@ -109,6 +109,11 @@
           "command": "safeCodexReview.reviewStaged",
           "when": "scmProvider == git && isWorkspaceTrusted",
           "group": "navigation@7"
+        },
+        {
+          "command": "safeCodexReview.independentReviewStaged",
+          "when": "scmProvider == git && isWorkspaceTrusted",
+          "group": "navigation@8"
         }
       ],
       "commandPalette": [
