@@ -1,6 +1,6 @@
 'use strict';
 
-const { normalizeFsPath } = require('./review-support');
+const path = require('node:path');
 
 const REVIEW_CACHE_STORAGE_KEY = 'safeCodexReview.reviewArtifacts.v2';
 const LEGACY_REVIEW_CACHE_STORAGE_KEY = 'safeCodexReview.semanticRuns.v1';
@@ -9,7 +9,10 @@ const MAX_REPLAY_ENTRIES_PER_REPO = 12;
 const MAX_PERSISTED_EVIDENCE_BYTES_PER_REPO = 4 * 1024 * 1024;
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
-function repoKey(repoRoot) { return normalizeFsPath(repoRoot); }
+function repoKey(repoRoot) {
+  const resolved = path.resolve(String(repoRoot || ''));
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
 function serializeEvidence(evidence) {
   if (!evidence || typeof evidence !== 'object') return null;
   return {
