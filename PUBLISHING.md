@@ -6,7 +6,7 @@ Codex Review Safe releases are immutable GitHub Actions builds from a committed 
 
 A release is valid only when:
 
-- package and lockfile metadata agree;
+- `package.json`, `package-lock.json`, and `product-contract.json.productVersion` agree;
 - `src/codex-safe-core` is a `160000` gitlink at the coordinated reviewed Core commit;
 - `.codex-safe.example.json` schema provenance points to the same Core commit;
 - Safe Core v4 / Safe Contract v2 / Policy Schema v3 / Review Receipt v4 / Prompt Contract v1 checks pass;
@@ -25,13 +25,13 @@ Use strict semantic versioning: `vMAJOR.MINOR.PATCH`. The tag must equal `v<pack
 The repository release path is intentionally server-side and auditable:
 
 1. create `release/vX.Y.Z` from current `main`, or run **Prepare Release** with `X.Y.Z`;
-2. `.github/workflows/prepare-release.yml` deterministically updates only `package.json`, `package-lock.json`, and `CHANGELOG.md`, then commits the release metadata to that release branch;
+2. `.github/workflows/prepare-release.yml` deterministically updates only `package.json`, `package-lock.json`, `product-contract.json`, and `CHANGELOG.md`, then commits those release metadata files to that release branch;
 3. open the release branch as a PR to `main` and require the normal CI, dependency, family-governance and family-release gates;
 4. merge the release PR only after all gates pass;
 5. the `main` push runs `.github/workflows/release.yml`, which re-runs release Extension Host gates, packages the VSIX, generates SBOM/checksums, creates provenance attestations, creates the immutable tag and GitHub Release, and then calls the Marketplace workflow directly;
 6. `.github/workflows/marketplace.yml` downloads the exact immutable GitHub Release VSIX, verifies checksum, attestation and package boundary, then publishes that exact binary to VS Code Marketplace;
 7. `.github/workflows/release-integrity.yml` verifies the completed release and every published asset after the complete Release workflow succeeds;
-8. `.github/workflows/cleanup-merged-branches.yml` removes same-repository merged PR branches only when the branch still points to the exact merged head SHA; branches that advanced after merge are preserved.
+8. `.github/workflows/cleanup-merged-branches.yml` removes same-repository merged PR branches only when the branch still points to the exact merged head SHA; missing branches are skipped and branches that advanced after merge are preserved.
 
 The manual `workflow_dispatch` entry on Marketplace is a recovery path for re-publishing the same validated immutable Release VSIX with `--skip-duplicate`; it is not the normal release path.
 
