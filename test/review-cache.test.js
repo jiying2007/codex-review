@@ -1,5 +1,12 @@
 'use strict';
 
+const Module = require('node:module');
+const originalLoad = Module._load;
+Module._load = function(request, parent, isMain) {
+  if (request === 'vscode') return { l10n: { t: (message, ...args) => String(message).replace(/\{(\d+)\}/g, (_match, index) => args[Number(index)] ?? `{${index}}`) } };
+  return originalLoad.apply(this, arguments);
+};
+
 const assert = require('node:assert/strict');
 const {
   REVIEW_CACHE_STORAGE_KEY,
