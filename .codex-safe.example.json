@@ -14,8 +14,13 @@
     "maxFindings": 40,
     "rules": {
       "requireTestsForCodeChanges": false,
-      "codePathPrefixes": ["src/"],
-      "testPathPrefixes": ["test/", "tests/"],
+      "codePathPrefixes": [
+        "src/"
+      ],
+      "testPathPrefixes": [
+        "test/",
+        "tests/"
+      ],
       "forbiddenPathPrefixes": []
     }
   },
