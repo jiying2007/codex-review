@@ -1,4 +1,4 @@
-\'use strict\';
+'use strict';
 const assert=require('node:assert/strict');
 const {createReplayWindow,MAX_CONSECUTIVE_REPLAYS,MAX_REPLAY_AGE_MS}=require('../src/replay-window');
 let now=1000; const window=createReplayWindow({now:()=>now}); const repo=process.cwd(),subject='a'.repeat(64),review={findings:[{title:'x'}]};

@@ -571,7 +571,7 @@ async function reviewStaged(commandArgs = []) {
     } else if (result.review.lineage?.stability?.compared && result.review.lineage.stability.stable !== true) {
       const viewReportAction = t('View Report');
       const message = uiText(
-        'Codex Review Safe: fresh independent judgments disagree or fresh coverage is not consistently complete; convergence remains incomplete and no finding was suppressed only to force agreement.',
+        'Codex Review Safe: fresh blind judgments disagree or fresh coverage is not consistently complete; convergence remains incomplete and no finding was suppressed only to force agreement.',
         'Codex Review Safe：fresh 独立审查之间存在结论分歧，或 fresh coverage 尚未连续完整；convergence 保持 incomplete，系统不会为了强行一致而压掉 Finding。'
       );
       void vscode.window.showWarningMessage(message, viewReportAction).then(action => {
@@ -581,7 +581,7 @@ async function reviewStaged(commandArgs = []) {
       const visibleFindings = result.review.findings.filter(f => severityPasses(f.severity, result.options.severityThreshold)).length;
       const hiddenFindings = result.review.findings.length - visibleFindings;
       if (result.review.verdict === 'pass') {
-        vscode.window.showInformationMessage(t('Codex Review Safe: no substantive diff issues found; delivery readiness still needs independent evidence.'));
+        vscode.window.showInformationMessage(t('Codex Review Safe: no substantive diff issues found; delivery readiness still needs additional fresh evidence.'));
       } else {
         const rejectedCount = result.review.rejectedFindings?.length || 0;
         const allRejected = result.review.findings.length === 0 && rejectedCount > 0;
@@ -651,14 +651,14 @@ async function resolveFinding(commandArgs = []) {
     'Finding resolution saved. The next Review will follow the adaptive replay policy and reapply the updated human resolution ledger.',
     'Finding Resolution 已保存；下一次 Review 将按自适应重放策略处理，并重新应用人工 Resolution Ledger。'
   ));
-  await reviewStaged(commandArgs, { mode:'standard' });
+  await reviewStaged(commandArgs);
 }
 async function clearFindingResolutions(commandArgs = []) {
   assertTrustedWorkspace();
   const repositoryInfo = await chooseRepository(commandArgs); if (!repositoryInfo) return;
   await findingLedger.clear(repositoryInfo.root);
   vscode.window.showInformationMessage(t('Finding resolutions cleared.'));
-  if (lastReviewsByRepo.has(normalizeFsPath(repositoryInfo.root))) await reviewStaged(commandArgs, { mode:'standard' });
+  if (lastReviewsByRepo.has(normalizeFsPath(repositoryInfo.root))) await reviewStaged(commandArgs);
 }
 
 async function clearReview() {

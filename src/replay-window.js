@@ -1,4 +1,4 @@
-\'use strict\';
+'use strict';
 const path=require('node:path');
 const MAX_CONSECUTIVE_REPLAYS=2;
 const MAX_REPLAY_AGE_MS=10*60*1000;

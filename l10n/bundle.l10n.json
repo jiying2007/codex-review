@@ -70,7 +70,6 @@
   "Git HEAD or staged changes changed during review. The stale result was discarded; review again.": "Git HEAD or staged changes changed during review. The stale result was discarded; review again.",
   "Git HEAD or staged changes changed while publishing results. Stale Problems were retracted; review again.": "Git HEAD or staged changes changed while publishing results. Stale Problems were retracted; review again.",
   "{0} is modified in the staged changes. This review still uses the policy from HEAD; the new policy takes effect after commit.": "{0} is modified in the staged changes. This review still uses the policy from HEAD; the new policy takes effect after commit.",
-  "Codex Review Safe: no substantive diff issues found; delivery readiness still needs independent evidence.": "Codex Review Safe: no substantive diff issues found; delivery readiness still needs independent evidence.",
   ", with {0} additional findings below the current threshold": ", with {0} additional findings below the current threshold",
   "Codex Review Safe: the model returned {0} findings, but all were rejected by format/path validation. See the report.": "Codex Review Safe: the model returned {0} findings, but all were rejected by format/path validation. See the report.",
   "Codex Review Safe: {0}; showing {1} findings{2}.": "Codex Review Safe: {0}; showing {1} findings{2}.",
@@ -122,5 +121,6 @@
   "Select a resolution": "Select a resolution",
   "Optional resolution note": "Optional resolution note",
   "Finding resolutions cleared.": "Finding resolutions cleared.",
-  "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms": "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms"
+  "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms": "Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms",
+  "Codex Review Safe: no substantive diff issues found; delivery readiness still needs additional fresh evidence.": "Codex Review Safe: no substantive diff issues found; delivery readiness still needs additional fresh evidence."
 }

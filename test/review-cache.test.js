@@ -1,4 +1,4 @@
-\'use strict\';
+'use strict';
 const assert=require('node:assert/strict');
 const {REVIEW_CACHE_STORAGE_KEY,LEGACY_REVIEW_CACHE_STORAGE_KEYS,createReviewCache}=require('../src/review-cache');
 function memoryState(seed={}){const values=new Map(Object.entries(seed));return{get(k,f){return values.has(k)?values.get(k):f;},async update(k,v){if(v===undefined)values.delete(k);else values.set(k,v);},snapshot(){return Object.fromEntries(values);}};}
