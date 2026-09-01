@@ -13,7 +13,7 @@ const runtimeModules = [
   'causal-anchor.js', 'code-intelligence.js'
 ];
 const coreModules = [
-  'index.js', 'safe-contract.js', 'codex-runtime.js', 'codex-cli.js', 'process-runner.js',
+  'index.js', 'safe-contract.js', 'judgment-lifecycle.js', 'codex-runtime.js', 'codex-cli.js', 'process-runner.js',
   'git-repository.js', 'context-builder.js', 'efficiency-planner.js', 'quality-platform.js', 'semantic-review.js', 'policy.js', 'review-rules.js'
 ];
 const coreRuntimeData = ['core-contract.json'];
@@ -31,6 +31,7 @@ function main() {
   for (const name of coreModules) copy(path.join(root, 'src', 'codex-safe-core', name), path.join(dist, 'src', 'codex-safe-core', name));
   for (const name of coreRuntimeData) copy(path.join(root, 'src', 'codex-safe-core', name), path.join(dist, 'src', 'codex-safe-core', name));
   copy(path.join(root, 'src', 'codex-safe-core', 'codex-safe.schema.json'), path.join(dist, 'codex-safe.schema.json'));
+  if (!fs.existsSync(path.join(dist, 'src', 'codex-safe-core', 'judgment-lifecycle.js'))) throw new Error('Judgment Lifecycle runtime module missing from dist.');
 }
 
 main();
