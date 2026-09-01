@@ -44,7 +44,7 @@ assert.equal(REQUIRED_FRESH_RUNS, 2);
 
 const matchingRuns = [
   { coverageVerdict:'complete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } },
-  { coverageVerdict:'complete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'independent', judgmentContext:'blind', judgmentCacheUsed:false } }
+  { coverageVerdict:'complete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } }
 ];
 const pending = computeSubjectStability(matchingRuns.slice(0, 1));
 assert.equal(pending.compared, false);
@@ -57,20 +57,19 @@ assert.equal(stable.freshInferenceRuns, 2);
 assert.equal(stable.completeFreshRuns, 2);
 assert.equal(stable.latestRequiredRunsCoverageComplete, true);
 assert.equal(stable.blindFreshRuns, 2);
-assert.equal(stable.independentReviewRuns, 1);
 assert.equal(stable.cachedVerdictRuns, 0);
 assert.equal(stable.agreement, 1);
 
 const incompleteHistory = computeSubjectStability([
   { coverageVerdict:'incomplete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } },
-  { coverageVerdict:'complete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'independent', judgmentContext:'blind', judgmentCacheUsed:false } }
+  { coverageVerdict:'complete', findingSetDigest:'same', findings:[], executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } }
 ]);
 assert.equal(incompleteHistory.stable, false, 'equal zero-finding output must not hide unstable coverage history');
 assert.equal(incompleteHistory.latestRequiredRunsCoverageComplete, false);
 
 const disagreement = computeSubjectStability([
   { coverageVerdict:'complete', findingSetDigest:'x', findings:previous, executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } },
-  { coverageVerdict:'complete', findingSetDigest:'y', findings:current, executionProvenance:{ inference:'fresh', mode:'independent', judgmentContext:'blind', judgmentCacheUsed:false } }
+  { coverageVerdict:'complete', findingSetDigest:'y', findings:current, executionProvenance:{ inference:'fresh', mode:'standard', judgmentContext:'blind', judgmentCacheUsed:false } }
 ]);
 assert.equal(disagreement.stable, false);
 assert.ok(disagreement.unstableFindingIds.includes('A'));
@@ -101,7 +100,7 @@ assert.ok(disagreement.unstableFindingIds.includes('C'));
 
   const run2 = await store.record('/tmp/review-lineage-test', {
     sessionKey:session, phase:'production-aging-v1', reviewRunId:'00000000-0000-4000-8000-000000000002', reviewSubjectKey:subject, evidenceKey,
-    coverageVerdict:'complete', findings:[], executionProvenance:{ mode:'independent', inference:'fresh', evidenceCacheHit:true, judgmentContext:'blind', judgmentCacheUsed:false }
+    coverageVerdict:'complete', findings:[], executionProvenance:{ mode:'standard', inference:'fresh', evidenceCacheHit:true, judgmentContext:'blind', judgmentCacheUsed:false }
   });
   assert.equal(run2.sessionRunNumber, 2);
   assert.equal(run2.subjectRunNumber, 2);
@@ -109,8 +108,7 @@ assert.ok(disagreement.unstableFindingIds.includes('C'));
   assert.equal(run2.stability.stable, true);
   assert.equal(run2.stability.freshInferenceRuns, 2);
   assert.equal(run2.stability.completeFreshRuns, 2);
-  assert.equal(run2.stability.independentReviewRuns, 1);
-
+  
   const converged = evaluateConvergence(
     { findings:[], coverageVerdict:'complete', coverageGaps:[] },
     run2,
@@ -130,7 +128,7 @@ assert.ok(disagreement.unstableFindingIds.includes('C'));
 
   const duplicate = await store.record('/tmp/review-lineage-test', {
     sessionKey:session, phase:'production-aging-v1', reviewRunId:'00000000-0000-4000-8000-000000000002', reviewSubjectKey:subject, evidenceKey,
-    coverageVerdict:'complete', findings:current, executionProvenance:{ mode:'independent', inference:'fresh', judgmentContext:'blind', judgmentCacheUsed:false }
+    coverageVerdict:'complete', findings:current, executionProvenance:{ mode:'standard', inference:'fresh', judgmentContext:'blind', judgmentCacheUsed:false }
   });
   assert.equal(duplicate.sessionRunNumber, 2, 'ReviewRunId is the idempotency key; duplicate persistence must not create another run');
   assert.equal(store.list('/tmp/review-lineage-test')[0].runs.length, 2);
@@ -140,7 +138,8 @@ assert.ok(disagreement.unstableFindingIds.includes('C'));
   const lineagePersist = controllerSource.indexOf('lineage = await reviewLineage.record(repoRoot');
   assert.ok(finalSnapshotGate >= 0 && lineagePersist > finalSnapshotGate, 'fresh lineage must persist only after the final publish snapshot gate');
   assert.ok(controllerSource.indexOf('findings: result.rawReview.findings') > lineagePersist, 'lineage must preserve verified raw findings rather than resolution-filtered visible findings');
-  assert.match(controllerSource, /mode === 'independent'/, 'independent review must be a first-class execution mode');
+  assert.doesNotMatch(controllerSource, /mode === 'independent'|independentReviewStaged/, 'Independent Review execution mode must be retired');
+  assert.match(controllerSource, /replayWindow\.tryReplay/, 'adaptive Replay Window must govern repeated Review');
   assert.match(controllerSource, /reviewRunId = crypto\.randomUUID\(\)/, 'every fresh inference must receive a unique ReviewRunId');
   assert.match(controllerSource, /judgmentContext: resultReplay \? 'replay' : 'blind'/, 'fresh reviewer context must be blind to prior judgments');
   assert.doesNotMatch(controllerSource, /suppressUnstableFindings/, 'fresh disagreements must not be suppressed using a previous model judgment');

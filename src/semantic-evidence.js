@@ -181,14 +181,21 @@ function analyzerBlocks(findings=[]) {
     return {entry:normalizeEvidenceEntry({kind:'analyzer',source:'sarif',path:item.file,line:item.line,endLine:item.endLine||item.line,content,relatedPaths:[item.file]}),content};
   });
 }
-async function collectSemanticEvidence(repoRoot,diff,stagedPaths,snapshot,profile,analyzerFindings,token,diffFingerprint='',discoveryCandidates=[]) {
+async function collectStructuralEvidence(repoRoot,diff,stagedPaths,snapshot,profile,token,diffFingerprint='',discoveryCandidates=[]) {
   const [impact,symbols]=await Promise.all([collectIndexImpactEvidence(repoRoot,diff,profile,token),collectIndexSymbolEvidence(repoRoot,diff,stagedPaths,token)]);
   const discoveryBlocks=await rehydrateDiscoveryCandidates(discoveryCandidates,{readIndexText:file=>readIndexText(repoRoot,file,token),snippet,classifySymbolLine,relatedPaths:stagedPaths});
-  const raw=[...stagedBlocks(diff),...impactBlocks(impact),...symbols.blocks,...discoveryBlocks,...analyzerBlocks(analyzerFindings)];
+  const raw=[...stagedBlocks(diff),...impactBlocks(impact),...symbols.blocks,...discoveryBlocks];
   const deduped=new Map();for(const block of raw)if(!deduped.has(block.entry.id))deduped.set(block.entry.id,block);
   const blocks=[...deduped.values()];
   const manifest=buildEvidenceManifest(blocks.map(block=>block.entry),{headOid:snapshot?.headOid,indexFingerprint:snapshot?.indexFingerprint,diffFingerprint});
-  return {impact,callSymbolsByPath:symbols.callSymbolsByPath,blocks,manifest,analyzerDigest:digestAnalyzerEvidence(analyzerFindings)};
+  return {impact,callSymbolsByPath:symbols.callSymbolsByPath,blocks,manifest};
+}
+function composeSemanticEvidence(structuralEvidence,analyzerFindings,snapshot,diffFingerprint='') {
+  const raw=[...(structuralEvidence?.blocks||[]),...analyzerBlocks(analyzerFindings)];
+  const deduped=new Map();for(const block of raw)if(!deduped.has(block.entry.id))deduped.set(block.entry.id,block);
+  const blocks=[...deduped.values()];
+  const manifest=buildEvidenceManifest(blocks.map(block=>block.entry),{headOid:snapshot?.headOid,indexFingerprint:snapshot?.indexFingerprint,diffFingerprint});
+  return {impact:structuralEvidence?.impact||{},callSymbolsByPath:structuralEvidence?.callSymbolsByPath||new Map(),blocks,manifest,analyzerDigest:digestAnalyzerEvidence(analyzerFindings)};
 }
 function renderEvidenceForPaths(evidence,paths,{maxBytes=96*1024,maxEntries=32,includeStaged=false}={}) {
   const sourceEntries=(evidence?.manifest?.entries||[]).filter(entry=>includeStaged||entry.kind!=='staged');
@@ -201,4 +208,4 @@ function evidenceForSymbols(evidence,symbols=[]) {
   const wanted=new Set(symbols||[]);return (evidence?.manifest?.entries||[]).filter(entry=>entry.symbol&&wanted.has(entry.symbol));
 }
 
-module.exports={MAX_INDEX_FILE_BYTES,MAX_SYMBOLS,MAX_SYMBOL_MATCHES,safeIndexPath,diffSections,callSymbolsByPath,addedLineTextByPath,anchorContextDigest,readIndexText,collectIndexImpactEvidence,collectIndexSymbolEvidence,collectSemanticEvidence,renderEvidenceForPaths,evidenceForSymbols,classifySymbolLine,snippet};
+module.exports={MAX_INDEX_FILE_BYTES,MAX_SYMBOLS,MAX_SYMBOL_MATCHES,safeIndexPath,diffSections,callSymbolsByPath,addedLineTextByPath,anchorContextDigest,readIndexText,collectIndexImpactEvidence,collectIndexSymbolEvidence,collectStructuralEvidence,composeSemanticEvidence,renderEvidenceForPaths,evidenceForSymbols,classifySymbolLine,snippet};

@@ -1,106 +1,38 @@
-# Review Convergence and Independent Review Protocol
+# Review Convergence and Adaptive Replay Protocol
 
-Codex Review Safe separates **what is being reviewed** from **each execution that reviews it**. Repeated review is no longer allowed to turn a cached model judgment into fake convergence.
+Codex Review Safe separates **deterministic evidence**, **fresh model judgment**, **short-lived replay**, and **durable audit history**.
 
-## ReviewSubject and ReviewRun
+## One Review command
 
-A `ReviewSubjectKey` identifies the immutable semantic review subject: HEAD/index/diff, policy, scope/profile, analyzer evidence, prompt contract, model identity/options, and the immutable Evidence Manifest.
+There is one user-facing Review action. `Independent Review` is retired. For an unchanged `ReviewSubjectKey`, Review automatically follows:
 
-A `ReviewRunId` identifies one actual fresh model execution. Multiple fresh runs may therefore exist for the same `ReviewSubjectKey`.
+`fresh → replay → replay → fresh → replay → replay → fresh ...`
 
-This distinction is mandatory:
+A changed HEAD/index/diff, policy, scope/profile, model/options, prompt contract, analyzer/SARIF input, or Evidence Manifest produces a different subject and therefore requires fresh inference.
 
-- same `ReviewSubjectKey` means the code/evidence subject is unchanged;
-- same subject does **not** mean a previous model judgment is a new review;
-- `ReviewRunId` is the idempotency key for lineage persistence;
-- a result replay never creates a new lineage run or review receipt.
+## Persistent Evidence Cache
 
-## Evidence Cache vs Judgment Replay
+Only deterministic structural evidence is persisted: staged/index-pinned evidence, symbol/dependency evidence, impact graph data, and its structural Evidence Manifest. It is content-addressed and invalidated by fingerprints, not by wall-clock TTL. Analyzer/SARIF evidence is composed into the final Evidence Manifest on every invocation, so analyzer changes do not force an expensive structural rescan.
 
-The cache is split into two stores.
+`evidence=structural-cache-hit` means evidence was reused. It does **not** mean model inference was skipped.
 
-### Evidence cache
+## Session Replay Window
 
-Deterministic, immutable evidence may be reused when its fingerprint is unchanged: staged diff evidence, index-pinned dependency/symbol evidence, impact graph data, analyzer evidence, and the Evidence Manifest.
+Model judgments are not persisted as cache. A recent fresh result may be replayed only inside the current extension session, only for the exact same `ReviewSubjectKey`, with both limits:
 
-An evidence cache hit is reported as `evidence=cache-hit`. It is allowed during an independent review because it does not contain a prior model verdict.
+- at most 2 consecutive replays;
+- at most 10 minutes since the origin fresh run.
 
-### Judgment replay
+After either limit, the next Review must execute fresh blind model inference. Restarting VS Code also clears the Replay Window, so the next Review is fresh while deterministic Evidence Cache may still be reused.
 
-A validated model result may be retained only as explicit history/replay. It is never an input to a fresh reviewer and never counts as fresh stability evidence.
+A replay never creates a new `ReviewRunId`, lineage run, Review Receipt, or fresh-convergence evidence.
 
-A replay is reported as `inference=replay`, `judgment=replay-only`, and `[result-replay]`. It does not increment lineage, convergence, or receipt history.
+## Fresh blind review
 
-Legacy whole-review cache state (`semanticRuns.v1`) is purged and is not migrated into the new protocol.
+Every fresh run receives the current diff/evidence but never previous findings, suppressed hypotheses, coverage verdicts, summaries, explanations, or human resolution decisions as model context. Previous judgments are reconciled only after inference by deterministic lineage/stability logic.
 
-## Independent Review
+## Review lineage and convergence
 
-`Independent Review Staged Changes` always executes fresh model inference for the current `ReviewSubjectKey`.
+`ReviewSubjectKey` identifies the immutable review subject. `ReviewRunId` identifies one actual fresh model execution. Convergence still requires at least two fresh blind runs with complete coverage and matching finding sets. Replay cannot satisfy this requirement.
 
-It may reuse deterministic Evidence Cache entries, but it must remain blind to:
-
-- previous accepted findings;
-- previous suppressed hypotheses/findings;
-- previous coverage verdicts;
-- previous model summaries or explanations;
-- previous false-positive decisions.
-
-The previous judgments are reconciled only **after** the fresh model execution, in deterministic lineage/stability logic.
-
-Fresh disagreement is preserved. Codex Review Safe does not suppress a new finding merely because an earlier reviewer did not produce it.
-
-## Review Lineage
-
-A Review Session is keyed by HEAD, Policy fingerprint, Scope fingerprint, and Review Profile. Inside a session, lineage now has two dimensions:
-
-1. **Subject transition** — when the staged subject changes, stable finding IDs classify `fixed`, `unchanged`, `changed`, `new`, `reintroduced`, and `likely-fix-induced` findings.
-2. **Repeated subject runs** — when the subject is unchanged, multiple fresh runs measure reviewer agreement and stability without pretending that the code changed.
-
-`likely-fix-induced` remains a heuristic signal only; it does not claim proven causality.
-
-## Fresh provenance gate
-
-Convergence requires provenance, not merely identical serialized output.
-
-By default a subject needs at least two fresh, blind model runs. Stability records:
-
-- required fresh runs;
-- fresh inference runs;
-- complete fresh runs;
-- blind fresh runs;
-- independent-review runs;
-- cached-verdict runs;
-- finding-set agreement;
-- disagreement finding IDs.
-
-The latest required fresh runs must all have complete coverage. A cached/replayed verdict cannot satisfy the stability gate.
-
-## Convergence
-
-The convergence state is:
-
-- `converged`: coverage is complete, fresh provenance is complete, the latest required fresh runs agree, and there are no publishable findings;
-- `improving`: a changed subject closed more findings than it added;
-- `regressing`: a changed subject reintroduced/likely induced findings or added more than it fixed;
-- `active`: findings remain without a stronger improvement/regression signal;
-- `incomplete`: evidence coverage is incomplete, the required fresh blind runs are missing/incomplete, or fresh reviewers disagree.
-
-The report exposes the reason (`fresh_runs_missing`, `blind_context_missing`, `fresh_coverage_incomplete`, `finding_disagreement`, or `judgment_cache_used`) rather than collapsing every case into an opaque `blocked` result.
-
-## Layered readiness
-
-The report separates three questions:
-
-- `Defect verdict`: whether evidence-verified code findings are open;
-- `Evidence readiness`: whether review evidence/coverage is complete;
-- `Overall readiness`: whether the current evidence is sufficient for delivery readiness.
-
-This prevents `no_findings` plus missing HIL/build/requirements evidence from looking like a contradictory code defect verdict.
-
-## Changed causal anchor
-
-A Finding must still anchor to an exact staged added/modified causal span. `supportingLocations` may point to unchanged symptom/dependency/test/configuration evidence, but never bypass the changed-line gate.
-
-## Deterministic invariants
-
-Verified findings may still nominate deterministic regression invariants. Repeated model review should be used to discover durable invariants; once expressed as deterministic tests/rules, those checks should no longer depend on the model rediscovering the same problem.
+The report must distinguish `fresh`, `result-replay`, and `structural-cache-hit`. Durable judgment history lives only in Review Receipt + Review Lineage; it is audit evidence, not future model input.

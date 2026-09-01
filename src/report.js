@@ -55,7 +55,7 @@ function buildReviewReport(review, options, publishMeta, reviewInputMeta = {}) {
     const s = review.lineage.stability;
     if (s) {
       const status = s.stable ? 'stable' : s.compared ? `unstable (${s.unstableFindingIds?.length || 0} disagreement IDs)` : 'pending';
-      lines.push(`Independent-review stability: ${status}; fresh=${s.freshInferenceRuns || 0}/${s.requiredFreshRuns || 2}, complete=${s.completeFreshRuns || 0}, blind=${s.blindFreshRuns || 0}, independent=${s.independentReviewRuns || 0}, cached-verdict=${s.cachedVerdictRuns || 0}, agreement=${pct(s.agreement)}`);
+      lines.push(`Fresh-run stability: ${status}; fresh=${s.freshInferenceRuns || 0}/${s.requiredFreshRuns || 2}, complete=${s.completeFreshRuns || 0}, blind=${s.blindFreshRuns || 0}, cached-verdict=${s.cachedVerdictRuns || 0}, agreement=${pct(s.agreement)}`);
     }
   } else if (meta.resultReplay || reviewInputMeta.resultReplay) {
     lines.push('Review lineage: unchanged [result-replay does not create a fresh lineage run]');
