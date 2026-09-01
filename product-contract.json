@@ -1,9 +1,9 @@
 {
   "productContractVersion": 1,
   "productId": "codex-review-safe",
-  "productVersion": "4.5.0",
-  "safeCoreVersion": "4.11.0",
-  "safeCoreCommit": "8375907712db37492aff1ac0d0013e2753b1f6ab",
+  "productVersion": "4.6.0",
+  "safeCoreVersion": "4.12.0",
+  "safeCoreCommit": "7878dae982088746c06e4fe747b2468e6af274a2",
   "safeCoreMajorVersion": 4,
   "safeContractVersion": 2,
   "policySchemaVersion": 4,
@@ -16,5 +16,7 @@
   "reviewReceiptVersion": 5,
   "reviewPromptContractVersion": 1,
   "qualityPlatformVersion": 3,
-  "judgmentLifecycleVersion": 1
+  "judgmentLifecycleVersion": 1,
+  "codexRuntimeVersion": 2,
+  "providerContractVersion": 2
 }

@@ -232,7 +232,23 @@ function bindReceiptIdentity(meta, evidenceManifestDigest = '6'.repeat(64)) {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
+  const runtimeValues = {
+    providerMode: 'openai-compatible',
+    providerBaseUrl: 'http://192.168.2.109:3000/v1',
+    providerApiKeyEnv: 'RELAY_API_KEY',
+    providerCredentialSource: 'auth-json',
+    providerAllowInsecureHttp: true
+  };
+  const runtimeConfig = { inspect(key) { return { defaultValue: undefined, globalValue: runtimeValues[key] }; } };
+  const relayRuntime = unit.runtimeOptions(runtimeConfig, {});
+  assert.strictEqual(relayRuntime.provider.credentialSource, 'auth-json');
+  assert.strictEqual(relayRuntime.provider.allowInsecureHttp, true);
+  assert.strictEqual(relayRuntime.provider.baseUrl, 'http://192.168.2.109:3000/v1');
+
   const properties = pkg.contributes?.configuration?.properties || {};
+  assert.deepStrictEqual(properties['safeCodexReview.providerCredentialSource'].enum, ['auto', 'env', 'auth-json']);
+  assert.strictEqual(properties['safeCodexReview.providerCredentialSource'].default, 'auto');
+  assert.strictEqual(properties['safeCodexReview.providerAllowInsecureHttp'].default, false);
   assert.strictEqual(properties['safeCodexReview.codexPath'].scope, 'machine');
   for (const [key, value] of Object.entries(properties)) {
     if (key === 'safeCodexReview.codexPath') continue;

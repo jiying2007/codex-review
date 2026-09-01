@@ -151,3 +151,7 @@ MIT
 ## Codex Provider Runtime
 
 Codex Review Safe 为保持 Safe Contract 会主动忽略 `~/.codex/config.toml`。使用 OpenAI-compatible 中转站时，将 `safeCodexReview.providerMode` 设为 `openai-compatible`，配置 `safeCodexReview.providerBaseUrl`，并让 `safeCodexReview.providerApiKeyEnv` 指向 VS Code 进程可见的 API Key 环境变量。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 会真实执行一次结构化 Provider 探测。
+
+## 中转站凭据与局域网 HTTP
+
+Codex Review Safe 4.6.0 统一消费 Core Provider Contract v2。`providerCredentialSource=auto` 会先读取 `providerApiKeyEnv` 指定的环境变量；不存在时由 Core 读取 `${CODEX_HOME}/auth.json` 或 `~/.codex/auth.json`。auth 文件只有在 `auth_mode=apikey` 且存在非空 `OPENAI_API_KEY` 时才有效。非 loopback 的 `http://` 中转地址只有在用户/应用设置显式开启 `providerAllowInsecureHttp=true` 时才允许。仓库策略不能提供凭据，也不能开启不安全 HTTP。

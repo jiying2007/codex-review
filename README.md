@@ -151,3 +151,7 @@ MIT
 ## Codex provider runtime
 
 Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` performs a live structured provider probe.
+
+## Relay credentials and private-network HTTP
+
+Codex Review Safe 4.6.0 consumes Core Provider Contract v2. With `providerCredentialSource=auto`, Review Safe first uses `providerApiKeyEnv`; when it is absent, Core reads `${CODEX_HOME}/auth.json` or `~/.codex/auth.json`. The auth file qualifies only with `auth_mode=apikey` and a non-empty `OPENAI_API_KEY`. A non-loopback `http://` relay is accepted only when `providerAllowInsecureHttp=true` is explicitly enabled in user/application settings. Repository policy cannot provide credentials or enable insecure HTTP.
