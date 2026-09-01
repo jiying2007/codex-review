@@ -4,7 +4,7 @@ Codex Review Safe separates **deterministic evidence**, **fresh model judgment**
 
 ## One Review command
 
-There is one user-facing Review action. `Independent Review` is retired. For an unchanged `ReviewSubjectKey`, Review automatically follows:
+There is one user-facing Review action. `fresh blind review` is retired. For an unchanged `ReviewSubjectKey`, Review automatically follows:
 
 `fresh → replay → replay → fresh → replay → replay → fresh ...`
 

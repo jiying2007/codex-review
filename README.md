@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A VS Code extension that reviews **staged Git changes only** with your local Codex CLI, deterministic repository rules, exact changed-line validation, fail-closed evidence coverage, and provenance-backed independent re-review.
+A VS Code extension that reviews **staged Git changes only** with your local Codex CLI, deterministic repository rules, exact changed-line validation, fail-closed evidence coverage, and provenance-backed fresh blind re-review.
 
 ## Start here
 
@@ -29,7 +29,7 @@ Working-tree-only edits are intentionally excluded from the reviewed snapshot.
 
 See [Getting Started](docs/GETTING_STARTED.md) for installation, configuration and troubleshooting.
 
-## Fresh and independent review
+## Fresh review and bounded replay
 
 Codex Review Safe distinguishes the immutable subject from each real model execution:
 
@@ -38,9 +38,8 @@ Codex Review Safe distinguishes the immutable subject from each real model execu
 - deterministic semantic evidence may be reused through the Evidence Cache;
 - a prior model judgment is never fed into a fresh reviewer;
 - a replay of an identical subject is explicitly marked `[result-replay]` and does not create a new lineage run, convergence run, or Review Receipt;
-- **Independent Review Staged Changes** forces fresh, blind model inference while still allowing deterministic evidence reuse.
 
-For convergence, the default protocol requires at least two fresh blind runs for the same subject. If independent reviewers disagree, the disagreement remains visible and convergence stays incomplete; findings are not suppressed merely to manufacture stability.
+For convergence, the default protocol requires at least two fresh blind runs for the same subject. If fresh blind reviewers disagree, the disagreement remains visible and convergence stays incomplete; findings are not suppressed merely to manufacture stability.
 
 See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/ReviewRun, cache, lineage, and provenance contract.
 
@@ -50,18 +49,18 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - Policy Schema v4 from committed HEAD `.codex-safe.json`;
 - coverage-preserving Review Evidence Chunking with explicit gaps instead of silent hunk truncation;
 - deterministic Evidence Cache is separated from model Judgment Replay;
-- independent re-review performs fresh blind inference and never consumes previous findings/suppressed hypotheses as reviewer input;
+- fresh blind re-review performs fresh blind inference and never consumes previous findings/suppressed hypotheses as reviewer input;
 - convergence requires fresh provenance rather than cached-output equality;
 - model findings must resolve to exact post-change changed lines;
 - deterministic repository rules run outside the model;
 - low-confidence findings are filtered before Problems/verdicts;
 - incomplete coverage or invalid findings fail closed;
-- Review Receipt v4 records immutable evidence/provenance for fresh review executions;
+- Review Receipt v5 records immutable evidence/provenance for fresh review executions;
 - Restricted Mode is rejected;
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
-Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.10.2** submodule at `cd9788f1280a217fbe6d0beb59682a85a8b82c4d`.
+Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.11.0** submodule at `8375907712db37492aff1ac0d0013e2753b1f6ab`.
 
 ## Reading readiness correctly
 
@@ -79,7 +78,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/cd9788f1280a217fbe6d0beb59682a85a8b82c4d/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/8375907712db37492aff1ac0d0013e2753b1f6ab/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "en",
@@ -106,7 +105,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 ```text
 staged changes
     ↓
-Codex Review Safe → Review Receipt v4
+Codex Review Safe → Review Receipt v5
     ↓
 Codex Commit Safe → Commit Receipt v4
     ↓

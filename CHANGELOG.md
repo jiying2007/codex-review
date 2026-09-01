@@ -1,3 +1,10 @@
+## 4.5.0
+
+- Adopt immutable Safe Core 4.11.0 and Review Receipt v5 / Judgment Lifecycle v1.
+- Bind persisted receipts to the exact ReviewSubject and Evidence Manifest identity; historical receipts restored after restart are never current-session freshness.
+- Keep bounded in-session Judgment Replay receipt-free and retain only deterministic structural Evidence Cache across sessions.
+- Expose delivery-qualified range evidence from coverage, mechanical and quality gates without overloading Review readiness.
+
 ## 4.4.3
 
 - Replace persistent judgment caching with a bounded in-session Replay Window: `fresh → replay → replay → fresh`, max 2 consecutive replays and max 10-minute replay age.

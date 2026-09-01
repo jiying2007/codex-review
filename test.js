@@ -43,12 +43,28 @@ function initRepo(repo) {
   gitRun(repo, ['config', 'user.email', 'test@example.invalid']);
   gitRun(repo, ['config', 'user.name', 'Codex Review Safe Test']);
 }
+function bindReceiptIdentity(meta, evidenceManifestDigest = '6'.repeat(64)) {
+  return {
+    ...meta,
+    evidenceManifestDigest,
+    reviewSubjectKey: core.computeReviewSubjectFingerprint({
+      subject: { type: 'git-index', headOid: meta.headOid, indexFingerprint: meta.indexFingerprint, stagedFileCount: meta.stagedFileCount },
+      diffFingerprint: meta.diffFingerprint,
+      policyFingerprint: meta.policyFingerprint,
+      evidenceManifestDigest,
+      promptContractVersion: core.REVIEW_PROMPT_CONTRACT_VERSION,
+      reviewProfile: 'standard',
+      model: meta.model || 'cli-default'
+    })
+  };
+}
 
 (async () => {
   assert.strictEqual(core.SAFE_CORE_VERSION, 4);
   assert.strictEqual(core.SAFE_CONTRACT_VERSION, 2);
   assert.strictEqual(core.POLICY_SCHEMA_VERSION, 4);
-  assert.strictEqual(core.REVIEW_RECEIPT_SCHEMA_VERSION, 4);
+  assert.strictEqual(core.REVIEW_RECEIPT_SCHEMA_VERSION, 5);
+  assert.strictEqual(core.JUDGMENT_LIFECYCLE_VERSION, 1);
   assert.strictEqual(unit.PROJECT_RULES_FILE, '.codex-safe.json');
   assert.strictEqual(unit.severityPasses('high', 'medium'), true);
   assert.strictEqual(unit.severityPasses('low', 'medium'), false);
@@ -124,14 +140,14 @@ function initRepo(repo) {
   assert.strictEqual(evidence.complete, true);
   assert.strictEqual(evidence.chunks.length, 1);
 
-  const meta = unit.buildReviewInputMeta(
+  const meta = bindReceiptIdentity(unit.buildReviewInputMeta(
     { headOid: '1'.repeat(40), indexFingerprint: '2'.repeat(64) },
     '3'.repeat(64), 321, staged, new Set(),
     { model: 'gpt-test', codexVersion: 'codex-cli 9.9.9', policyFingerprint: '4'.repeat(64), policySource: 'head-policy', coverageVerdict: 'complete' }
-  );
+  ));
   const receipt = unit.createReviewReceipt(consolidated, meta, new Date('2026-08-22T00:00:00.000Z'));
   assert(receipt);
-  assert.strictEqual(receipt.schemaVersion, 4);
+  assert.strictEqual(receipt.schemaVersion, 5);
   assert.strictEqual(receipt.safeCoreVersion, 4);
   assert.strictEqual(receipt.safeContractVersion, 2);
   assert.strictEqual(receipt.policySchemaVersion, 4);
@@ -139,6 +155,8 @@ function initRepo(repo) {
   assert.strictEqual(receipt.kind, 'codex-review');
   assert.strictEqual(receipt.subject.type, 'git-index');
   assert.strictEqual(receipt.subject.headOid, meta.headOid);
+  assert.strictEqual(receipt.reviewSubjectFingerprint, meta.reviewSubjectKey);
+  assert.strictEqual(receipt.evidenceManifestDigest, meta.evidenceManifestDigest);
   assert.strictEqual(receipt.coverageVerdict, 'complete');
 
   const state = {
@@ -151,6 +169,9 @@ function initRepo(repo) {
   await receiptStore.persist('/repo', receipt);
   assert.strictEqual(receiptStore.getStatus('/repo', { headOid: receipt.subject.headOid, indexFingerprint: receipt.subject.indexFingerprint }).status, 'current');
   assert.strictEqual(receiptStore.getStatus('/repo', { headOid: '9'.repeat(40), indexFingerprint: receipt.subject.indexFingerprint }).status, 'stale');
+  const restartedStore = createReviewReceiptStore(state);
+  restartedStore.restore();
+  assert.strictEqual(restartedStore.getStatus('/repo', { headOid: receipt.subject.headOid, indexFingerprint: receipt.subject.indexFingerprint }).status, 'stale', 'persisted historical receipt must not become current after extension restart');
 
   const policyRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-review-safe-policy-'));
   try {
@@ -195,16 +216,18 @@ function initRepo(repo) {
     gitRun(repo, ['add', 'a.c']);
     const rangeDiff = await unit.getStagedDiff(repo);
     const snapshot = { headOid: parent, indexFingerprint: await unit.getIndexFingerprint(repo) };
-    const rangeMeta = unit.buildReviewInputMeta(snapshot, crypto.createHash('sha256').update(rangeDiff, 'utf8').digest('hex'), Buffer.byteLength(rangeDiff), ['a.c'], new Set(), { policyFingerprint: '<none>', coverageVerdict: 'complete' });
+    const rangeMeta = bindReceiptIdentity(unit.buildReviewInputMeta(snapshot, crypto.createHash('sha256').update(rangeDiff, 'utf8').digest('hex'), Buffer.byteLength(rangeDiff), ['a.c'], new Set(), { model: 'gpt-test', policyFingerprint: '<none>', coverageVerdict: 'complete' }), '7'.repeat(64));
     const rangeReceipt = unit.createReviewReceipt({ qualityVerdict: 'no_findings', readinessVerdict: 'needs_evidence', mechanicalGate: 'pass', coverageVerdict: 'complete' }, rangeMeta, new Date('2026-08-22T00:00:00.000Z'));
     const store = createReviewReceiptStore();
     await store.persist(repo, rangeReceipt);
     gitRun(repo, ['commit', '-m', 'fix: update value']);
     const rangeEvidence = await store.getEvidenceForRange(repo, parent, 'HEAD');
-    assert.strictEqual(rangeEvidence.schemaVersion, 4);
+    assert.strictEqual(rangeEvidence.schemaVersion, 5);
     assert.strictEqual(rangeEvidence.totalCommits, 1);
     assert.strictEqual(rangeEvidence.reviewedCommits, 1);
+    assert.strictEqual(rangeEvidence.qualifiedCommits, 1);
     assert.strictEqual(rangeEvidence.incompleteCommits, 0);
+    assert.strictEqual(rangeEvidence.needsEvidenceCommits, 0);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
