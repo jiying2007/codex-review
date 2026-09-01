@@ -80,7 +80,6 @@ function computeSubjectStability(runs = []) {
     freshInferenceRuns: freshRuns.length,
     completeFreshRuns: completeFreshRuns.length,
     latestRequiredRunsCoverageComplete: latestComplete,
-    independentReviewRuns: freshRuns.filter(run => run.executionProvenance?.mode === 'independent').length,
     blindFreshRuns: freshRuns.filter(run => run.executionProvenance?.judgmentContext === 'blind').length,
     cachedVerdictRuns: freshRuns.filter(run => run.executionProvenance?.judgmentCacheUsed === true).length,
     agreement,

@@ -59,7 +59,6 @@ function evaluateConvergence(review, lineage = null, scope = null) {
     freshInferenceRuns,
     completeFreshRuns,
     blindFreshRuns,
-    independentReviewRuns: Number(stability.independentReviewRuns || 0),
     cachedVerdictRuns,
     agreement: clamp01(stability.agreement),
     sessionRunNumber,
