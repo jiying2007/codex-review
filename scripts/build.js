@@ -8,7 +8,9 @@ const dist = path.join(root, 'dist');
 const runtimeModules = [
   'i18n.js', 'review-support.js', 'process.js', 'git.js', 'policy.js',
   'review.js', 'report.js', 'receipts.js', 'codex.js', 'quality.js',
-  'semantic-evidence.js', 'semantic-review.js', 'review-cache.js', 'finding-ledger.js', 'review-scope.js', 'review-lineage.js', 'convergence.js', 'causal-anchor.js', 'code-intelligence.js'
+  'semantic-evidence.js', 'semantic-review.js', 'review-cache.js', 'replay-window.js',
+  'finding-ledger.js', 'review-scope.js', 'review-lineage.js', 'convergence.js',
+  'causal-anchor.js', 'code-intelligence.js'
 ];
 const coreModules = [
   'index.js', 'safe-contract.js', 'codex-runtime.js', 'codex-cli.js', 'process-runner.js',
