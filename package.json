@@ -2,7 +2,7 @@
   "name": "codex-review-safe",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "4.5.0",
+  "version": "4.6.0",
   "publisher": "jiying2007",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
@@ -172,13 +172,30 @@
           "type": "string",
           "default": "",
           "scope": "application",
-          "description": "HTTPS base URL for openai-compatible mode. User Codex config.toml is intentionally ignored."
+          "description": "Base URL for openai-compatible mode. HTTPS is the default; non-loopback HTTP requires providerAllowInsecureHttp=true."
         },
         "safeCodexReview.providerApiKeyEnv": {
           "type": "string",
           "default": "OPENAI_API_KEY",
           "scope": "application",
           "description": "Environment-variable name containing the provider API key. The secret value is never stored in VS Code settings."
+        },
+        "safeCodexReview.providerCredentialSource": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "env",
+            "auth-json"
+          ],
+          "default": "auto",
+          "scope": "application",
+          "description": "Credential source for compatible providers. auto prefers the configured environment variable, then CODEX_HOME/auth.json or ~/.codex/auth.json."
+        },
+        "safeCodexReview.providerAllowInsecureHttp": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Explicitly allow non-loopback HTTP for a trusted private-network relay. Keep disabled for Internet endpoints."
         },
         "safeCodexReview.connectTimeoutSeconds": {
           "type": "number",

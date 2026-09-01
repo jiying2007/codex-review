@@ -60,7 +60,7 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
-Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.11.0** submodule at `8375907712db37492aff1ac0d0013e2753b1f6ab`.
+Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.12.0** submodule at `7878dae982088746c06e4fe747b2468e6af274a2`.
 
 ## Reading readiness correctly
 
@@ -78,7 +78,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/8375907712db37492aff1ac0d0013e2753b1f6ab/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/7878dae982088746c06e4fe747b2468e6af274a2/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "en",
@@ -151,3 +151,7 @@ MIT
 ## Codex provider runtime
 
 Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` performs a live structured provider probe.
+
+## Relay credentials and private-network HTTP
+
+Codex Review Safe 4.6.0 consumes Core Provider Contract v2. With `providerCredentialSource=auto`, Review Safe first uses `providerApiKeyEnv`; when it is absent, Core reads `${CODEX_HOME}/auth.json` or `~/.codex/auth.json`. The auth file qualifies only with `auth_mode=apikey` and a non-empty `OPENAI_API_KEY`. A non-loopback `http://` relay is accepted only when `providerAllowInsecureHttp=true` is explicitly enabled in user/application settings. Repository policy cannot provide credentials or enable insecure HTTP.
