@@ -1,0 +1,41 @@
+name: Family migration bootstrap
+on:
+  push:
+    branches: [family/judgment-lifecycle-v1]
+permissions:
+  contents: write
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: family/judgment-lifecycle-v1
+          fetch-depth: 0
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with:
+          node-version: '22.22.2'
+      - name: Apply deterministic Review 4.5.0 migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('node:fs');
+          const version='4.5.0';
+          const coreVersion='4.11.0';
+          const coreSha='8375907712db37492aff1ac0d0013e2753b1f6ab';
+          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));pkg.version=version;fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');
+          const lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));lock.version=version;lock.packages[''].version=version;fs.writeFileSync('package-lock.json',JSON.stringify(lock,null,2)+'\n');
+          const pc=JSON.parse(fs.readFileSync('product-contract.json','utf8'));Object.assign(pc,{productVersion:version,safeCoreVersion:coreVersion,safeCoreCommit:coreSha,reviewReceiptVersion:5,judgmentLifecycleVersion:1});fs.writeFileSync('product-contract.json',JSON.stringify(pc,null,2)+'\n');
+          const example=JSON.parse(fs.readFileSync('.codex-safe.example.json','utf8'));example.$schema=`https://raw.githubusercontent.com/jiying2007/codex-safe-core/${coreSha}/codex-safe.schema.json`;fs.writeFileSync('.codex-safe.example.json',JSON.stringify(example,null,2)+'\n');
+          let changelog=fs.readFileSync('CHANGELOG.md','utf8');
+          if(!changelog.startsWith('## 4.5.0\n')) changelog=`## 4.5.0\n\n- Adopt immutable Safe Core 4.11.0 and Review Receipt v5 / Judgment Lifecycle v1.\n- Bind persisted receipts to the exact ReviewSubject and Evidence Manifest identity; historical receipts restored after restart are never current-session freshness.\n- Keep bounded in-session Judgment Replay receipt-free and retain only deterministic structural Evidence Cache across sessions.\n- Expose delivery-qualified range evidence from coverage, mechanical and quality gates without overloading Review readiness.\n\n${changelog}`;
+          fs.writeFileSync('CHANGELOG.md',changelog);
+          NODE
+          rm .github/workflows/family-migration-bootstrap.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(review): finalize 4.5.0 family migration'
+          git push origin HEAD:family/judgment-lifecycle-v1
