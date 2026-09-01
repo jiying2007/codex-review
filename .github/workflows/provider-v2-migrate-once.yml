@@ -39,46 +39,20 @@ jobs:
           for(const [key,value] of Object.entries(props)){
             next[key]=value;
             if(key==='safeCodexReview.providerApiKeyEnv'){
-              next['safeCodexReview.providerCredentialSource']={
-                type:'string', enum:['auto','env','auth-json'], default:'auto', scope:'application',
-                description:'Credential source for compatible providers. auto prefers the configured environment variable, then CODEX_HOME/auth.json or ~/.codex/auth.json.'
-              };
-              next['safeCodexReview.providerAllowInsecureHttp']={
-                type:'boolean', default:false, scope:'application',
-                description:'Explicitly allow non-loopback HTTP for a trusted private-network relay. Keep disabled for Internet endpoints.'
-              };
+              next['safeCodexReview.providerCredentialSource']={type:'string',enum:['auto','env','auth-json'],default:'auto',scope:'application',description:'Credential source for compatible providers. auto prefers the configured environment variable, then CODEX_HOME/auth.json or ~/.codex/auth.json.'};
+              next['safeCodexReview.providerAllowInsecureHttp']={type:'boolean',default:false,scope:'application',description:'Explicitly allow non-loopback HTTP for a trusted private-network relay. Keep disabled for Internet endpoints.'};
             }
           }
           pkg.contributes.configuration.properties=next;
           writeJson('package.json',pkg);
-
-          const contract=readJson('product-contract.json');
-          contract.productVersion='4.6.0';
-          contract.safeCoreVersion='4.12.0';
-          contract.safeCoreCommit=process.env.CORE_SHA;
-          contract.codexRuntimeVersion=2;
-          contract.providerContractVersion=2;
-          writeJson('product-contract.json',contract);
-
+          const contract=readJson('product-contract.json');contract.productVersion='4.6.0';contract.safeCoreVersion='4.12.0';contract.safeCoreCommit=process.env.CORE_SHA;contract.codexRuntimeVersion=2;contract.providerContractVersion=2;writeJson('product-contract.json',contract);
           let policy=fs.readFileSync('src/policy.js','utf8');
-          policy=replaceOnce(policy,
-            "        apiKeyEnv: String(getUserOnlySetting(config, 'providerApiKeyEnv', 'OPENAI_API_KEY') || '').trim()\n",
-            "        apiKeyEnv: String(getUserOnlySetting(config, 'providerApiKeyEnv', 'OPENAI_API_KEY') || '').trim(),\n        credentialSource: String(getUserOnlySetting(config, 'providerCredentialSource', 'auto') || 'auto').trim(),\n        allowInsecureHttp: Boolean(getUserOnlySetting(config, 'providerAllowInsecureHttp', false))\n",
-            'src/policy.js');
-          fs.writeFileSync('src/policy.js',policy);
-
-          let test=fs.readFileSync('test.js','utf8');
-          const propsAnchor="  const properties = pkg.contributes?.configuration?.properties || {};\n";
-          const providerChecks=`  const runtimeValues = {\n    providerMode: 'openai-compatible',\n    providerBaseUrl: 'http://192.168.2.109:3000/v1',\n    providerApiKeyEnv: 'RELAY_API_KEY',\n    providerCredentialSource: 'auth-json',\n    providerAllowInsecureHttp: true\n  };\n  const runtimeConfig = { inspect(key) { return { defaultValue: undefined, globalValue: runtimeValues[key] }; } };\n  const relayRuntime = unit.runtimeOptions(runtimeConfig, {});\n  assert.strictEqual(relayRuntime.provider.credentialSource, 'auth-json');\n  assert.strictEqual(relayRuntime.provider.allowInsecureHttp, true);\n  assert.strictEqual(relayRuntime.provider.baseUrl, 'http://192.168.2.109:3000/v1');\n\n${propsAnchor}  assert.deepStrictEqual(properties['safeCodexReview.providerCredentialSource'].enum, ['auto', 'env', 'auth-json']);\n  assert.strictEqual(properties['safeCodexReview.providerCredentialSource'].default, 'auto');\n  assert.strictEqual(properties['safeCodexReview.providerAllowInsecureHttp'].default, false);\n`;
-          test=replaceOnce(test,propsAnchor,providerChecks,'test.js');
-          fs.writeFileSync('test.js',test);
-
-          const noteEn=`\n## Relay credentials and private-network HTTP\n\nCodex Review Safe 4.6.0 consumes Core Provider Contract v2. With \`providerCredentialSource=auto\`, Review Safe first uses \`providerApiKeyEnv\`; when it is absent, Core reads \`${CODEX_HOME}/auth.json\` or \`~/.codex/auth.json\`. The auth file qualifies only with \`auth_mode=apikey\` and a non-empty \`OPENAI_API_KEY\`. A non-loopback \`http://\` relay is accepted only when \`providerAllowInsecureHttp=true\` is explicitly enabled in user/application settings. Repository policy cannot provide credentials or enable insecure HTTP.\n`;
-          const noteZh=`\n## 中转站凭据与局域网 HTTP\n\nCodex Review Safe 4.6.0 统一消费 Core Provider Contract v2。\`providerCredentialSource=auto\` 会先读取 \`providerApiKeyEnv\` 指定的环境变量；不存在时由 Core 读取 \`${CODEX_HOME}/auth.json\` 或 \`~/.codex/auth.json\`。auth 文件只有在 \`auth_mode=apikey\` 且存在非空 \`OPENAI_API_KEY\` 时才有效。非 loopback 的 \`http://\` 中转地址只有在用户/应用设置显式开启 \`providerAllowInsecureHttp=true\` 时才允许。仓库策略不能提供凭据，也不能开启不安全 HTTP。\n`;
+          policy=replaceOnce(policy,"        apiKeyEnv: String(getUserOnlySetting(config, 'providerApiKeyEnv', 'OPENAI_API_KEY') || '').trim()\n","        apiKeyEnv: String(getUserOnlySetting(config, 'providerApiKeyEnv', 'OPENAI_API_KEY') || '').trim(),\n        credentialSource: String(getUserOnlySetting(config, 'providerCredentialSource', 'auto') || 'auto').trim(),\n        allowInsecureHttp: Boolean(getUserOnlySetting(config, 'providerAllowInsecureHttp', false))\n",'src/policy.js');fs.writeFileSync('src/policy.js',policy);
+          let test=fs.readFileSync('test.js','utf8');const propsAnchor="  const properties = pkg.contributes?.configuration?.properties || {};\n";const providerChecks=`  const runtimeValues = {\n    providerMode: 'openai-compatible',\n    providerBaseUrl: 'http://192.168.2.109:3000/v1',\n    providerApiKeyEnv: 'RELAY_API_KEY',\n    providerCredentialSource: 'auth-json',\n    providerAllowInsecureHttp: true\n  };\n  const runtimeConfig = { inspect(key) { return { defaultValue: undefined, globalValue: runtimeValues[key] }; } };\n  const relayRuntime = unit.runtimeOptions(runtimeConfig, {});\n  assert.strictEqual(relayRuntime.provider.credentialSource, 'auth-json');\n  assert.strictEqual(relayRuntime.provider.allowInsecureHttp, true);\n  assert.strictEqual(relayRuntime.provider.baseUrl, 'http://192.168.2.109:3000/v1');\n\n${propsAnchor}  assert.deepStrictEqual(properties['safeCodexReview.providerCredentialSource'].enum, ['auto', 'env', 'auth-json']);\n  assert.strictEqual(properties['safeCodexReview.providerCredentialSource'].default, 'auto');\n  assert.strictEqual(properties['safeCodexReview.providerAllowInsecureHttp'].default, false);\n`;test=replaceOnce(test,propsAnchor,providerChecks,'test.js');fs.writeFileSync('test.js',test);
+          const noteEn=`\n## Relay credentials and private-network HTTP\n\nCodex Review Safe 4.6.0 consumes Core Provider Contract v2. With \`providerCredentialSource=auto\`, Review Safe first uses \`providerApiKeyEnv\`; when it is absent, Core reads \`\${CODEX_HOME}/auth.json\` or \`~/.codex/auth.json\`. The auth file qualifies only with \`auth_mode=apikey\` and a non-empty \`OPENAI_API_KEY\`. A non-loopback \`http://\` relay is accepted only when \`providerAllowInsecureHttp=true\` is explicitly enabled in user/application settings. Repository policy cannot provide credentials or enable insecure HTTP.\n`;
+          const noteZh=`\n## 中转站凭据与局域网 HTTP\n\nCodex Review Safe 4.6.0 统一消费 Core Provider Contract v2。\`providerCredentialSource=auto\` 会先读取 \`providerApiKeyEnv\` 指定的环境变量；不存在时由 Core 读取 \`\${CODEX_HOME}/auth.json\` 或 \`~/.codex/auth.json\`。auth 文件只有在 \`auth_mode=apikey\` 且存在非空 \`OPENAI_API_KEY\` 时才有效。非 loopback 的 \`http://\` 中转地址只有在用户/应用设置显式开启 \`providerAllowInsecureHttp=true\` 时才允许。仓库策略不能提供凭据，也不能开启不安全 HTTP。\n`;
           for(const [file,note] of [['README.md',noteEn],['README.zh-CN.md',noteZh]]){let text=fs.readFileSync(file,'utf8');if(!text.includes('providerCredentialSource'))text+=note;fs.writeFileSync(file,text);}
-          let changelog=fs.readFileSync('CHANGELOG.md','utf8');
-          if(!changelog.includes('## 4.6.0 - 2026-09-01')) changelog=changelog.replace(/^# Changelog\n/,`# Changelog\n\n## 4.6.0 - 2026-09-01\n\n### Provider Contract v2\n\n- Pin Codex Safe Core 4.12.0 and consume Runtime/Provider Contract v2.\n- Read compatible-provider API keys directly from Codex auth.json through auto/env/auth-json credential modes.\n- Support explicitly trusted private-network HTTP relays while preserving HTTPS-by-default and repository-policy isolation.\n- Keep resolved secrets child-process-only and out of argv, settings, receipts and diagnostics.\n`);
-          fs.writeFileSync('CHANGELOG.md',changelog);
+          let changelog=fs.readFileSync('CHANGELOG.md','utf8');if(!changelog.includes('## 4.6.0 - 2026-09-01'))changelog=changelog.replace(/^# Changelog\n/,`# Changelog\n\n## 4.6.0 - 2026-09-01\n\n### Provider Contract v2\n\n- Pin Codex Safe Core 4.12.0 and consume Runtime/Provider Contract v2.\n- Read compatible-provider API keys directly from Codex auth.json through auto/env/auth-json credential modes.\n- Support explicitly trusted private-network HTTP relays while preserving HTTPS-by-default and repository-policy isolation.\n- Keep resolved secrets child-process-only and out of argv, settings, receipts and diagnostics.\n`);fs.writeFileSync('CHANGELOG.md',changelog);
           NODE
           git -C src/codex-safe-core fetch origin "$CORE_SHA"
           git -C src/codex-safe-core checkout --detach "$CORE_SHA"
