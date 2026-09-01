@@ -1,3 +1,10 @@
+## 4.4.3
+
+- Replace persistent judgment caching with a bounded in-session Replay Window: `fresh → replay → replay → fresh`, max 2 consecutive replays and max 10-minute replay age.
+- Retire the user-facing Independent Review command; every forced fresh cycle is automatically blind to prior judgments.
+- Keep deterministic structural Evidence Cache persistent, split analyzer/SARIF composition from structural scanning, and hard-cut legacy `reviewArtifacts.v2`/`semanticRuns.v1` replay state.
+- Preserve Review Receipt v4, Safe Contract v2, Policy Schema v4, lineage/convergence provenance gates, and exact Safe Core 4.10.2 pin.
+
 # Changelog
 
 ## 4.4.2

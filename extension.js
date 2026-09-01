@@ -45,8 +45,9 @@ const {
   isCliCompatibilityError
 } = require('./src/codex');
 const { loadSarifFiles, importSarifFile, applyValidatedPatch } = require('./src/quality');
-const { collectSemanticEvidence } = require('./src/semantic-evidence');
+const { collectStructuralEvidence, composeSemanticEvidence } = require('./src/semantic-evidence');
 const { createReviewCache } = require('./src/review-cache');
+const { createReplayWindow } = require('./src/replay-window');
 const { createFindingLedger, RESOLUTION_VALUES } = require('./src/finding-ledger');
 const { loadReviewScope } = require('./src/review-scope');
 const { createReviewLineageStore, buildReviewSessionKey } = require('./src/review-lineage');
@@ -55,7 +56,7 @@ const { applyResolutionLedger } = require('./src/semantic-review');
 const { computeReviewKey, canonicalJson, sha256, SEMANTIC_REVIEW_VERSION, digestAnalyzerEvidence } = require('./src/codex-safe-core/semantic-review');
 const { REVIEW_PROMPT_CONTRACT_VERSION } = require('./src/codex-safe-core/safe-contract');
 
-const REVIEW_EVIDENCE_PROTOCOL_VERSION = 2;
+const REVIEW_EVIDENCE_PROTOCOL_VERSION = 3;
 
 let outputChannel;
 let diagnosticCollection;
@@ -70,6 +71,7 @@ let fileWatcherSubscriptions = [];
 const activeReviews = new Map();
 let reviewReceiptStore;
 let reviewCache;
+let replayWindow;
 let findingLedger;
 let reviewLineage;
 let nextReviewId = 1;
@@ -352,17 +354,13 @@ function reviewOptionsFingerprint(options) {
     extraInstructions: options.extraInstructions || ''
   }));
 }
-function semanticEvidenceKey(snapshot, diffFingerprint, profileConfig, analyzerDigest) {
+function structuralEvidenceKey(snapshot, diffFingerprint, profileConfig) {
   const profile = profileConfig || {};
   return sha256(canonicalJson({
     semanticReviewVersion: SEMANTIC_REVIEW_VERSION,
     reviewEvidenceProtocolVersion: REVIEW_EVIDENCE_PROTOCOL_VERSION,
-    headOid: snapshot.headOid,
-    indexFingerprint: snapshot.indexFingerprint,
-    diffFingerprint,
-    analyzerDigest,
-    impactDepth: Number(profile.impactDepth || 0),
-    maxImpactFiles: Number(profile.maxImpactFiles || 0)
+    headOid: snapshot.headOid, indexFingerprint: snapshot.indexFingerprint, diffFingerprint,
+    impactDepth: Number(profile.impactDepth || 0), maxImpactFiles: Number(profile.maxImpactFiles || 0)
   }));
 }
 function computeReviewSubjectKey(snapshot, diffFingerprint, options, analyzerDigest, scopeFingerprint, evidenceManifestDigest) {
@@ -374,14 +372,13 @@ function computeReviewSubjectKey(snapshot, diffFingerprint, options, analyzerDig
   return sha256(canonicalJson({ reviewSubjectProtocolVersion: 1, coreReviewKey, scopeFingerprint }));
 }
 
-async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
+async function reviewStaged(commandArgs = []) {
   assertTrustedWorkspace();
-  const independent = mode === 'independent';
   const repositoryInfo = await chooseRepository(commandArgs);
   if (!repositoryInfo) return;
   const repoRoot = repositoryInfo.root;
   const { key, state } = beginReview(repoRoot);
-  log(independent ? 'independent review started' : 'review started');
+  log('review started');
   try {
     const result = await vscode.window.withProgress({ location: vscode.ProgressLocation.SourceControl, title: t('Codex is reviewing Staged Changes…'), cancellable: true }, async (_progress, uiToken) => {
       const linked = linkCancellation(uiToken, state.cancelSource);
@@ -421,63 +418,52 @@ async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
         catch (error) { log(t('Configured SARIF evidence could not be loaded: {0}', error?.message || error)); }
         const analyzerFindings = [...configuredSarif, ...(importedSarifByRepo.get(key) || [])];
         const analyzerDigest = digestAnalyzerEvidence(analyzerFindings);
-        const evidenceKey = semanticEvidenceKey(snapshotAfter, diffFingerprint, options.profileConfig, analyzerDigest);
+        const evidenceKey = structuralEvidenceKey(snapshotAfter, diffFingerprint, options.profileConfig);
         const sessionKey = buildReviewSessionKey({ headOid: snapshotAfter.headOid, policyFingerprint: options.policyFingerprint, scopeFingerprint: scope.fingerprint, profile: options.profile });
-        let rawReview;
-        let reviewSubjectKey = '';
-        let reviewRunId = '';
-        let evidenceManifestDigest = '';
-        let semanticEvidence = null;
-        let evidenceCacheHit = false;
-        let evidenceState = 'fresh';
-        let resultReplay = false;
-        let originReviewRunId = '';
+        let rawReview, reviewSubjectKey='', reviewRunId='', evidenceManifestDigest='', semanticEvidence=null, structuralEvidence=null;
+        let evidenceCacheHit=false, evidenceState='fresh', resultReplay=false, originReviewRunId='', replayStreak=0, replayAgeMs=0, freshReason='';
 
         const cachedEvidence = reviewCache.getEvidence(repoRoot, evidenceKey);
         if (cachedEvidence) {
-          semanticEvidence = cachedEvidence.semanticEvidence;
-          evidenceManifestDigest = cachedEvidence.evidenceManifestDigest;
-          evidenceCacheHit = true;
-          evidenceState = 'cache-hit';
-          log('evidence cache hit: deterministic semantic evidence reused');
+          structuralEvidence = cachedEvidence.structuralEvidence; evidenceCacheHit = true; evidenceState = 'structural-cache-hit';
+          log('evidence cache hit: deterministic structural evidence reused');
         } else {
           log(`input prepared: files=${stagedPaths.length}, rawDiffBytes=${diffBytes}, modelBudgetBytes=${options.maxDiffBytes}`);
-          semanticEvidence = await collectSemanticEvidence(repoRoot, diff, stagedPaths, snapshotAfter, options.profileConfig, analyzerFindings, token, diffFingerprint);
-          evidenceManifestDigest = semanticEvidence.manifest.manifestDigest;
-          await reviewCache.putEvidence(repoRoot, { evidenceKey, evidenceManifestDigest, semanticEvidence });
+          structuralEvidence = await collectStructuralEvidence(repoRoot, diff, stagedPaths, snapshotAfter, options.profileConfig, token, diffFingerprint);
+          await reviewCache.putEvidence(repoRoot, { evidenceKey, structuralManifestDigest: structuralEvidence.manifest.manifestDigest, structuralEvidence });
         }
-
+        semanticEvidence = composeSemanticEvidence(structuralEvidence, analyzerFindings, snapshotAfter, diffFingerprint);
+        evidenceManifestDigest = semanticEvidence.manifest.manifestDigest;
         reviewSubjectKey = computeReviewSubjectKey(snapshotAfter, diffFingerprint, options, analyzerDigest, scope.fingerprint, evidenceManifestDigest);
 
-        if (!independent) {
-          const exactReplay = reviewCache.getReplay(repoRoot, reviewSubjectKey);
-          if (exactReplay) {
-            rawReview = exactReplay.review;
-            reviewRunId = exactReplay.reviewRunId;
-            originReviewRunId = exactReplay.reviewRunId;
-            resultReplay = true;
-            log('result replay: validated judgment replayed for the current ReviewSubject');
-          }
-        }
-
-        if (!resultReplay) {
-          reviewRunId = crypto.randomUUID();
-          const modelReview = await runCodexReview(diff, stagedPaths, options, token, { semanticEvidence, analyzerFindings, resolutions: [], scope });
-          rawReview = modelReview;
-          log(independent ? 'fresh independent model inference completed' : 'fresh model inference completed');
+        const replayDecision = replayWindow.tryReplay(repoRoot, reviewSubjectKey);
+        if (replayDecision.replayed) {
+          rawReview = replayDecision.review; reviewRunId = replayDecision.originReviewRunId; originReviewRunId = replayDecision.originReviewRunId; resultReplay = true;
+          replayStreak = replayDecision.replayStreak; replayAgeMs = replayDecision.replayAgeMs;
+          log(`result replay: recent validated judgment reused (${replayStreak}/${replayWindow.maxConsecutiveReplays}); no model inference`);
+        } else {
+          freshReason = replayDecision.reason; reviewRunId = crypto.randomUUID();
+          rawReview = await runCodexReview(diff, stagedPaths, options, token, { semanticEvidence, analyzerFindings, resolutions: [], scope });
+          log(`fresh blind model inference completed: reason=${freshReason}; evidence=${evidenceState}`);
         }
 
         const executionMeta = {
           ...(rawReview.executionMeta || {}),
           reviewSubjectKey,
           reviewRunId,
-          executionMode: resultReplay ? 'replay' : independent ? 'independent' : 'standard',
+          executionMode: resultReplay ? 'replay' : 'standard',
           inference: resultReplay ? 'replay' : 'fresh',
           evidenceCacheHit,
           evidenceState,
           resultReplay,
           originReviewRunId,
           judgmentContext: resultReplay ? 'replay' : 'blind',
+          replayStreak,
+          maxConsecutiveReplays: replayWindow.maxConsecutiveReplays,
+          replayAgeMs,
+          maxReplayAgeMs: replayWindow.maxReplayAgeMs,
+          nextReviewFresh: resultReplay && replayStreak >= replayWindow.maxConsecutiveReplays,
+          freshReason,
           judgmentCacheUsed: resultReplay,
           evidenceManifestDigest,
           scopeFingerprint: scope.fingerprint,
@@ -543,18 +529,7 @@ async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
       result.rawReview.lineage = lineage;
       result.rawReview.stability = lineage?.stability;
       result.rawReview.convergence = evaluateConvergence(result.rawReview, lineage, result.scope);
-      try {
-        await reviewCache.putReplay(repoRoot, {
-          evidenceKey: result.evidenceKey,
-          reviewSubjectKey: result.reviewSubjectKey,
-          reviewRunId: result.reviewRunId,
-          evidenceManifestDigest: result.evidenceManifestDigest,
-          findingSetDigest: result.rawReview.findingSetDigest,
-          review: result.rawReview
-        });
-      } catch (error) {
-        log(`review replay persistence unavailable: code=${error?.code || error?.name || 'ERROR'}`);
-      }
+      replayWindow.recordFresh(repoRoot, { reviewSubjectKey: result.reviewSubjectKey, reviewRunId: result.reviewRunId, review: result.rawReview });
     }
 
     const reviewInputMeta = {
@@ -585,16 +560,14 @@ async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
     renderOutput(repoRoot, result.review, result.options, publishMeta, reviewInputMeta);
 
     if (result.resultReplay) {
-      const independentAction = uiText('Independent Review', '独立复审');
       const viewReportAction = t('View Report');
+      const meta = result.review.executionMeta || {};
+      const suffix = meta.nextReviewFresh ? uiText(' The next Review will run fresh.', ' 下一次 Review 将执行 fresh 模型审查。') : '';
       const message = uiText(
-        'Codex Review Safe: identical ReviewSubject replayed; no new model inference was executed.',
-        'Codex Review Safe：当前 ReviewSubject 与上一轮完全相同，本次仅重放已有结果，没有执行新的模型审查。'
+        `Codex Review Safe: recent result replayed (${meta.replayStreak || 0}/${meta.maxConsecutiveReplays || 2}); no model inference.${suffix}`,
+        `Codex Review Safe：本次重放最近结果（${meta.replayStreak || 0}/${meta.maxConsecutiveReplays || 2}），没有执行模型审查。${suffix}`
       );
-      void vscode.window.showInformationMessage(message, independentAction, viewReportAction).then(action => {
-        if (action === independentAction) void vscode.commands.executeCommand('safeCodexReview.independentReviewStaged');
-        if (action === viewReportAction) outputChannel.show(true);
-      }, error => log(`replay notification failed: ${error?.message || error}`));
+      void vscode.window.showInformationMessage(message, viewReportAction).then(action => { if (action === viewReportAction) outputChannel.show(true); }, error => log(`replay notification failed: ${error?.message || error}`));
     } else if (result.review.lineage?.stability?.compared && result.review.lineage.stability.stable !== true) {
       const viewReportAction = t('View Report');
       const message = uiText(
@@ -623,11 +596,9 @@ async function reviewStaged(commandArgs = [], { mode = 'standard' } = {}) {
         }, error => log(`warning notification failed: ${error?.message || error}`));
       }
     }
-    log(independent ? 'independent review completed' : result.resultReplay ? 'review replay completed' : 'review completed');
+    log(result.resultReplay ? 'review replay completed' : 'fresh review completed');
   } finally { finishReview(key, state.id); }
 }
-
-async function independentReviewStaged(commandArgs = []) { return reviewStaged(commandArgs, { mode: 'independent' }); }
 
 async function importSarifEvidence(commandArgs = []) {
   assertTrustedWorkspace();
@@ -677,8 +648,8 @@ async function resolveFinding(commandArgs = []) {
   if (note === undefined) return;
   await findingLedger.resolve(repoRoot, { stableFindingId:selected.finding.stableFindingId, evidenceDigest:selected.finding.evidenceDigest, resolution:picked.value, actor:'local-user', note });
   vscode.window.showInformationMessage(uiText(
-    'Finding resolution saved. The current ReviewSubject will be replayed with the updated human resolution ledger.',
-    'Finding Resolution 已保存；当前 ReviewSubject 会复用原始审查结果，并重新应用更新后的人工 Resolution Ledger。'
+    'Finding resolution saved. The next Review will follow the adaptive replay policy and reapply the updated human resolution ledger.',
+    'Finding Resolution 已保存；下一次 Review 将按自适应重放策略处理，并重新应用人工 Resolution Ledger。'
   ));
   await reviewStaged(commandArgs, { mode:'standard' });
 }
@@ -697,6 +668,7 @@ async function clearReview() {
   reportsByRepo.clear();
   importedSarifByRepo.clear();
   lastReviewsByRepo.clear();
+  replayWindow?.clear();
   try { await reviewReceiptStore?.clear(); await reviewCache?.clear(); }
   catch (error) { log(`review state cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`); }
   for (const timer of gitInvalidationTimers.values()) clearTimeout(timer);
@@ -735,6 +707,7 @@ function activate(context) {
   reviewReceiptStore.restore();
   reviewCache = createReviewCache(context.globalState);
   reviewCache.restore();
+  replayWindow = createReplayWindow();
   findingLedger = createFindingLedger(context.globalState);
   findingLedger.restore();
   reviewLineage = createReviewLineageStore(context.globalState);
@@ -752,7 +725,6 @@ function activate(context) {
         if (error?.code !== 'ECANCELLED') vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error)));
       }
     }),
-    vscode.commands.registerCommand('safeCodexReview.independentReviewStaged', async (...args) => { try { await independentReviewStaged(args); } catch (error) { if (error?.code !== 'ECANCELLED') vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
     vscode.commands.registerCommand('safeCodexReview.resolveFinding', async (...args) => { try { await resolveFinding(args); } catch (error) { vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
     vscode.commands.registerCommand('safeCodexReview.clearFindingResolutions', async (...args) => { try { await clearFindingResolutions(args); } catch (error) { vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
     vscode.commands.registerCommand('safeCodexReview.clearReview', clearReview),
@@ -784,6 +756,8 @@ function deactivate() {
   reviewReceiptStore?.resetMemory();
   reviewReceiptStore = undefined;
   reviewCache = undefined;
+  replayWindow?.clear();
+  replayWindow = undefined;
   findingLedger = undefined;
   reviewLineage = undefined;
   for (const timer of gitInvalidationTimers.values()) clearTimeout(timer);

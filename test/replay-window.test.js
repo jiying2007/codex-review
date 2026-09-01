@@ -1,0 +1,14 @@
+\'use strict\';
+const assert=require('node:assert/strict');
+const {createReplayWindow,MAX_CONSECUTIVE_REPLAYS,MAX_REPLAY_AGE_MS}=require('../src/replay-window');
+let now=1000; const window=createReplayWindow({now:()=>now}); const repo=process.cwd(),subject='a'.repeat(64),review={findings:[{title:'x'}]};
+assert.equal(MAX_CONSECUTIVE_REPLAYS,2); assert.equal(MAX_REPLAY_AGE_MS,10*60*1000);
+assert.equal(window.tryReplay(repo,subject).reason,'no_session_fresh');
+window.recordFresh(repo,{reviewSubjectKey:subject,reviewRunId:'run-a',review});
+let d=window.tryReplay(repo,subject); assert.equal(d.replayed,true); assert.equal(d.replayStreak,1); assert.equal(d.nextReviewFresh,false);
+d=window.tryReplay(repo,subject); assert.equal(d.replayed,true); assert.equal(d.replayStreak,2); assert.equal(d.nextReviewFresh,true);
+d=window.tryReplay(repo,subject); assert.equal(d.replayed,false); assert.equal(d.reason,'replay_limit_reached');
+window.recordFresh(repo,{reviewSubjectKey:subject,reviewRunId:'run-b',review}); now+=MAX_REPLAY_AGE_MS;
+d=window.tryReplay(repo,subject); assert.equal(d.replayed,false); assert.equal(d.reason,'replay_age_expired');
+window.clear(repo); assert.equal(window.tryReplay(repo,subject).reason,'no_session_fresh');
+console.log('Adaptive session Replay Window tests passed.');

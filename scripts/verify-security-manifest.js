@@ -32,26 +32,26 @@ function requireTrustedWhen(items, command) {
   assert.match(String(item.when || ''), /\bisWorkspaceTrusted\b/, `${command} must require isWorkspaceTrusted`);
 }
 requireTrustedWhen(scmItems, 'safeCodexReview.reviewStaged');
-assert.ok(!scmItems.some(entry => entry.command === 'safeCodexReview.independentReviewStaged'), 'Independent Review must remain a secondary action outside scm/title');
 requireTrustedWhen(paletteItems, 'safeCodexReview.reviewStaged');
 requireTrustedWhen(paletteItems, 'safeCodexReview.checkEnvironment');
 requireTrustedWhen(paletteItems, 'safeCodexReview.importSarif');
 requireTrustedWhen(paletteItems, 'safeCodexReview.generateFix');
-requireTrustedWhen(paletteItems, 'safeCodexReview.independentReviewStaged');
 requireTrustedWhen(paletteItems, 'safeCodexReview.resolveFinding');
 requireTrustedWhen(paletteItems, 'safeCodexReview.clearFindingResolutions');
 
 assert.match(source, /function assertTrustedWorkspace\(\)[\s\S]*?!vscode\.workspace\.isTrusted/, 'runtime Workspace Trust guard is missing');
 assert.match(source, /async function reviewStaged\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'reviewStaged must enforce Workspace Trust first');
-assert.match(source, /async function independentReviewStaged\([^)]*\)\s*\{\s*return reviewStaged\([^;]*mode:\s*'independent'/, 'independentReviewStaged must delegate to the trusted reviewStaged controller in independent mode');
 assert.match(source, /async function importSarifEvidence\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'importSarifEvidence must enforce Workspace Trust first');
 assert.match(source, /async function generateFixProposal\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'generateFixProposal must enforce Workspace Trust first');
 assert.match(source, /async function resolveFinding\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'resolveFinding must enforce Workspace Trust first');
 assert.match(source, /async function clearFindingResolutions\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'clearFindingResolutions must enforce Workspace Trust first');
 assert.match(source, /async function checkEnvironment\([^)]*\)\s*\{\s*assertTrustedWorkspace\(\);/, 'checkEnvironment must enforce Workspace Trust first');
-assert.doesNotMatch(source, /safeCodexReview\.forceReviewStaged/, 'retired force-review command must not return');
+assert.doesNotMatch(source, /safeCodexReview\.(?:forceReviewStaged|independentReviewStaged)/, 'retired force/independent review commands must not return');
+assert.ok(!(pkg.activationEvents || []).some(value => String(value).includes('independentReviewStaged')), 'Independent Review activation event must be removed');
+assert.ok(!(pkg.contributes?.commands || []).some(value => value.command === 'safeCodexReview.independentReviewStaged'), 'Independent Review command must be removed');
+assert.match(source, /createReplayWindow/, 'adaptive session Replay Window must be active');
 
 require('../src/codex-safe-core/scripts/verify-consumer-product-contract').verify(root,require('../product-contract.json').safeCoreCommit,'codex-review-safe');
 require('./verify-product-docs');
 
-console.log('Review security manifest, dist-only schema, independent-review trust boundary, retired PR boundary, and product documentation checks passed.');
+console.log('Review security manifest, dist-only schema, adaptive-replay trust boundary, retired PR boundary, and product documentation checks passed.');
