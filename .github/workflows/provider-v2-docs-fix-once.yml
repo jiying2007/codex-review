@@ -1,0 +1,47 @@
+name: Provider V2 Docs Fix Once
+
+on:
+  push:
+    branches: [family/provider-contract-v2]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: family/provider-contract-v2
+          fetch-depth: 0
+      - name: Align current product docs with Core 4.12
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const oldSha='8375907712db37492aff1ac0d0013e2753b1f6ab';
+          const newSha='7878dae982088746c06e4fe747b2468e6af274a2';
+          const docs=['README.md','README.zh-CN.md','docs/GETTING_STARTED.md','docs/GETTING_STARTED.zh-CN.md','SUPPORT.md','SECURITY.md','PUBLISHING.md','VERIFY_RELEASE.md'];
+          for(const file of docs){
+            let text=fs.readFileSync(file,'utf8');
+            text=text.split(oldSha).join(newSha);
+            text=text.split('Codex Safe Core 4.11.0').join('Codex Safe Core 4.12.0');
+            text=text.split('Safe Core 4.11.0').join('Safe Core 4.12.0');
+            fs.writeFileSync(file,text);
+          }
+          const checker='scripts/verify-product-docs.js';
+          let text=fs.readFileSync(checker,'utf8');
+          text=text.replace("assert.equal(contract.safeCoreVersion, '4.11.0');", "assert.equal(contract.codexRuntimeVersion, 2);\nassert.equal(contract.providerContractVersion, 2);");
+          text=text.replace("Review product documentation verified for Core 4.11.0, Review Receipt v5 and current Family flow.", "Review product documentation verified for Runtime/Provider Contract v2, Review Receipt v5 and current Family flow.");
+          fs.writeFileSync(checker,text);
+          NODE
+          rm .github/workflows/provider-v2-docs-fix-once.yml
+          git config user.name codex-safe-family-bot
+          git config user.email codex-safe-family-bot@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "docs(review): align Core 4.12 provenance"
+          git push origin HEAD:family/provider-contract-v2
