@@ -9,7 +9,7 @@ A release is valid only when:
 - `package.json`, `package-lock.json`, and `product-contract.json.productVersion` agree;
 - `src/codex-safe-core` is a `160000` gitlink at the coordinated reviewed Core commit;
 - `.codex-safe.example.json` schema provenance points to the same Core commit;
-- Safe Core v4 / Safe Contract v2 / Policy Schema v3 / Review Receipt v4 / Prompt Contract v1 checks pass;
+- Safe Core v4 / Safe Contract v2 / Policy Schema v3 / Review Receipt v5 / Prompt Contract v1 checks pass;
 - security/module-boundary, unit, exact-line, evidence coverage and deterministic-rule tests pass;
 - latest VS Code Extension Host tests pass on Linux, Windows and macOS;
 - minimum VS Code `1.90.0`, real Simplified-Chinese locale, and Workspace Trust tests pass;

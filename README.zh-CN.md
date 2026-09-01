@@ -29,7 +29,7 @@ Remote SSH、Dev Containers、Codespaces、WSL 场景下，需要在对应远端
 
 完整安装、配置和故障排查见 [Getting Started](docs/GETTING_STARTED.zh-CN.md)。
 
-## Fresh 与 Independent Review
+## Fresh Review 与有界 Replay
 
 Codex Review Safe 明确区分不可变审查对象与每一次真正执行的模型审查：
 
@@ -38,7 +38,6 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 - 确定性 Semantic Evidence 可以通过 Evidence Cache 复用；
 - 上一轮模型 judgment 永远不会作为 fresh reviewer 的输入；
 - 相同 subject 的旧结果如果只是 replay，会明确标记 `[result-replay]`，且不会产生新的 lineage run、convergence run 或 Review Receipt；
-- **Independent Review Staged Changes / 独立复审 Staged Changes** 会强制执行新的 blind 模型推理，同时仍允许复用确定性 Evidence。
 
 默认 convergence 至少需要同一 subject 的两次 fresh、blind Run。如果两个独立 reviewer 不一致，系统会保留 disagreement 并维持 `incomplete`，不会为了制造“稳定”而压掉新 Finding。
 
@@ -50,18 +49,18 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 - `.codex-safe.json` 固定读取 committed HEAD，使用 Policy Schema v4；
 - Review Evidence Chunking 不静默丢 changed hunk，无法覆盖时形成明确 coverage gap；
 - Deterministic Evidence Cache 与 Model Judgment Replay 分离；
-- Independent Review 强制 fresh blind inference，不读取上一轮 accepted findings / suppressed hypotheses 作为 reviewer 输入；
+- fresh blind review 强制 fresh blind inference，不读取上一轮 accepted findings / suppressed hypotheses 作为 reviewer 输入；
 - convergence 依赖真实 fresh provenance，而不是“缓存输出完全一致”；
 - 模型 Finding 必须精确命中 post-change changed line；
 - Repository Rules 在模型之外确定性执行；
 - 低置信度 Finding 在进入 Problems/verdict 前过滤；
 - coverage 不完整或 Finding 无法验证时 fail closed；
-- Review Receipt v4 只为真实 fresh Review 执行记录 immutable evidence/provenance；
+- Review Receipt v5 只为真实 fresh Review 执行记录 immutable evidence/provenance；
 - Restricted Mode 直接拒绝；
 - Safe Contract v2 使用 ephemeral、read-only、no approval，并显式关闭 shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency install；
 - 不自动修改源码、Commit、Push 或创建 PR。
 
-共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.10.2**，SHA 为 `cd9788f1280a217fbe6d0beb59682a85a8b82c4d`。
+共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.11.0**，SHA 为 `8375907712db37492aff1ac0d0013e2753b1f6ab`。
 
 ## 正确理解 Readiness
 
@@ -79,7 +78,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/cd9788f1280a217fbe6d0beb59682a85a8b82c4d/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/8375907712db37492aff1ac0d0013e2753b1f6ab/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "zh-CN",
@@ -106,7 +105,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 ```text
 staged changes
     ↓
-Codex Review Safe → Review Receipt v4
+Codex Review Safe → Review Receipt v5
     ↓
 Codex Commit Safe → Commit Receipt v4
     ↓

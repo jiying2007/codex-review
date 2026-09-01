@@ -4,7 +4,7 @@ Codex Review Safe 将**确定性证据**、**fresh 模型判断**、**短期重�
 
 ## 只有一个 Review 入口
 
-用户只需要使用一个 Review。`Independent Review` 已退役。对完全相同的 `ReviewSubjectKey`，Review 自动执行：
+用户只需要使用一个 Review。`fresh blind review` 已退役。对完全相同的 `ReviewSubjectKey`，Review 自动执行：
 
 `fresh → replay → replay → fresh → replay → replay → fresh ...`
 
