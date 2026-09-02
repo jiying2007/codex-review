@@ -23,6 +23,7 @@ jobs:
           git -C src/codex-safe-core fetch origin "$CORE"
           git -C src/codex-safe-core checkout --detach "$CORE"
           node src/codex-safe-core/scripts/repin-consumer.js . "$CORE"
+          git checkout HEAD -- .github/workflows/family-release-guard.yml || true
           npm version 4.7.0 --no-git-tag-version
           node <<'NODE'
           const fs=require('fs');
