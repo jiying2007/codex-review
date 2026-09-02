@@ -56,12 +56,9 @@ jobs:
               p.write_text(s2)
 
           t=Path('test.js'); s=t.read_text()
-          old="""  assert.strictEqual(properties['safeCodexReview.codexPath'].scope, 'machine');
-          for (const [key, value] of Object.entries(properties)) {
-            if (key === 'safeCodexReview.codexPath') continue;
-            assert.strictEqual(value.scope, 'application', `${key} must remain application scoped`);
-          }"""
-          new="""  const machineScopedSettings = new Set([
+          if 'machineScopedSettings' not in s:
+              pattern=r"  assert\.strictEqual\(properties\['safeCodexReview\.codexPath'\]\.scope, 'machine'\);\n  for \(const \[key, value\] of Object\.entries\(properties\)\) \{\n    if \(key === 'safeCodexReview\.codexPath'\) continue;\n    assert\.strictEqual\(value\.scope, 'application', `\$\{key\} must remain application scoped`\);\n  \}"
+              replacement="""  const machineScopedSettings = new Set([
             'safeCodexReview.codexPath',
             'safeCodexReview.providerMode',
             'safeCodexReview.providerBaseUrl',
@@ -73,8 +70,9 @@ jobs:
             const expectedScope = machineScopedSettings.has(key) ? 'machine' : 'application';
             assert.strictEqual(value.scope, expectedScope, `${key} must remain ${expectedScope} scoped`);
           }"""
-          if old in s: t.write_text(s.replace(old,new))
-          elif 'machineScopedSettings' not in s: raise SystemExit('Review unit scope anchor not found')
+              s2,n=re.subn(pattern,replacement,s,count=1)
+              if n != 1: raise SystemExit('Review unit scope regex anchor not found')
+              t.write_text(s2)
 
           Path('test/runtime-auto.test.js').write_text("""'use strict';
           const test=require('node:test');
