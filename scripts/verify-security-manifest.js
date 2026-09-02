@@ -12,8 +12,16 @@ assert.strictEqual(pkg.capabilities?.untrustedWorkspaces?.supported, false, 'unt
 assert.strictEqual(pkg.capabilities?.virtualWorkspaces?.supported, false, 'virtualWorkspaces.supported must remain false');
 assert.deepStrictEqual(pkg.extensionKind, ['workspace'], 'extensionKind must remain workspace');
 
+const machineScoped = new Set([
+  'safeCodexReview.codexPath',
+  'safeCodexReview.providerMode',
+  'safeCodexReview.providerBaseUrl',
+  'safeCodexReview.providerApiKeyEnv',
+  'safeCodexReview.providerCredentialSource',
+  'safeCodexReview.providerAllowInsecureHttp'
+]);
 for (const [key, value] of Object.entries(pkg.contributes?.configuration?.properties || {})) {
-  const expected = key === 'safeCodexReview.codexPath' ? 'machine' : 'application';
+  const expected = machineScoped.has(key) ? 'machine' : 'application';
   assert.strictEqual(value.scope, expected, `${key} must remain ${expected}-scoped`);
 }
 
@@ -54,4 +62,4 @@ assert.match(source, /createReplayWindow/, 'adaptive session Replay Window must 
 require('../src/codex-safe-core/scripts/verify-consumer-product-contract').verify(root,require('../product-contract.json').safeCoreCommit,'codex-review-safe');
 require('./verify-product-docs');
 
-console.log('Review security manifest, dist-only schema, adaptive-replay trust boundary, retired PR boundary, and product documentation checks passed.');
+console.log('Review security manifest, machine-local provider overrides, dist-only schema, adaptive-replay trust boundary, retired PR boundary, and product documentation checks passed.');
