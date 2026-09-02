@@ -1,0 +1,37 @@
+name: Stage Review Runtime Auto 4.7 Once
+on:
+  push:
+    branches: [feat/runtime-auto-4.7.0]
+permissions:
+  contents: write
+jobs:
+  repin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with: { node-version: '24.19.0' }
+      - name: Repin and prepare 4.7.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE=d95f67cc61ce66c16e2aa440829655919e906a75
+          git -C src/codex-safe-core fetch origin "$CORE"
+          git -C src/codex-safe-core checkout --detach "$CORE"
+          node src/codex-safe-core/scripts/repin-consumer.js . "$CORE"
+          npm version 4.7.0 --no-git-tag-version
+          node <<'NODE'
+          const fs=require('fs');
+          const p='product-contract.json'; const c=JSON.parse(fs.readFileSync(p,'utf8'));
+          c.productVersion='4.7.0'; c.codexRuntimeVersion=3; c.providerContractVersion=3;
+          fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n');
+          NODE
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(core): repin Review 4.7.0 to Core 4.13.0'
+          git push origin HEAD:feat/runtime-auto-4.7.0
