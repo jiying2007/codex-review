@@ -10,7 +10,7 @@ const {
 } = require('./review-support');
 const { readPolicySectionAtHead } = require('./codex-safe-core/policy');
 const { fingerprintPolicy } = require('./codex-safe-core/safe-contract');
-const { normalizeCodexRuntimeOptions } = require('./codex-safe-core/codex-runtime');
+const { resolveCodexRuntime, inspectCodexRuntime } = require('./codex-safe-core/codex-runtime-resolver');
 const { resolveReviewProfile } = require('./codex-safe-core/quality-platform');
 const { t } = require('./i18n');
 
@@ -26,8 +26,8 @@ function readProjectRulesAtHead(repoRoot, headOid, token) {
   });
 }
 
-function runtimeOptions(config, project) {
-  const providerMode = String(getUserOnlySetting(config, 'providerMode', 'openai') || 'openai').trim();
+function runtimeSelection(config, project) {
+  const providerMode = String(getUserOnlySetting(config, 'providerMode', 'auto') || 'auto').trim();
   const provider = providerMode === 'openai-compatible'
     ? {
         mode: providerMode,
@@ -46,7 +46,7 @@ function runtimeOptions(config, project) {
   const requestSeconds = Math.round(clampNumber(
     getUserOnlySetting(config, 'requestTimeoutSeconds', 180), 180, 10, Math.min(900, operationSeconds), 'requestTimeoutSeconds'
   ));
-  return normalizeCodexRuntimeOptions({
+  return Object.freeze({
     provider,
     timeouts: {
       connectMs: Math.round(clampNumber(getUserOnlySetting(config, 'connectTimeoutSeconds', 15), 15, 1, 120, 'connectTimeoutSeconds')) * 1000,
@@ -55,6 +55,10 @@ function runtimeOptions(config, project) {
       idleMs: Math.round(clampNumber(getUserOnlySetting(config, 'streamIdleTimeoutSeconds', 60), 60, 5, 600, 'streamIdleTimeoutSeconds')) * 1000
     }
   });
+}
+
+function runtimeOptions(config, project) {
+  return resolveCodexRuntime(runtimeSelection(config, project)).runtime;
 }
 
 async function getEffectiveOptions(repoRoot, headOid, token) {
@@ -94,11 +98,15 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   if (extraInstructions.length > 5000) throw new Error(t('The combined extraInstructions must not exceed 5000 characters.'));
 
   const reviewRules = Object.freeze({ ...(project.rules || {}) });
-  const codexRuntime = runtimeOptions(config, project);
+  const codexRuntimeSelection = runtimeSelection(config, project);
+  const codexRuntimeResolution = resolveCodexRuntime(codexRuntimeSelection);
+  const codexRuntime = codexRuntimeResolution.runtime;
+  const codexRuntimeInspection = inspectCodexRuntime(codexRuntimeSelection);
   const options = {
     codexPath,
     model,
     codexRuntime,
+    codexRuntimeInspection,
     profile: profile.name,
     profileConfig: profile,
     sarifFiles,
@@ -134,6 +142,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
 module.exports = {
   RAW_DIFF_HARD_LIMIT_BYTES,
   readProjectRulesAtHead,
+  runtimeSelection,
   runtimeOptions,
   getEffectiveOptions
 };
