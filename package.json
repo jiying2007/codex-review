@@ -161,24 +161,25 @@
         "safeCodexReview.providerMode": {
           "type": "string",
           "enum": [
+            "auto",
             "openai",
             "openai-compatible"
           ],
-          "default": "openai",
-          "scope": "application",
-          "description": "Codex provider runtime: built-in OpenAI or an explicitly configured OpenAI-compatible Responses endpoint."
+          "default": "auto",
+          "scope": "machine",
+          "description": "Runtime selection. Auto (recommended) inherits the machine Family Runtime or Codex CLI provider; other values are advanced machine-local overrides."
         },
         "safeCodexReview.providerBaseUrl": {
           "type": "string",
           "default": "",
-          "scope": "application",
-          "description": "Base URL for openai-compatible mode. HTTPS is the default; non-loopback HTTP requires providerAllowInsecureHttp=true."
+          "scope": "machine",
+          "description": "Advanced override only: base URL for explicit openai-compatible mode. Auto normally inherits the machine Codex/Family Runtime."
         },
         "safeCodexReview.providerApiKeyEnv": {
           "type": "string",
           "default": "OPENAI_API_KEY",
-          "scope": "application",
-          "description": "Environment-variable name containing the provider API key. The secret value is never stored in VS Code settings."
+          "scope": "machine",
+          "description": "Advanced override only: provider credential environment-variable name. Secret values are never stored in settings."
         },
         "safeCodexReview.providerCredentialSource": {
           "type": "string",
@@ -188,14 +189,14 @@
             "auth-json"
           ],
           "default": "auto",
-          "scope": "application",
-          "description": "Credential source for compatible providers. auto prefers the configured environment variable, then CODEX_HOME/auth.json or ~/.codex/auth.json."
+          "scope": "machine",
+          "description": "Advanced override only. Auto runtime discovery reuses the machine credential contract."
         },
         "safeCodexReview.providerAllowInsecureHttp": {
           "type": "boolean",
           "default": false,
-          "scope": "application",
-          "description": "Explicitly allow non-loopback HTTP for a trusted private-network relay. Keep disabled for Internet endpoints."
+          "scope": "machine",
+          "description": "Advanced override only. Auto can inherit machine-owned literal private-IP HTTP and surfaces a plaintext warning."
         },
         "safeCodexReview.connectTimeoutSeconds": {
           "type": "number",
@@ -328,8 +329,8 @@
     "prebuild": "npm run core:init",
     "prepackage": "npm run core:init",
     "build": "node scripts/build.js",
-    "check": "node --check extension.js && node --check test/trust/runTest.js && node --check test/trust/suite/index.js && node --check src/i18n.js && node --check src/review-support.js && node --check src/process.js && node --check src/git.js && node --check src/policy.js && node --check src/review.js && node --check src/report.js && node --check src/receipts.js && node --check src/codex.js && node --check src/quality.js && node --check src/codex-safe-core/safe-contract.js && node --check src/codex-safe-core/codex-cli.js && node --check src/codex-safe-core/process-runner.js && node --check src/codex-safe-core/git-repository.js && node --check src/codex-safe-core/context-builder.js && node --check src/codex-safe-core/efficiency-planner.js && node --check src/codex-safe-core/quality-platform.js && node --check src/codex-safe-core/policy.js && node --check src/codex-safe-core/review-rules.js && node --check scripts/build.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node --check scripts/verify-module-boundaries.js && node --check src/semantic-evidence.js && node --check src/semantic-review.js && node --check src/review-cache.js && node --check src/replay-window.js && node --check src/finding-ledger.js && node --check src/code-intelligence.js && node --check src/codex-safe-core/semantic-review.js && node --check src/review-scope.js && node --check src/review-lineage.js && node --check src/convergence.js && node --check src/causal-anchor.js && node scripts/release.test.js && node scripts/verify-security-manifest.js && node scripts/verify-module-boundaries.js && node src/codex-safe-core/scripts/verify-family-ui-contract.js . && npm run governance && npm run verify:l10n && node test.js && node test/quality-platform.test.js && node test/semantic-platform.test.js && node test/review-cache.test.js && node test/replay-window.test.js && node test/review-lineage.test.js && node test/causal-scope.test.js && node test/semantic-corpus.test.js && npm run build",
-    "test:unit": "node test.js && node test/quality-platform.test.js && node test/semantic-platform.test.js && node test/review-cache.test.js && node test/replay-window.test.js && node test/review-lineage.test.js && node test/causal-scope.test.js && node test/semantic-corpus.test.js",
+    "check": "node --check extension.js && node --check test/trust/runTest.js && node --check test/trust/suite/index.js && node --check src/i18n.js && node --check src/review-support.js && node --check src/process.js && node --check src/git.js && node --check src/policy.js && node --check src/review.js && node --check src/report.js && node --check src/receipts.js && node --check src/codex.js && node --check src/quality.js && node --check src/codex-safe-core/safe-contract.js && node --check src/codex-safe-core/codex-runtime-resolver.js && node --check src/codex-safe-core/codex-cli.js && node --check src/codex-safe-core/process-runner.js && node --check src/codex-safe-core/git-repository.js && node --check src/codex-safe-core/context-builder.js && node --check src/codex-safe-core/efficiency-planner.js && node --check src/codex-safe-core/quality-platform.js && node --check src/codex-safe-core/policy.js && node --check src/codex-safe-core/review-rules.js && node --check scripts/build.js && node --check scripts/release.js && node --check scripts/verify-security-manifest.js && node --check scripts/verify-module-boundaries.js && node --check src/semantic-evidence.js && node --check src/semantic-review.js && node --check src/review-cache.js && node --check src/replay-window.js && node --check src/finding-ledger.js && node --check src/code-intelligence.js && node --check src/codex-safe-core/semantic-review.js && node --check src/review-scope.js && node --check src/review-lineage.js && node --check src/convergence.js && node --check src/causal-anchor.js && node scripts/release.test.js && node scripts/verify-security-manifest.js && node scripts/verify-module-boundaries.js && node src/codex-safe-core/scripts/verify-family-ui-contract.js . && npm run governance && npm run verify:l10n && node test.js && node test/quality-platform.test.js && node test/semantic-platform.test.js && node test/review-cache.test.js && node test/replay-window.test.js && node test/review-lineage.test.js && node test/causal-scope.test.js && node test/semantic-corpus.test.js && npm run build && node test/runtime-auto.test.js",
+    "test:unit": "node test.js && node test/quality-platform.test.js && node test/semantic-platform.test.js && node test/review-cache.test.js && node test/replay-window.test.js && node test/review-lineage.test.js && node test/causal-scope.test.js && node test/semantic-corpus.test.js && node test/runtime-auto.test.js",
     "test:integration": "npm run build && node ./test/integration/runTest.js",
     "test:trust": "npm run build && node ./test/trust/runTest.js",
     "test": "npm run test:unit",
