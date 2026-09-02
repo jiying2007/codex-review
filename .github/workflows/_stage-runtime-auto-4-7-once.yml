@@ -15,15 +15,14 @@ jobs:
           submodules: recursive
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
         with: { node-version: '24.19.0' }
-      - name: Patch Doctor, docs and regression test
+      - name: Patch Remote SSH runtime UX and validate
         shell: bash
         run: |
           set -euo pipefail
           python3 <<'PY'
           from pathlib import Path
           import re
-          p=Path('extension.js')
-          s=p.read_text()
+          p=Path('extension.js'); s=p.read_text()
           if 'Extension Host:' not in s:
               pattern=r"async function checkEnvironment\(\) \{.*?\n\}\n\nfunction friendlyError"
               replacement=r'''async function checkEnvironment() {
@@ -39,13 +38,7 @@ jobs:
             const remoteName = vscode.env.remoteName || '';
             const hostLabel = remoteName ? `Remote (${remoteName})` : 'Local';
             const configLabel = inspection.configPath || 'built-in OpenAI';
-            const credentialLabel = runtime.provider.mode === 'openai'
-              ? 'Codex managed auth'
-              : inspection.credentialEnvPresent
-                ? `env:${inspection.credentialEnv}`
-                : inspection.authJsonPresent
-                  ? inspection.authJsonPath
-                  : `missing (${inspection.credentialEnv || 'provider credential'})`;
+            const credentialLabel = runtime.provider.mode === 'openai' ? 'Codex managed auth' : inspection.credentialEnvPresent ? `env:${inspection.credentialEnv}` : inspection.authJsonPresent ? inspection.authJsonPath : `missing (${inspection.credentialEnv || 'provider credential'})`;
             log(`Extension Host: ${hostLabel}`);
             log(`Runtime source: ${inspection.source || 'explicit'}; config=${configLabel}`);
             log(`Provider: ${runtime.provider.mode}; endpoint=${endpoint}; transport=${inspection.transport || 'managed'}`);
@@ -59,12 +52,31 @@ jobs:
 
           function friendlyError'''
               s2,n=re.subn(pattern,replacement,s,count=1,flags=re.S)
-              if n != 1:
-                  raise SystemExit('Review Doctor anchor not found')
+              if n != 1: raise SystemExit('Review Doctor anchor not found')
               p.write_text(s2)
 
-          test=Path('test/runtime-auto.test.js')
-          test.write_text(r'''\'use strict\';
+          t=Path('test.js'); s=t.read_text()
+          old="""  assert.strictEqual(properties['safeCodexReview.codexPath'].scope, 'machine');
+          for (const [key, value] of Object.entries(properties)) {
+            if (key === 'safeCodexReview.codexPath') continue;
+            assert.strictEqual(value.scope, 'application', `${key} must remain application scoped`);
+          }"""
+          new="""  const machineScopedSettings = new Set([
+            'safeCodexReview.codexPath',
+            'safeCodexReview.providerMode',
+            'safeCodexReview.providerBaseUrl',
+            'safeCodexReview.providerApiKeyEnv',
+            'safeCodexReview.providerCredentialSource',
+            'safeCodexReview.providerAllowInsecureHttp'
+          ]);
+          for (const [key, value] of Object.entries(properties)) {
+            const expectedScope = machineScopedSettings.has(key) ? 'machine' : 'application';
+            assert.strictEqual(value.scope, expectedScope, `${key} must remain ${expectedScope} scoped`);
+          }"""
+          if old in s: t.write_text(s.replace(old,new))
+          elif 'machineScopedSettings' not in s: raise SystemExit('Review unit scope anchor not found')
+
+          Path('test/runtime-auto.test.js').write_text("""'use strict';
           const test=require('node:test');
           const assert=require('node:assert/strict');
           const fs=require('node:fs');
@@ -81,23 +93,22 @@ jobs:
           test('Review delegates provider inheritance to Core Runtime Contract v3',()=>{
             const source=read('src/policy.js');
             assert.match(source,/codex-runtime-resolver/);
-            assert.match(source,/resolveCodexRuntime\(codexRuntimeSelection\)/);
-            assert.match(source,/inspectCodexRuntime\(codexRuntimeSelection\)/);
+            assert.match(source,/resolveCodexRuntime\\(codexRuntimeSelection\\)/);
+            assert.match(source,/inspectCodexRuntime\\(codexRuntimeSelection\\)/);
             assert.match(source,/providerMode', 'auto'/);
           });
           test('Review Doctor exposes Remote Extension Host and redacted runtime source',()=>{
             const source=read('extension.js');
-            assert.match(source,/vscode\.env\.remoteName/);
+            assert.match(source,/vscode\\.env\\.remoteName/);
             assert.match(source,/Extension Host:/);
             assert.match(source,/Credential source:/);
-            assert.doesNotMatch(source,/credentialLabel\s*=.*\.value/);
+            assert.doesNotMatch(source,/credentialLabel\\s*=.*\\.value/);
           });
-          ''')
+          """)
 
           def append_once(file, marker, block):
               path=Path(file); text=path.read_text()
-              if marker not in text:
-                  path.write_text(text.rstrip()+"\n\n"+block.strip()+"\n")
+              if marker not in text: path.write_text(text.rstrip()+"\n\n"+block.strip()+"\n")
           append_once('README.md','Runtime Contract v3 — zero-config',r'''## Runtime Contract v3 — zero-config
 
           Review defaults to **Auto** runtime discovery. If `codex` already works in the current VS Code Extension Host, Review reuses machine Family Runtime (`~/.codex-safe/runtime.json`) or machine Codex configuration (`${CODEX_HOME}/config.toml` / `~/.codex/config.toml`) without re-entering the relay URL. In Remote SSH the workspace extension runs remotely, so the config and `auth.json` are read from the remote Linux account. Literal private-IP HTTP relays are inherited with a plaintext warning; public/non-IP HTTP remains fail-closed. VS Code provider settings are machine-scoped advanced overrides.''')
@@ -110,10 +121,10 @@ jobs:
               ch.write_text(text)
           PY
           npm run ci
-          if ! git diff --quiet -- extension.js test/runtime-auto.test.js README.md README.zh-CN.md CHANGELOG.md; then
+          if ! git diff --quiet -- extension.js test.js test/runtime-auto.test.js README.md README.zh-CN.md CHANGELOG.md; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add extension.js test/runtime-auto.test.js README.md README.zh-CN.md CHANGELOG.md
-            git commit -m 'feat(runtime): surface Review runtime source in Remote SSH'
+            git add extension.js test.js test/runtime-auto.test.js README.md README.zh-CN.md CHANGELOG.md
+            git commit -m 'feat(runtime): complete Review Remote SSH zero-config UX'
             git push origin HEAD:feat/runtime-auto-4.7.0
           fi
