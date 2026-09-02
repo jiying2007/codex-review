@@ -118,7 +118,12 @@ jobs:
               text=re.sub(r'^# Changelog\s*\n', '# Changelog\n\n## 4.7.0 - 2026-09-02\n\n- Default provider selection to Core Runtime Contract v3 auto discovery so a working machine Codex relay is reused without duplicate Review settings.\n- Make provider overrides machine-scoped for Remote SSH correctness; Doctor reports Extension Host location, runtime source/config path, credential source presence, transport and plaintext HTTP warnings without exposing secrets.\n- Pin immutable Codex Safe Core 4.13.0 exactly and add regression coverage for zero-config runtime behavior.\n\n', text, count=1)
               ch.write_text(text)
           PY
-          npm run ci
+          npm run verify:lock
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check
+          xvfb-run -a npm run test:integration
+          xvfb-run -a npm run test:trust
+          npm run package
           if ! git diff --quiet -- extension.js test.js test/runtime-auto.test.js README.md README.zh-CN.md CHANGELOG.md; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
