@@ -14,6 +14,10 @@
 
 # Changelog
 
+## 4.6.1 - 2026-09-02
+
+- Release-only patch carrying the exact Codex Safe Core 4.12.4 family pin and validated Review Receipt/Provider contracts; no Review Safe judgment semantics change.
+
 ## 4.4.2
 
 - Align the primary VS Code SCM toolbar with the Family UI Contract: Review is the single `navigation@5` primary action; Independent Review remains a secondary trusted action.
