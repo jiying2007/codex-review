@@ -249,11 +249,18 @@ function bindReceiptIdentity(meta, evidenceManifestDigest = '6'.repeat(64)) {
   assert.deepStrictEqual(properties['safeCodexReview.providerCredentialSource'].enum, ['auto', 'env', 'auth-json']);
   assert.strictEqual(properties['safeCodexReview.providerCredentialSource'].default, 'auto');
   assert.strictEqual(properties['safeCodexReview.providerAllowInsecureHttp'].default, false);
-  assert.strictEqual(properties['safeCodexReview.codexPath'].scope, 'machine');
-  for (const [key, value] of Object.entries(properties)) {
-    if (key === 'safeCodexReview.codexPath') continue;
-    assert.strictEqual(value.scope, 'application', `${key} must remain application scoped`);
-  }
+  const machineScopedSettings = new Set([
+  'safeCodexReview.codexPath',
+  'safeCodexReview.providerMode',
+  'safeCodexReview.providerBaseUrl',
+  'safeCodexReview.providerApiKeyEnv',
+  'safeCodexReview.providerCredentialSource',
+  'safeCodexReview.providerAllowInsecureHttp'
+]);
+for (const [key, value] of Object.entries(properties)) {
+  const expectedScope = machineScopedSettings.has(key) ? 'machine' : 'application';
+  assert.strictEqual(value.scope, expectedScope, `${key} must remain ${expectedScope} scoped`);
+}
   assert.deepStrictEqual(pkg.contributes.jsonValidation, [{ fileMatch: '.codex-safe.json', url: './dist/codex-safe.schema.json' }]);
 
   const report = unit.buildReviewReport(

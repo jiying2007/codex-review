@@ -155,3 +155,7 @@ Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the S
 ## Relay credentials and private-network HTTP
 
 Codex Review Safe 4.6.1 consumes Core Provider Contract v2. With `providerCredentialSource=auto`, Review Safe first uses `providerApiKeyEnv`; when it is absent, Core reads `${CODEX_HOME}/auth.json` or `~/.codex/auth.json`. The auth file qualifies only with `auth_mode=apikey` and a non-empty `OPENAI_API_KEY`. A non-loopback `http://` relay is accepted only when `providerAllowInsecureHttp=true` is explicitly enabled in user/application settings. Repository policy cannot provide credentials or enable insecure HTTP.
+
+## Runtime Contract v3 — zero-config
+
+Review defaults to **Auto** runtime discovery. If `codex` already works in the current VS Code Extension Host, Review reuses machine Family Runtime (`~/.codex-safe/runtime.json`) or machine Codex configuration (`${CODEX_HOME}/config.toml` / `~/.codex/config.toml`) without re-entering the relay URL. In Remote SSH the workspace extension runs remotely, so the config and `auth.json` are read from the remote Linux account. Literal private-IP HTTP relays are inherited with a plaintext warning; public/non-IP HTTP remains fail-closed. VS Code provider settings are machine-scoped advanced overrides.

@@ -688,8 +688,21 @@ async function checkEnvironment() {
   const options = await getEffectiveOptions(repoRoot, headOid);
   const runtime = await probeCodexRuntime({ codexPath: options.codexPath, model: options.model, runtime: options.codexRuntime });
   const { stdout: gitVersion } = await runProcess('git', ['--version'], { timeoutMs: 10000, prepared: false });
+  const inspection = options.codexRuntimeInspection || {};
   const endpoint = runtime.provider.endpointHost || 'Codex default';
-  vscode.window.showInformationMessage(t('Codex Review Safe environment is ready: {0}; {1}; provider {2} ({3}); live structured probe {4} ms', runtime.codexVersion || options.codexPath, gitVersion.trim(), runtime.provider.mode, endpoint, runtime.durationMs));
+  const remoteName = vscode.env.remoteName || '';
+  const hostLabel = remoteName ? `Remote (${remoteName})` : 'Local';
+  const configLabel = inspection.configPath || 'built-in OpenAI';
+  const credentialLabel = runtime.provider.mode === 'openai' ? 'Codex managed auth' : inspection.credentialEnvPresent ? `env:${inspection.credentialEnv}` : inspection.authJsonPresent ? inspection.authJsonPath : `missing (${inspection.credentialEnv || 'provider credential'})`;
+  log(`Extension Host: ${hostLabel}`);
+  log(`Runtime source: ${inspection.source || 'explicit'}; config=${configLabel}`);
+  log(`Provider: ${runtime.provider.mode}; endpoint=${endpoint}; transport=${inspection.transport || 'managed'}`);
+  log(`Credential source: ${credentialLabel}`);
+  if (inspection.plaintextWarning) log(`WARNING: ${inspection.plaintextWarning}`);
+  vscode.window.showInformationMessage(uiText(
+    `Codex Review Safe 环境正常：Extension Host ${hostLabel}；Runtime ${inspection.source || 'explicit'}；Provider ${runtime.provider.mode} (${endpoint})；真实结构化探测 ${runtime.durationMs} ms`,
+    `Codex Review Safe environment is ready: Extension Host ${hostLabel}; runtime ${inspection.source || 'explicit'}; provider ${runtime.provider.mode} (${endpoint}); live structured probe ${runtime.durationMs} ms`
+  ));
 }
 
 function friendlyError(error) {
