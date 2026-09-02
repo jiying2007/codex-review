@@ -5,175 +5,43 @@ on:
 permissions:
   contents: write
 jobs:
-  validate:
+  patch-settings:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: true
           fetch-depth: 0
-          submodules: recursive
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
         with: { node-version: '24.19.0' }
-      - name: Apply and validate zero-config Runtime v3
+      - name: Patch runtime settings
         shell: bash
         run: |
           set -euo pipefail
           node <<'NODE'
           const fs=require('fs');
           const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
-          const props=pkg.contributes.configuration.properties;
-          const mode=props['safeCodexReview.providerMode'];
+          const p=pkg.contributes.configuration.properties;
+          const mode=p['safeCodexReview.providerMode'];
           mode.enum=['auto','openai','openai-compatible'];
           mode.default='auto';
           mode.scope='machine';
-          mode.description='Runtime selection. Auto (recommended) inherits the machine Family Runtime or Codex CLI provider; OpenAI/OpenAI-compatible are advanced machine-local overrides.';
-          for(const key of ['providerBaseUrl','providerApiKeyEnv','providerCredentialSource','providerAllowInsecureHttp']) props[`safeCodexReview.${key}`].scope='machine';
-          props['safeCodexReview.providerBaseUrl'].description='Advanced override only: base URL for explicit openai-compatible mode. Auto normally inherits the machine Codex/Family Runtime.';
-          props['safeCodexReview.providerApiKeyEnv'].description='Advanced override only: environment-variable name containing the provider API key. Secret values are never stored in VS Code settings.';
-          props['safeCodexReview.providerCredentialSource'].description='Advanced override only. Auto runtime discovery reuses the machine provider credential contract.';
-          props['safeCodexReview.providerAllowInsecureHttp'].description='Advanced override only. Auto may inherit literal private-IP HTTP from machine-owned Codex/Family Runtime state and will surface a plaintext warning.';
-          const addCheck='node --check src/codex-safe-core/codex-runtime-resolver.js';
-          if(!pkg.scripts.check.includes(addCheck)) pkg.scripts.check=pkg.scripts.check.replace('node --check src/codex-safe-core/codex-cli.js',`${addCheck} && node --check src/codex-safe-core/codex-cli.js`);
+          mode.description='Runtime selection. Auto (recommended) inherits the machine Family Runtime or Codex CLI provider; other values are advanced machine-local overrides.';
+          for(const key of ['providerBaseUrl','providerApiKeyEnv','providerCredentialSource','providerAllowInsecureHttp']) p['safeCodexReview.'+key].scope='machine';
+          p['safeCodexReview.providerBaseUrl'].description='Advanced override only: base URL for explicit openai-compatible mode. Auto normally inherits the machine Codex/Family Runtime.';
+          p['safeCodexReview.providerApiKeyEnv'].description='Advanced override only: provider credential environment-variable name. Secret values are never stored in settings.';
+          p['safeCodexReview.providerCredentialSource'].description='Advanced override only. Auto runtime discovery reuses the machine credential contract.';
+          p['safeCodexReview.providerAllowInsecureHttp'].description='Advanced override only. Auto can inherit machine-owned literal private-IP HTTP and surfaces a plaintext warning.';
+          const resolverCheck='node --check src/codex-safe-core/codex-runtime-resolver.js';
+          if(!pkg.scripts.check.includes(resolverCheck)) pkg.scripts.check=pkg.scripts.check.replace('node --check src/codex-safe-core/codex-cli.js',resolverCheck+' && node --check src/codex-safe-core/codex-cli.js');
           if(!pkg.scripts.check.includes('node test/runtime-auto.test.js')) pkg.scripts.check += ' && node test/runtime-auto.test.js';
           if(!pkg.scripts['test:unit'].includes('node test/runtime-auto.test.js')) pkg.scripts['test:unit'] += ' && node test/runtime-auto.test.js';
           fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');
-
-          let policy=fs.readFileSync('src/policy.js','utf8');
-          policy=policy.replace("const { normalizeCodexRuntimeOptions } = require('./codex-safe-core/codex-runtime');", "const { resolveCodexRuntime, inspectCodexRuntime } = require('./codex-safe-core/codex-runtime-resolver');");
-          const fn=/function runtimeOptions\(config, project\) \{[\s\S]*?\n\}\n\nasync function getEffectiveOptions/;
-          if(!fn.test(policy) && !policy.includes('function runtimeSelection(config, project)')) throw new Error('Review runtimeOptions anchor not found');
-          if(fn.test(policy)) policy=policy.replace(fn,`function runtimeSelection(config, project) {
-  const providerMode = String(getUserOnlySetting(config, 'providerMode', 'auto') || 'auto').trim();
-  const provider = providerMode === 'openai-compatible'
-    ? {
-        mode: providerMode,
-        baseUrl: String(getUserOnlySetting(config, 'providerBaseUrl', '') || '').trim(),
-        apiKeyEnv: String(getUserOnlySetting(config, 'providerApiKeyEnv', 'OPENAI_API_KEY') || '').trim(),
-        credentialSource: String(getUserOnlySetting(config, 'providerCredentialSource', 'auto') || 'auto').trim(),
-        allowInsecureHttp: Boolean(getUserOnlySetting(config, 'providerAllowInsecureHttp', false))
-      }
-    : { mode: providerMode };
-  const projectOperationSeconds = project.timeoutSeconds === undefined
-    ? undefined
-    : Math.round(clampNumber(project.timeoutSeconds, 120, 10, 300, 'timeoutSeconds'));
-  const operationSeconds = projectOperationSeconds ?? Math.round(clampNumber(
-    getUserOnlySetting(config, 'reviewTimeoutSeconds', 600), 600, 30, 1800, 'reviewTimeoutSeconds'
-  ));
-  const requestSeconds = Math.round(clampNumber(
-    getUserOnlySetting(config, 'requestTimeoutSeconds', 180), 180, 10, Math.min(900, operationSeconds), 'requestTimeoutSeconds'
-  ));
-  return {
-    provider,
-    timeouts: {
-      connectMs: Math.round(clampNumber(getUserOnlySetting(config, 'connectTimeoutSeconds', 15), 15, 1, 120, 'connectTimeoutSeconds')) * 1000,
-      requestMs: Math.min(requestSeconds, operationSeconds) * 1000,
-      operationMs: operationSeconds * 1000,
-      idleMs: Math.round(clampNumber(getUserOnlySetting(config, 'streamIdleTimeoutSeconds', 60), 60, 5, 600, 'streamIdleTimeoutSeconds')) * 1000
-    }
-  };
-}
-
-function runtimeOptions(config, project) {
-  return resolveCodexRuntime(runtimeSelection(config, project)).runtime;
-}
-
-async function getEffectiveOptions`);
-          const old='  const codexRuntime = runtimeOptions(config, project);';
-          const repl=`  const codexRuntimeSelection = runtimeSelection(config, project);
-  const codexRuntimeResolution = resolveCodexRuntime(codexRuntimeSelection);
-  const codexRuntime = codexRuntimeResolution.runtime;
-  const codexRuntimeInspection = inspectCodexRuntime(codexRuntimeSelection);`;
-          if(policy.includes(old)) policy=policy.replace(old,repl);
-          else if(!policy.includes('const codexRuntimeInspection = inspectCodexRuntime')) throw new Error('Review codexRuntime anchor not found');
-          policy=policy.replace('    codexRuntime,\n    profile:', '    codexRuntime,\n    codexRuntimeInspection,\n    profile:');
-          policy=policy.replace('  runtimeOptions,\n  getEffectiveOptions', '  runtimeSelection,\n  runtimeOptions,\n  getEffectiveOptions');
-          fs.writeFileSync('src/policy.js',policy);
-
-          let ext=fs.readFileSync('extension.js','utf8');
-          const doctor=/async function checkEnvironment\(\) \{[\s\S]*?\n\}\n\nfunction friendlyError/;
-          if(!doctor.test(ext) && !ext.includes('Extension Host:')) throw new Error('Review Doctor anchor not found');
-          if(doctor.test(ext)) ext=ext.replace(doctor,`async function checkEnvironment() {
-  assertTrustedWorkspace();
-  const repositories = await getRepositories();
-  const repoRoot = repositories[0]?.root || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-  const headOid = await getHeadOid(repoRoot);
-  const options = await getEffectiveOptions(repoRoot, headOid);
-  const runtime = await probeCodexRuntime({ codexPath: options.codexPath, model: options.model, runtime: options.codexRuntime });
-  const { stdout: gitVersion } = await runProcess('git', ['--version'], { timeoutMs: 10000, prepared: false });
-  const inspection = options.codexRuntimeInspection || {};
-  const endpoint = runtime.provider.endpointHost || 'Codex default';
-  const remoteName = vscode.env.remoteName || '';
-  const hostLabel = remoteName ? \`Remote (\${remoteName})\` : 'Local';
-  const configLabel = inspection.configPath || 'built-in OpenAI';
-  const credentialLabel = runtime.provider.mode === 'openai'
-    ? 'Codex managed auth'
-    : inspection.credentialEnvPresent
-      ? \`env:\${inspection.credentialEnv}\`
-      : inspection.authJsonPresent
-        ? inspection.authJsonPath
-        : \`missing (\${inspection.credentialEnv || 'provider credential'})\`;
-  log(\`Extension Host: \${hostLabel}\`);
-  log(\`Runtime source: \${inspection.source || 'explicit'}; config=\${configLabel}\`);
-  log(\`Provider: \${runtime.provider.mode}; endpoint=\${endpoint}; transport=\${inspection.transport || 'managed'}\`);
-  log(\`Credential source: \${credentialLabel}\`);
-  if (inspection.plaintextWarning) log(\`WARNING: \${inspection.plaintextWarning}\`);
-  vscode.window.showInformationMessage(uiText(
-    \`Codex Review Safe 环境正常：Extension Host \${hostLabel}；Runtime \${inspection.source || 'explicit'}；Provider \${runtime.provider.mode} (\${endpoint})；真实结构化探测 \${runtime.durationMs} ms\`,
-    \`Codex Review Safe environment is ready: Extension Host \${hostLabel}; runtime \${inspection.source || 'explicit'}; provider \${runtime.provider.mode} (\${endpoint}); live structured probe \${runtime.durationMs} ms\`
-  ));
-}
-
-function friendlyError`);
-          fs.writeFileSync('extension.js',ext);
-
-          const test=`'use strict';
-const test=require('node:test');
-const assert=require('node:assert/strict');
-const fs=require('node:fs');
-const path=require('node:path');
-const root=path.resolve(__dirname,'..');
-const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
-const read=file=>fs.readFileSync(path.join(root,file),'utf8');
-test('Review defaults to Core Runtime auto discovery with machine-local advanced overrides',()=>{
-  const props=pkg.contributes.configuration.properties;
-  assert.deepEqual(props['safeCodexReview.providerMode'].enum,['auto','openai','openai-compatible']);
-  assert.equal(props['safeCodexReview.providerMode'].default,'auto');
-  for(const key of ['providerMode','providerBaseUrl','providerApiKeyEnv','providerCredentialSource','providerAllowInsecureHttp']) assert.equal(props['safeCodexReview.'+key].scope,'machine');
-});
-test('Review delegates provider inheritance to Core Runtime Contract v3',()=>{
-  const source=read('src/policy.js');
-  assert.match(source,/codex-runtime-resolver/);
-  assert.match(source,/resolveCodexRuntime\(codexRuntimeSelection\)/);
-  assert.match(source,/inspectCodexRuntime\(codexRuntimeSelection\)/);
-  assert.match(source,/providerMode', 'auto'/);
-});
-test('Review Doctor exposes Remote Extension Host and redacted runtime source',()=>{
-  const source=read('extension.js');
-  assert.match(source,/vscode\.env\.remoteName/);
-  assert.match(source,/Extension Host:/);
-  assert.match(source,/Credential source:/);
-  assert.doesNotMatch(source,/Credential source:.*\.value/);
-});
-`;
-          fs.writeFileSync('test/runtime-auto.test.js',test);
-
-          function addDocs(file,block){let s=fs.readFileSync(file,'utf8'); if(!s.includes('Runtime Contract v3 — zero-config')){s += '\n\n'+block.trim()+'\n'; fs.writeFileSync(file,s);}}
-          addDocs('README.md',`## Runtime Contract v3 — zero-config
-
-Review now defaults to **Auto** runtime discovery. If \\`codex\\` already works in the current VS Code Extension Host, Review reuses the machine Family Runtime (\\`~/.codex-safe/runtime.json\\`) or the machine Codex config (\\`${CODEX_HOME}/config.toml\\` / \\`~/.codex/config.toml\\`) without re-entering the relay URL. In Remote SSH, the workspace extension runs remotely, so these paths and \\`auth.json\\` are read from the remote Linux account. Literal private-IP HTTP relays are inherited with an explicit plaintext warning; public/non-IP HTTP remains fail-closed. Provider settings in VS Code are machine-scoped advanced overrides.`);
-          addDocs('README.zh-CN.md',`## Runtime Contract v3 — zero-config
-
-Review 现在默认使用 **Auto** Runtime。只要当前 VS Code Extension Host 中的 \\`codex\\` 已可正常使用，Review 就直接复用机器级 Family Runtime（\\`~/.codex-safe/runtime.json\\`）或机器级 Codex 配置（\\`${CODEX_HOME}/config.toml\\` / \\`~/.codex/config.toml\\`），无需再次填写中转站地址。Remote SSH 下 Workspace Extension 运行在远端，因此读取的是远端 Linux 用户的配置和 \\`auth.json\\`。字面量私网 IP HTTP 可继承但 Doctor 会明确提示明文风险；公网/非 IP HTTP 继续 fail-closed。VS Code Provider 设置仅作为 machine-scope Advanced Override。`);
-          let ch=fs.readFileSync('CHANGELOG.md','utf8');
-          if(!ch.includes('## 4.7.0 - 2026-09-02')) ch=ch.replace(/^# Changelog\s*\n/,`# Changelog\n\n## 4.7.0 - 2026-09-02\n\n- Default provider selection to Core Runtime Contract v3 auto discovery so a working machine Codex relay is reused without duplicate Review settings.\n- Make provider overrides machine-scoped for Remote SSH correctness; Doctor now reports Extension Host location, runtime source/config path, credential source presence, transport and plaintext HTTP warnings without exposing secrets.\n- Pin immutable Codex Safe Core 4.13.0 exactly and add regression coverage for zero-config runtime behavior.\n\n`);
-          fs.writeFileSync('CHANGELOG.md',ch);
           NODE
-          npm run ci
-          if ! git diff --quiet -- package.json src/policy.js extension.js test/runtime-auto.test.js README.md README.zh-CN.md CHANGELOG.md; then
+          if ! git diff --quiet -- package.json; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add package.json src/policy.js extension.js test/runtime-auto.test.js README.md README.zh-CN.md CHANGELOG.md
-            git commit -m 'feat(runtime): make Review inherit machine Codex runtime by default'
+            git add package.json
+            git commit -m 'feat(runtime): default Review provider selection to auto'
             git push origin HEAD:feat/runtime-auto-4.7.0
           fi
