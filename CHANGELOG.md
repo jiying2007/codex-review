@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 4.7.3
+
 - Bound repository-size Git enumeration to the staged Review scope: submodule classification and unstaged-overlay safety checks now query only literal, batched staged pathspecs instead of enumerating the entire index or working tree.
 - Add explicit bounded Git-enumeration ceilings plus phase/command-class `EOUTPUTLIMIT` diagnostics, while preserving index-pinned staged-only model authority and fail-closed publication semantics.
 - Extend large-repository regressions for >4 MiB semantic grep output, bounded pathspec batching, literal pathspec handling, unstaged isolation, and staged gitlink classification.
