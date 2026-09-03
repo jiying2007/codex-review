@@ -150,17 +150,13 @@
 - Route model input through Safe Core Semantic Context Budget while preserving the complete staged diff for fingerprints/line mapping/receipt evidence; enforce a fixed 8 MiB raw staged-diff safety ceiling.
 - Upgrade the public companion API and persisted Review Receipt store to contract/schema v2, including verified first-parent range evidence.
 - Standardize the Marketplace runtime on deterministic `dist/` staging plus `dist/codex-safe.schema.json`, with CI rejecting source/tests/scripts/submodule metadata in VSIX artifacts.
-- Unify CI/release gates, retain real Workspace Trust and zh-CN Extension Host coverage plus full-SHA-pinned GitHub build-provenance attestations.
+- Unify CI/release gates, retain real Workspace Trust and zh-CN Extension Host coverage, SHA-256 plus full-SHA-pinned GitHub build-provenance attestations.
 - Rewrite English/Chinese user, security, and publishing documentation around the v2 product-family contract.
 
 ## 1.0.2
 
-### Changed
-
 - Automatically create the immutable version tag and GitHub Release after a committed version bump reaches `main`, while retaining the manual tag-push fallback.
 - Make release reruns idempotent and reject existing lightweight or annotated tags that resolve to a different commit.
-
-### Added
 
 - Added review-input fingerprints, staged input size, and Codex execution metadata to reports.
 - Added explicit reporting for staged files with newer unstaged overlays.
@@ -171,8 +167,6 @@
 - Added offline quality fixtures and the shared Codex Safe argv/compatibility contract.
 
 ## 1.0.1
-
-### Fixed
 
 - Fixed current Codex CLI compatibility by placing the global approval policy before the `exec` subcommand.
 - Added a shared Codex argv builder plus regression and fake-CLI argument-order checks.
