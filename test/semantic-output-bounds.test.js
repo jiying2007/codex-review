@@ -4,8 +4,21 @@ const assert=require('assert');
 const fs=require('fs');
 const os=require('os');
 const path=require('path');
+const Module=require('module');
 const {spawnSync}=require('child_process');
+
+const originalLoad=Module._load;
+Module._load=function(request,parent,isMain) {
+  if(request==='vscode') return {
+    extensions:{getExtension:()=>undefined},
+    workspace:{workspaceFolders:[],textDocuments:[]},
+    window:{},
+    l10n:{t:(message,...args)=>String(message).replace(/\{(\d+)\}/g,(_match,index)=>args[Number(index)]===undefined?`{${index}}`:String(args[Number(index)]))}
+  };
+  return originalLoad.call(this,request,parent,isMain);
+};
 const {collectIndexSymbolEvidence}=require('../src/semantic-evidence');
+Module._load=originalLoad;
 
 function runGit(cwd,args,options={}) {
   const result=spawnSync('git',args,{cwd,encoding:'utf8',maxBuffer:32*1024*1024,...options});
