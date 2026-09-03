@@ -60,7 +60,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 - Safe Contract v2 使用 ephemeral、read-only、no approval，并显式关闭 shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency install；
 - 不自动修改源码、Commit、Push 或创建 PR。
 
-共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.13.0**，SHA 为 `d95f67cc61ce66c16e2aa440829655919e906a75`。
+共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.13.1**，SHA 为 `479e4b33356457a90617aea7bbba5ee25b65b2c8`。
 
 ## 正确理解 Readiness
 
@@ -78,7 +78,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/d95f67cc61ce66c16e2aa440829655919e906a75/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/479e4b33356457a90617aea7bbba5ee25b65b2c8/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "zh-CN",
@@ -150,11 +150,11 @@ MIT
 
 ## Codex Provider Runtime
 
-Codex Review Safe 为保持 Safe Contract 会主动忽略 `~/.codex/config.toml`。使用 OpenAI-compatible 中转站时，将 `safeCodexReview.providerMode` 设为 `openai-compatible`，配置 `safeCodexReview.providerBaseUrl`，并让 `safeCodexReview.providerApiKeyEnv` 指向 VS Code 进程可见的 API Key 环境变量。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 会真实执行一次结构化 Provider 探测。
+Codex Review Safe 为保持 Safe Contract 会忽略仓库本地的 Codex 配置。Review 4.7.x 默认使用机器级 Runtime Contract v3 自动发现；显式 VS Code Provider 设置仅作为 machine-local 高级覆盖。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 会真实执行一次结构化 Provider 探测。
 
-## 中转站凭据与局域网 HTTP
+## 长结构化 Review 输出
 
-Codex Review Safe 4.6.1 统一消费 Core Provider Contract v2。`providerCredentialSource=auto` 会先读取 `providerApiKeyEnv` 指定的环境变量；不存在时由 Core 读取 `${CODEX_HOME}/auth.json` 或 `~/.codex/auth.json`。auth 文件只有在 `auth_mode=apikey` 且存在非空 `OPENAI_API_KEY` 时才有效。非 loopback 的 `http://` 中转地址只有在用户/应用设置显式开启 `providerAllowInsecureHttp=true` 时才允许。仓库策略不能提供凭据，也不能开启不安全 HTTP。
+Codex Review Safe 4.7.1 消费 Safe Core 4.13.1。结构化 `codex exec --json` 调用只在内存中保留有界 transcript 尾部，同时使用独立、fail-closed 的总 transcript 上限。这样 hypothesis/verification 的中间 JSONL 事件即使超过历史 4 MiB retained-stdout 预算，也不会被误判为输出失控；普通进程的输出上限语义保持不变。
 
 ## Runtime Contract v3 — zero-config
 
