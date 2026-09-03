@@ -1,3 +1,15 @@
+# Changelog
+
+## 4.7.1 - 2026-09-03
+
+- Repin to immutable Codex Safe Core 4.13.1 (`479e4b33356457a90617aea7bbba5ee25b65b2c8`) so long structured `codex exec --json` Review transcripts use bounded retained stdout with an independent fail-closed total transcript ceiling.
+- Prevent false `Child process stdout exceeded the limit (4194304 bytes)` failures during long hypothesis/verification runs while preserving generic process output limits, Safe Contract v2, Review Receipt v5, Runtime Contract v3 and Provider Contract v3.
+- No Review judgment, finding validation, replay, convergence, scope or evidence semantics change.
+
+## 4.6.1 - 2026-09-02
+
+- Release-only patch carrying the exact Codex Safe Core 4.12.4 family pin and validated Review Receipt/Provider contracts; no Review Safe judgment semantics change.
+
 ## 4.5.0
 
 - Adopt immutable Safe Core 4.11.0 and Review Receipt v5 / Judgment Lifecycle v1.
@@ -12,12 +24,6 @@
 - Keep deterministic structural Evidence Cache persistent, split analyzer/SARIF composition from structural scanning, and hard-cut legacy `reviewArtifacts.v2`/`semanticRuns.v1` replay state.
 - Preserve Review Receipt v4, Safe Contract v2, Policy Schema v4, lineage/convergence provenance gates, and exact Safe Core 4.10.2 pin.
 
-# Changelog
-
-## 4.6.1 - 2026-09-02
-
-- Release-only patch carrying the exact Codex Safe Core 4.12.4 family pin and validated Review Receipt/Provider contracts; no Review Safe judgment semantics change.
-
 ## 4.4.2
 
 - Align the primary VS Code SCM toolbar with the Family UI Contract: Review is the single `navigation@5` primary action; Independent Review remains a secondary trusted action.
@@ -28,7 +34,7 @@
 ## 4.4.1 - 2026-08-31
 
 - Publish the already-validated Review Safe main line on immutable Safe Core v4.10.1 (`76418b80533c644e3ab01045290cd3cdd355622c`) and Policy Schema v4.
-- No Review runtime authority, Safe Contract v2, Review Receipt v4, prompt contract, or model behavior change.
+- No Review runtime authority, Safe Contract v2, Policy Schema v4, Review Receipt v4, prompt contract, or model behavior change.
 
 - Restore the original release boundary: the Release workflow ends at the validated immutable GitHub Release, while VS Code Marketplace publication is an independent `workflow_dispatch` that consumes the exact Release VSIX. External Marketplace credential/service failures no longer invalidate an already-successful GitHub source release.
 
@@ -49,12 +55,19 @@
 - Show host-local review time with an explicit numeric UTC offset and retain the canonical UTC `...Z` value in the same line.
 - Keep machine receipts canonical UTC and unchanged; this is a human observability improvement only.
 
-
 ## 4.3.3
 
 - Repin to immutable Codex Safe Core v4.9.0 (10393a0035ce5168b3d0e88822af0d74fe85ec6c) and adopt Product Contract v1.
 - Derive current documentation/Core identity checks from machine contracts instead of preserving historical SHA/version literals.
 - No Review runtime authority, Safe Contract, Policy Schema, Receipt, or review semantics change.
+
+## 4.3.2 - 2026-08-30
+
+- Repin to immutable Codex Safe Core v4.8.1 (`d06383ecf58b8153ddbd9d0b26a4f83b6e0515c2`) after the Family workspace/test-stability maintenance line; preserve Review runtime behavior, Safe Contract v2, Policy Schema v3, Review Receipt v4 and Review Prompt Contract v1.
+
+## 4.3.1 - 2026-08-28
+
+- Publish the complete bilingual OpenAI-compatible relay setup and troubleshooting guide; runtime, Safe Contract, Core pin and provider behavior are unchanged.
 
 ## 4.3.0 - 2026-08-28
 
@@ -70,14 +83,6 @@
 - Add immutable Evidence Manifests, stable ReviewKeys/Finding IDs, same-subject result caching, evidence-scoped human resolutions, Force Re-review stability suppression, and chunk-scoped evidence.
 - Add HEAD-pinned Scope Contracts, cross-index Review Lineage, changed causal anchors with unchanged supporting locations, convergence metrics, deterministic invariant candidates, and repeated-review hard-positive regression cases.
 - Add a hard-negative gate for ownership-replacing APIs such as `VSAPISTRING_Trim`, plus an index-safe discovery adapter boundary for future Tree-sitter/SCIP/LSP providers.
-
-## 4.3.2 - 2026-08-30
-
-- Repin to immutable Codex Safe Core v4.8.1 (`d06383ecf58b8153ddbd9d0b26a4f83b6e0515c2`) after the Family workspace/test-stability maintenance line; preserve Review runtime behavior, Safe Contract v2, Policy Schema v3, Review Receipt v4 and Review Prompt Contract v1.
-
-## 4.3.1 - 2026-08-28
-
-- Publish the complete bilingual OpenAI-compatible relay setup and troubleshooting guide; runtime, Safe Contract, Core pin and provider behavior are unchanged.
 
 ## 4.1.1 - 2026-08-27
 
@@ -164,4 +169,4 @@
 - HEAD + raw INDEX consistency checks and HEAD-pinned repository policy.
 - Complete English/Simplified-Chinese manifest and runtime localization.
 - Linux/Windows/macOS Extension Host coverage plus VS Code `1.90.0` minimum compatibility.
-- Reproducible lockfile, official VSIX content verification, immutable GitHub Actions, Dependabot, and SHA-256 release artifacts.
+- Reproducible lockfile, official VSIX content verification, immutable GitHub Actions, Dependabot, SHA-256 release artifacts.
