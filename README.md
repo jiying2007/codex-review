@@ -150,11 +150,11 @@ MIT
 
 ## Codex provider runtime
 
-Codex Review Safe intentionally ignores repository-local Codex configuration to preserve the Safe Contract. Review 4.7.x defaults to machine-scoped Runtime Contract v3 discovery; explicit VS Code provider settings remain advanced machine-local overrides. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` performs a live structured provider probe.
+Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` performs a live structured provider probe.
 
-## Long structured Review output
+## Relay credentials and private-network HTTP
 
-Codex Review Safe 4.7.1 consumes Safe Core 4.13.1. Structured `codex exec --json` calls keep only a bounded transcript tail in memory while enforcing a separate fail-closed total transcript ceiling. This prevents long hypothesis/verification runs from failing merely because intermediate JSONL events exceed the historical 4 MiB retained-stdout budget; generic process output limits remain unchanged.
+Codex Review Safe 4.6.1 consumes Core Provider Contract v2. With `providerCredentialSource=auto`, Review Safe first uses `providerApiKeyEnv`; when it is absent, Core reads `${CODEX_HOME}/auth.json` or `~/.codex/auth.json`. The auth file qualifies only with `auth_mode=apikey` and a non-empty `OPENAI_API_KEY`. A non-loopback `http://` relay is accepted only when `providerAllowInsecureHttp=true` is explicitly enabled in user/application settings. Repository policy cannot provide credentials or enable insecure HTTP.
 
 ## Runtime Contract v3 — zero-config
 
