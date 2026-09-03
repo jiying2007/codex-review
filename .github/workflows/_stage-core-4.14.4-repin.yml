@@ -1,0 +1,30 @@
+name: Stage Core 4.14.4 release repin
+on:
+  push:
+    branches: [chore/core-4.14.2-release]
+    paths: [.github/workflows/_stage-core-4.14.4-repin.yml]
+permissions:
+  contents: write
+jobs:
+  repin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: true, fetch-depth: 0, submodules: recursive }
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with: { node-version: '24.19.0' }
+      - name: Apply canonical release-bearing repin
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/jiying2007/codex-safe-core.git /tmp/codex-safe-core
+          git -C /tmp/codex-safe-core checkout --quiet --detach 25467922eeebffa93b7c820f2ffa7590c1625381
+          node /tmp/codex-safe-core/scripts/repin-consumer.js "$GITHUB_WORKSPACE" 25467922eeebffa93b7c820f2ffa7590c1625381
+          git checkout -- .github/workflows/family-release-guard.yml 2>/dev/null || true
+          git config user.name codex-safe-family-bot
+          git config user.email codex-safe-family-bot@users.noreply.github.com
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore: release Review 4.7.4 on Core 4.14.4'
+          git push origin HEAD:chore/core-4.14.2-release
