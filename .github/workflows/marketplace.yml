@@ -1,79 +1,123 @@
 name: VS Code Marketplace
 
 on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Immutable GitHub Release tag to publish, for example v4.4.0'
+        description: 'Immutable GitHub Release tag to publish, for example v4.7.4'
         required: true
 
 permissions:
-  contents: read
-  attestations: read
+  contents: write
+  attestations: write
+  id-token: write
 
 concurrency:
-  group: vscode-marketplace-${{ inputs.tag }}
+  group: vscode-marketplace-${{ github.event.workflow_run.head_sha || inputs.tag || github.run_id }}
   cancel-in-progress: false
 
 jobs:
   publish:
-    name: Publish validated Release VSIX
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      published: ${{ steps.result.outputs.published }}
     steps:
-      - name: Resolve immutable release tag
-        id: release
+      - name: Resolve exact release source
+        id: source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          AUTO_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          REQUESTED_TAG: ${{ inputs.tag || '' }}
         shell: bash
         run: |
           set -euo pipefail
-          tag='${{ inputs.tag }}'
-          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must be vMAJOR.MINOR.PATCH: $tag" >&2; exit 1; }
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
-
+          if [[ "$EVENT_NAME" == workflow_run ]]; then
+            sha="$AUTO_SHA"; requested=''; [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          else
+            requested="$REQUESTED_TAG"
+            [[ "$requested" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must be vMAJOR.MINOR.PATCH: $requested" >&2; exit 2; }
+            sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${requested}" --jq '.object.sha')"
+            type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${requested}" --jq '.object.type')"
+            for depth in {1..4}; do [[ "$type" == tag ]] || break; type="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${sha}" --jq '.object.type')"; sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${sha}" --jq '.object.sha')"; done
+            test "$type" = commit
+          fi
+          echo "source_sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "requested_tag=$requested" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ steps.source.outputs.source_sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
-        with: { node-version: '22.22.2', cache: npm }
-
-      - name: Verify immutable release source
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with: { node-version: '24.19.0' }
+      - name: Resolve exact immutable product release
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_TAG: ${{ steps.source.outputs.requested_tag }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          test "$(node -p "require('./package.json').version")" = "${{ steps.release.outputs.version }}"
-          test "$(node -p "require('./package.json').publisher")" = "jiying2007"
-          test "$(node -p "require('./package.json').name")" = "codex-review-safe"
-          npm run verify:lock
-          npm ci --ignore-scripts --no-audit --no-fund
-
-      - name: Download and verify GitHub Release artifacts
-        env: { GH_TOKEN: '${{ github.token }}' }
+          version="$(node -p "require('./package.json').version")"; tag="v${version}"; [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [[ -n "$REQUESTED_TAG" && "$REQUESTED_TAG" != "$tag" ]]; then echo "requested tag $REQUESTED_TAG does not match package version $tag" >&2; exit 1; fi
+          eligible=true
+          if ! gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" >/dev/null 2>&1; then [[ "$EVENT_NAME" == workflow_run ]] && eligible=false || { echo "release $tag does not exist" >&2; exit 1; }; fi
+          if [[ "$eligible" == true ]]; then
+            object_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq '.object.sha')"; object_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq '.object.type')"
+            for depth in {1..4}; do [[ "$object_type" == tag ]] || break; object_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${object_sha}" --jq '.object.type')"; object_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${object_sha}" --jq '.object.sha')"; done
+            if [[ "$object_type" != commit || "$object_sha" != "$SOURCE_SHA" ]]; then [[ "$EVENT_NAME" == workflow_run ]] && eligible=false || { echo "$tag does not resolve to $SOURCE_SHA" >&2; exit 1; }; fi
+          fi
+          if [[ "$eligible" == true && "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" --jq '.immutable')" != true ]]; then [[ "$EVENT_NAME" == workflow_run ]] && eligible=false || { echo "$tag is not immutable" >&2; exit 1; }; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"; echo "tag=$tag" >> "$GITHUB_OUTPUT"; echo "eligible=$eligible" >> "$GITHUB_OUTPUT"
+      - name: Download and verify exact GitHub Release VSIX
+        if: steps.release.outputs.eligible == 'true'
+        env: { TAG: '${{ steps.release.outputs.tag }}', VERSION: '${{ steps.release.outputs.version }}' }
         shell: bash
         run: |
           set -euo pipefail
-          tag='${{ steps.release.outputs.tag }}'
-          version='${{ steps.release.outputs.version }}'
-          vsix="codex-review-safe-${version}.vsix"
-          mkdir -p release-artifacts
-          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
-          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir release-artifacts --pattern "$vsix" --pattern SBOM.spdx.json --pattern SHA256SUMS
-          test -f "release-artifacts/$vsix"
-          test -f release-artifacts/SBOM.spdx.json
-          test -f release-artifacts/SHA256SUMS
+          vsix="codex-review-safe-${VERSION}.vsix"; mkdir -p release-artifacts
+          verified=false; for attempt in {1..12}; do if gh release verify "$TAG"; then verified=true; break; fi; sleep 5; done; test "$verified" = true
+          gh release download "$TAG" --dir release-artifacts --pattern "$vsix" --pattern SBOM.spdx.json --pattern SHA256SUMS
+          test -f "release-artifacts/$vsix"; test -f release-artifacts/SBOM.spdx.json; test -f release-artifacts/SHA256SUMS
           (cd release-artifacts && sha256sum -c SHA256SUMS)
           gh attestation verify "release-artifacts/$vsix" -R "$GITHUB_REPOSITORY"
           unzip -Z1 "release-artifacts/$vsix" > /tmp/vsix-files.txt
-          grep -Fx 'extension/dist/extension.js' /tmp/vsix-files.txt
-          grep -Fx 'extension/dist/codex-safe.schema.json' /tmp/vsix-files.txt
-          if grep -E '^extension/(extension\.js|src/|test|scripts|package-lock\.json|\.gitmodules|PUBLISHING\.md|CONTRIBUTING\.md|\.gitignore|\.gitattributes)' /tmp/vsix-files.txt; then echo 'Release VSIX contains development-only files' >&2; exit 1; fi
-
+          grep -Fx 'extension/package.json' /tmp/vsix-files.txt; grep -Fx 'extension/dist/extension.js' /tmp/vsix-files.txt; grep -Fx 'extension/dist/codex-safe.schema.json' /tmp/vsix-files.txt
+          if grep -E '^extension/(extension\.js|src/|test/|scripts/|package-lock\.json|\.gitmodules|\.github/)' /tmp/vsix-files.txt; then echo 'Release VSIX contains development-only files' >&2; exit 1; fi
       - name: Publish exact Release VSIX
-        env: { VSCE_PAT: '${{ secrets.VSCE_PAT }}' }
+        if: steps.release.outputs.eligible == 'true'
+        env: { VSCE_PAT: '${{ secrets.VSCE_PAT }}', VERSION: '${{ steps.release.outputs.version }}' }
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${VSCE_PAT:-}" || { echo 'VSCE_PAT is required with stable @vscode/vsce 3.9.x.' >&2; exit 1; }
-          ./node_modules/.bin/vsce publish --packagePath "release-artifacts/codex-review-safe-${{ steps.release.outputs.version }}.vsix" --pat "$VSCE_PAT" --skip-duplicate
+          test -n "${VSCE_PAT:-}" || { echo 'VSCE_PAT is required.' >&2; exit 1; }
+          npx --yes @vscode/vsce@3.9.2 publish --packagePath "release-artifacts/codex-review-safe-${VERSION}.vsix" -p "$VSCE_PAT" --skip-duplicate
+      - name: Record publication result
+        id: result
+        if: always()
+        env: { ELIGIBLE: '${{ steps.release.outputs.eligible }}' }
+        shell: bash
+        run: |
+          if [[ "$ELIGIBLE" == true ]]; then echo 'published=true' >> "$GITHUB_OUTPUT"; else echo 'published=false' >> "$GITHUB_OUTPUT"; fi
+
+  receipt:
+    needs: publish
+    if: ${{ needs.publish.result == 'success' && needs.publish.outputs.published == 'true' }}
+    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@25467922eeebffa93b7c820f2ffa7590c1625381
+    with:
+      product_id: codex-review-safe
+      product_version: ${{ needs.publish.outputs.version }}
+      source_sha: ${{ needs.publish.outputs.source_sha }}
+      release_tag: ${{ needs.publish.outputs.tag }}
+      channel: vscode-marketplace

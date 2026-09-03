@@ -34,10 +34,14 @@ const policyExample=JSON.parse(fs.readFileSync(path.join(root,'.codex-safe.examp
 assert.match(String(policyExample.$schema||''),new RegExp(expectedCore));
 assert.ok(!Object.prototype.hasOwnProperty.call(policyExample,'pr'),'retired PR policy surface must not return');
 const marketplace=fs.readFileSync(path.join(root,'.github','workflows','marketplace.yml'),'utf8');
+assert.match(marketplace,/workflow_run:/);
+assert.match(marketplace,/github\.event\.workflow_run\.head_sha/);
 assert.match(marketplace,/gh release download/);
 assert.match(marketplace,/sha256sum -c SHA256SUMS/);
 assert.match(marketplace,/gh attestation verify .* -R "\$GITHUB_REPOSITORY"/);
-assert.match(marketplace,/vsce publish --packagePath/);
+assert.match(marketplace,/@vscode\/vsce@3\.9\.2 publish --packagePath/);
+assert.match(marketplace,/distribution-receipt\.yml@25467922eeebffa93b7c820f2ffa7590c1625381/);
+assert.match(marketplace,/channel: vscode-marketplace/);
 assert.doesNotMatch(marketplace,/npm run package|vsce package/,'Marketplace must publish the exact GitHub Release VSIX, never rebuild it');
 const renovate=JSON.parse(fs.readFileSync(path.join(root,'renovate.json'),'utf8'));
 assert.ok(renovate.extends.includes(':automergeDisabled'));
@@ -45,4 +49,4 @@ assert.equal(renovate.minimumReleaseAge,'3 days');
 const verification=fs.readFileSync(path.join(root,'VERIFY_RELEASE.md'),'utf8');
 assert.match(verification,/gh attestation verify codex-review-safe-<version>\.vsix -R jiying2007\/codex-review/);
 
-console.log('Release helper, Product Contract-bound Core/schema provenance, retired PR boundary, Marketplace artifact reuse, attestation and dependency governance tests passed.');
+console.log('Release helper, Product Contract-bound Core/schema provenance, exact-SHA Marketplace promotion, pinned vsce, Distribution Receipt, attestation and dependency governance tests passed.');

@@ -7,33 +7,12 @@ on:
 
 permissions:
   contents: read
+  attestations: read
 
 jobs:
-  verify:
+  integrity:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-    steps:
-      - name: Verify latest published immutable release and every asset
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=20" --jq '[.[] | select(.draft == false and .prerelease == false)] | sort_by(.published_at) | reverse | .[0].tag_name // ""')"
-          test -n "$tag" || { echo 'No published formal release found.' >&2; exit 1; }
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" --jq '.immutable')" = true || {
-            echo "Published release ${tag} is not immutable." >&2
-            exit 1
-          }
-          gh release verify "$tag"
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-          gh release download "$tag" --dir "$tmp"
-          shopt -s nullglob
-          assets=("$tmp"/*)
-          ((${#assets[@]} > 0)) || { echo "Release ${tag} has no assets." >&2; exit 1; }
-          for asset in "${assets[@]}"; do
-            gh release verify-asset "$tag" "$asset"
-          done
+    uses: jiying2007/codex-safe-core/.github/workflows/consumer-release-integrity.yml@25467922eeebffa93b7c820f2ffa7590c1625381
+    with:
+      expected_sha: ${{ github.event.workflow_run.head_sha }}
+      product: codex-review-safe
