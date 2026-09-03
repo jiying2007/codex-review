@@ -1,3 +1,9 @@
+## Unreleased
+
+- Bound repository-size Git enumeration to the staged Review scope: submodule classification and unstaged-overlay safety checks now query only literal, batched staged pathspecs instead of enumerating the entire index or working tree.
+- Add explicit bounded Git-enumeration ceilings plus phase/command-class `EOUTPUTLIMIT` diagnostics, while preserving index-pinned staged-only model authority and fail-closed publication semantics.
+- Extend large-repository regressions for >4 MiB semantic grep output, bounded pathspec batching, literal pathspec handling, unstaged isolation, and staged gitlink classification.
+
 ## 4.7.2 - 2026-09-03
 
 - Bound index-pinned semantic symbol discovery at the source: enumerate matching files with NUL-safe `git grep -l`, recursively split over-broad symbol batches, cap broad-symbol candidates, and inspect only size-preflighted index blobs.
@@ -34,8 +40,6 @@
 
 - Align the primary VS Code SCM toolbar with the Family UI Contract: Review is the single `navigation@5` primary action; Independent Review remains a secondary trusted action.
 - Repin to immutable Safe Core 4.10.2.
-
-## Unreleased
 
 ## 4.4.1 - 2026-08-31
 
@@ -144,13 +148,17 @@
 - Route model input through Safe Core Semantic Context Budget while preserving the complete staged diff for fingerprints/line mapping/receipt evidence; enforce a fixed 8 MiB raw staged-diff safety ceiling.
 - Upgrade the public companion API and persisted Review Receipt store to contract/schema v2, including verified first-parent range evidence.
 - Standardize the Marketplace runtime on deterministic `dist/` staging plus `dist/codex-safe.schema.json`, with CI rejecting source/tests/scripts/submodule metadata in VSIX artifacts.
-- Unify CI/release gates, retain real Workspace Trust and zh-CN Extension Host coverage, SHA-256 plus full-SHA-pinned GitHub build-provenance attestations.
+- Unify CI/release gates, retain real Workspace Trust and zh-CN Extension Host coverage plus full-SHA-pinned GitHub build-provenance attestations.
 - Rewrite English/Chinese user, security, and publishing documentation around the v2 product-family contract.
 
 ## 1.0.2
 
+### Changed
+
 - Automatically create the immutable version tag and GitHub Release after a committed version bump reaches `main`, while retaining the manual tag-push fallback.
 - Make release reruns idempotent and reject existing lightweight or annotated tags that resolve to a different commit.
+
+### Added
 
 - Added review-input fingerprints, staged input size, and Codex execution metadata to reports.
 - Added explicit reporting for staged files with newer unstaged overlays.
@@ -161,6 +169,8 @@
 - Added offline quality fixtures and the shared Codex Safe argv/compatibility contract.
 
 ## 1.0.1
+
+### Fixed
 
 - Fixed current Codex CLI compatibility by placing the global approval policy before the `exec` subcommand.
 - Added a shared Codex argv builder plus regression and fake-CLI argument-order checks.
