@@ -1,4 +1,5 @@
 name: Temporary Review 4.7.2 sync
+# rerun-after-vscode-stub
 on:
   push:
     branches:
