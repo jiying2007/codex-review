@@ -1,3 +1,9 @@
+## 4.7.1 - 2026-09-03
+
+- Repin to immutable Codex Safe Core 4.13.1 (`479e4b33356457a90617aea7bbba5ee25b65b2c8`) so long structured `codex exec --json` Review transcripts use bounded retained stdout with an independent fail-closed total transcript ceiling.
+- Prevent false `Child process stdout exceeded the limit (4194304 bytes)` failures during long hypothesis/verification runs while preserving generic process output limits, Safe Contract v2, Review Receipt v5, Runtime Contract v3 and Provider Contract v3.
+- No Review judgment, finding validation, replay, convergence, scope or evidence semantics change.
+
 ## 4.5.0
 
 - Adopt immutable Safe Core 4.11.0 and Review Receipt v5 / Judgment Lifecycle v1.
