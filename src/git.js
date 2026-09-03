@@ -17,6 +17,65 @@ const coreGit = createGitRepository({
 });
 const git = coreGit.git;
 
+const STAGED_ENUMERATION_STDOUT_LIMIT = 32 * 1024 * 1024;
+const CONFLICT_ENUMERATION_STDOUT_LIMIT = 4 * 1024 * 1024;
+const SCOPED_ENUMERATION_STDOUT_LIMIT = 1024 * 1024;
+const ENUMERATION_STDERR_LIMIT = 256 * 1024;
+const PATHSPEC_BATCH_MAX_COUNT = 96;
+const PATHSPEC_BATCH_MAX_BYTES = 12 * 1024;
+
+function pathspecBytes(value) {
+  return Buffer.byteLength(String(value || ''), 'utf8') + 1;
+}
+
+function batchPathspecs(paths, maxCount = PATHSPEC_BATCH_MAX_COUNT, maxBytes = PATHSPEC_BATCH_MAX_BYTES) {
+  const unique = [...new Set((paths || []).map(normalizeGitPathForComparison).filter(Boolean))];
+  const batches = [];
+  let current = [];
+  let currentBytes = 0;
+  for (const file of unique) {
+    const bytes = pathspecBytes(file);
+    if (current.length && (current.length >= maxCount || currentBytes + bytes > maxBytes)) {
+      batches.push(current);
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(file);
+    currentBytes += bytes;
+  }
+  if (current.length) batches.push(current);
+  return batches;
+}
+
+function literalPathspecArgs(commandArgs, batch) {
+  return ['--literal-pathspecs', ...commandArgs, '--', ...batch];
+}
+
+function enumerationError(error, phase, commandClass) {
+  if (error?.code !== 'EOUTPUTLIMIT') return error;
+  const wrapped = new Error(`Git enumeration exceeded bounded output during ${phase} (${commandClass}). ${error.message}`);
+  wrapped.code = error.code;
+  wrapped.phase = phase;
+  wrapped.commandClass = commandClass;
+  wrapped.stdoutBytes = error.stdoutBytes;
+  wrapped.stdoutTruncated = error.stdoutTruncated;
+  wrapped.stdoutTail = error.stdoutTail;
+  wrapped.stderrTail = error.stderrTail;
+  wrapped.cause = error;
+  return wrapped;
+}
+
+async function runGitEnumeration(args, repoRoot, token, { phase, commandClass, maxStdoutBytes }) {
+  try {
+    return await git(args, repoRoot, token, {
+      maxStdoutBytes,
+      maxStderrBytes: ENUMERATION_STDERR_LIMIT
+    });
+  } catch (error) {
+    throw enumerationError(error, phase, commandClass);
+  }
+}
+
 async function getGitApi() {
   const extension = vscode.extensions.getExtension('vscode.git');
   if (!extension) return undefined;
@@ -148,13 +207,33 @@ function parseNameStatusZ(stdout) {
   return metadata;
 }
 
+async function getStagedPathList(repoRoot, token) {
+  const { stdout } = await runGitEnumeration(
+    ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTUXB', '-z'],
+    repoRoot,
+    token,
+    { phase: 'staged-path-discovery', commandClass: 'git diff --cached --name-only', maxStdoutBytes: STAGED_ENUMERATION_STDOUT_LIMIT }
+  );
+  return stdout.split('\0').filter(Boolean).map(normalizeGitPathForComparison);
+}
+
 async function getStagedChangeMetadata(repoRoot, token) {
-  const { stdout } = await git(['diff', '--cached', '--name-status', '-z', '-M', '-C', '--diff-filter=ACMRDTUXB'], repoRoot, token);
+  const { stdout } = await runGitEnumeration(
+    ['diff', '--cached', '--name-status', '-z', '-M', '-C', '--diff-filter=ACMRDTUXB'],
+    repoRoot,
+    token,
+    { phase: 'staged-metadata-discovery', commandClass: 'git diff --cached --name-status', maxStdoutBytes: STAGED_ENUMERATION_STDOUT_LIMIT }
+  );
   return parseNameStatusZ(stdout);
 }
 
 async function getBinaryPathSet(repoRoot, token) {
-  const { stdout } = await git(['diff', '--cached', '--numstat', '-z', '--no-renames'], repoRoot, token);
+  const { stdout } = await runGitEnumeration(
+    ['diff', '--cached', '--numstat', '-z', '--no-renames'],
+    repoRoot,
+    token,
+    { phase: 'staged-binary-discovery', commandClass: 'git diff --cached --numstat', maxStdoutBytes: STAGED_ENUMERATION_STDOUT_LIMIT }
+  );
   const result = new Set();
   for (const record of stdout.split('\0')) {
     if (!record) continue;
@@ -170,18 +249,31 @@ async function getBinaryPathSet(repoRoot, token) {
 }
 
 async function getSubmodulePathSet(repoRoot, token) {
-  const { stdout } = await git(['ls-files', '--stage', '-z'], repoRoot, token);
+  const stagedPaths = await getStagedPathList(repoRoot, token);
   const result = new Set();
-  for (const record of stdout.split('\0')) {
-    if (!record) continue;
-    const match = record.match(/^(\d{6}) [0-9a-f]+ \d\t([\s\S]*)$/i);
-    if (match?.[1] === '160000') result.add(normalizeGitPathForComparison(match[2]));
+  for (const batch of batchPathspecs(stagedPaths)) {
+    const { stdout } = await runGitEnumeration(
+      literalPathspecArgs(['ls-files', '--stage', '-z'], batch),
+      repoRoot,
+      token,
+      { phase: 'staged-submodule-discovery', commandClass: 'git ls-files --stage <staged-pathspecs>', maxStdoutBytes: SCOPED_ENUMERATION_STDOUT_LIMIT }
+    );
+    for (const record of stdout.split('\0')) {
+      if (!record) continue;
+      const match = record.match(/^(\d{6}) [0-9a-f]+ \d\t([\s\S]*)$/i);
+      if (match?.[1] === '160000') result.add(normalizeGitPathForComparison(match[2]));
+    }
   }
   return result;
 }
 
 async function getUnmergedPaths(repoRoot, token) {
-  const { stdout } = await git(['ls-files', '--unmerged', '-z'], repoRoot, token);
+  const { stdout } = await runGitEnumeration(
+    ['ls-files', '--unmerged', '-z'],
+    repoRoot,
+    token,
+    { phase: 'unmerged-path-discovery', commandClass: 'git ls-files --unmerged', maxStdoutBytes: CONFLICT_ENUMERATION_STDOUT_LIMIT }
+  );
   const paths = new Set();
   for (const record of stdout.split('\0')) {
     if (!record) continue;
@@ -194,11 +286,32 @@ async function getUnmergedPaths(repoRoot, token) {
 }
 
 async function getUnstagedPathSet(repoRoot, token) {
-  const { stdout } = await git(['diff', '--name-only', '--diff-filter=ACMRDTUXB', '-z'], repoRoot, token);
-  return new Set(stdout.split('\0').filter(Boolean).map(normalizeGitPathForComparison));
+  const stagedPaths = await getStagedPathList(repoRoot, token);
+  const result = new Set();
+  for (const batch of batchPathspecs(stagedPaths)) {
+    const { stdout } = await runGitEnumeration(
+      literalPathspecArgs(['diff', '--name-only', '--diff-filter=ACMRDTUXB', '-z'], batch),
+      repoRoot,
+      token,
+      { phase: 'unstaged-overlay-discovery', commandClass: 'git diff --name-only <staged-pathspecs>', maxStdoutBytes: SCOPED_ENUMERATION_STDOUT_LIMIT }
+    );
+    for (const file of stdout.split('\0').filter(Boolean)) result.add(normalizeGitPathForComparison(file));
+  }
+  return result;
 }
 
 module.exports = {
+  STAGED_ENUMERATION_STDOUT_LIMIT,
+  CONFLICT_ENUMERATION_STDOUT_LIMIT,
+  SCOPED_ENUMERATION_STDOUT_LIMIT,
+  ENUMERATION_STDERR_LIMIT,
+  PATHSPEC_BATCH_MAX_COUNT,
+  PATHSPEC_BATCH_MAX_BYTES,
+  pathspecBytes,
+  batchPathspecs,
+  literalPathspecArgs,
+  enumerationError,
+  runGitEnumeration,
   git,
   getGitApi,
   getRepositories,
@@ -212,6 +325,7 @@ module.exports = {
   toRepoRelativeGitPath,
   getDirtyOpenPathSet,
   parseNameStatusZ,
+  getStagedPathList,
   getStagedChangeMetadata,
   getBinaryPathSet,
   getSubmodulePathSet,
