@@ -60,7 +60,7 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
-Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.13.0** submodule at `d95f67cc61ce66c16e2aa440829655919e906a75`.
+Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.13.1** submodule at `479e4b33356457a90617aea7bbba5ee25b65b2c8`.
 
 ## Reading readiness correctly
 
@@ -78,7 +78,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/d95f67cc61ce66c16e2aa440829655919e906a75/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/479e4b33356457a90617aea7bbba5ee25b65b2c8/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "en",
@@ -150,11 +150,11 @@ MIT
 
 ## Codex provider runtime
 
-Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` performs a live structured provider probe.
+Codex Review Safe intentionally ignores repository-local Codex configuration to preserve the Safe Contract. Review 4.7.x defaults to machine-scoped Runtime Contract v3 discovery; explicit VS Code provider settings remain advanced machine-local overrides. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` performs a live structured provider probe.
 
-## Relay credentials and private-network HTTP
+## Long structured Review output
 
-Codex Review Safe 4.6.1 consumes Core Provider Contract v2. With `providerCredentialSource=auto`, Review Safe first uses `providerApiKeyEnv`; when it is absent, Core reads `${CODEX_HOME}/auth.json` or `~/.codex/auth.json`. The auth file qualifies only with `auth_mode=apikey` and a non-empty `OPENAI_API_KEY`. A non-loopback `http://` relay is accepted only when `providerAllowInsecureHttp=true` is explicitly enabled in user/application settings. Repository policy cannot provide credentials or enable insecure HTTP.
+Codex Review Safe 4.7.1 consumes Safe Core 4.13.1. Structured `codex exec --json` calls keep only a bounded transcript tail in memory while enforcing a separate fail-closed total transcript ceiling. This prevents long hypothesis/verification runs from failing merely because intermediate JSONL events exceed the historical 4 MiB retained-stdout budget; generic process output limits remain unchanged.
 
 ## Runtime Contract v3 — zero-config
 
