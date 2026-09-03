@@ -16,6 +16,9 @@ const { rehydrateDiscoveryCandidates } = require('./code-intelligence');
 const MAX_INDEX_FILE_BYTES = 128 * 1024;
 const MAX_SYMBOLS = 64;
 const MAX_SYMBOL_MATCHES = 96;
+const MAX_SYMBOL_FILE_LIST_BYTES = 512 * 1024;
+const MAX_SYMBOL_CANDIDATE_FILES = 96;
+const MAX_FILES_PER_BROAD_SYMBOL = 16;
 const MAX_EVIDENCE_SNIPPET_LINES = 11;
 const TEXT_PATH = /\.(?:c|h|cc|hh|cpp|hpp|cxx|hxx|inc|ipp|m|mm|rs|go|js|jsx|ts|tsx|py|java|kt|kts|cs|swift|dts|dtsi|yaml|yml|json|toml|ini|cmake|mk|txt)$/i;
 
@@ -126,23 +129,63 @@ function snippet(content, lineNumber, radius = Math.floor(MAX_EVIDENCE_SNIPPET_L
   const start = Math.max(1, Number(lineNumber) - radius), end = Math.min(lines.length, Number(lineNumber) + radius);
   return { start, end, text: lines.slice(start - 1, end).map((line, index) => `${start + index}: ${line}`).join('\n') };
 }
+function exactSymbolRegex(symbol) {
+  return new RegExp(`\\b${String(symbol).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`);
+}
+function parseCandidateFiles(stdout) {
+  const files=[];
+  for (const raw of String(stdout || '').split('\0').filter(Boolean)) {
+    try {
+      const file=safeIndexPath(raw);
+      if (TEXT_PATH.test(file)) files.push(file);
+    } catch {}
+  }
+  return [...new Set(files)].sort((a,b)=>a.localeCompare(b));
+}
+async function symbolCandidateGroups(repoRoot, batch, token) {
+  if (!batch.length) return [];
+  const args=['grep','--cached','-l','-z','-I','-F'];
+  for (const symbol of batch) args.push('-e',symbol);
+  args.push('--');
+  let files;
+  try {
+    const {stdout}=await git(args,repoRoot,token,{maxStdoutBytes:MAX_SYMBOL_FILE_LIST_BYTES,maxStderrBytes:128*1024});
+    files=parseCandidateFiles(stdout);
+  } catch(error) {
+    if(error?.code==='ECANCELLED') throw error;
+    if(Number(error?.code)===1) return [];
+    if(error?.code==='EOUTPUTLIMIT') {
+      if(batch.length===1) return [];
+      const mid=Math.ceil(batch.length/2);
+      return [...await symbolCandidateGroups(repoRoot,batch.slice(0,mid),token),...await symbolCandidateGroups(repoRoot,batch.slice(mid),token)];
+    }
+    throw error;
+  }
+  if(files.length>MAX_SYMBOL_CANDIDATE_FILES && batch.length>1) {
+    const mid=Math.ceil(batch.length/2);
+    return [...await symbolCandidateGroups(repoRoot,batch.slice(0,mid),token),...await symbolCandidateGroups(repoRoot,batch.slice(mid),token)];
+  }
+  const limit=batch.length===1?MAX_FILES_PER_BROAD_SYMBOL:MAX_SYMBOL_CANDIDATE_FILES;
+  return [{symbols:batch,files:files.slice(0,limit)}];
+}
 async function grepIndexSymbols(repoRoot, symbols, token) {
   const unique = [...new Set((symbols || []).filter(Boolean))].slice(0, MAX_SYMBOLS);
   if (!unique.length) return [];
-  const matches=[];
+  const matches=[], cache=new Map(), regexes=new Map(unique.map(symbol=>[symbol,exactSymbolRegex(symbol)]));
   for (let start=0; start<unique.length; start+=16) {
-    const batch=unique.slice(start,start+16), args=['grep','--cached','-n','-I','-F'];
-    for (const symbol of batch) args.push('-e',symbol);
-    args.push('--');
-    let stdout='';
-    try { stdout=(await git(args,repoRoot,token,{maxStdoutBytes:4*1024*1024,maxStderrBytes:128*1024})).stdout; }
-    catch(error) { if(error?.code==='ECANCELLED') throw error; if(Number(error?.code)===1) continue; throw error; }
-    for(const raw of stdout.split(/\r?\n/).filter(Boolean)) {
-      const match=raw.match(/^(.+?):(\d+):(.*)$/); if(!match) continue;
-      const file=normalizeGitPathForComparison(match[1]); if(!TEXT_PATH.test(file)) continue;
-      const line=Number(match[2]), text=match[3];
-      for(const symbol of batch) if(new RegExp(`\\b${String(symbol).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`).test(text)) matches.push({file,line,text,symbol});
-      if(matches.length>=MAX_SYMBOL_MATCHES) return matches;
+    const groups=await symbolCandidateGroups(repoRoot,unique.slice(start,start+16),token);
+    for(const group of groups) for(const file of group.files) {
+      let content=cache.get(file);
+      if(content===undefined){content=await readIndexText(repoRoot,file,token);cache.set(file,content);}
+      if(content==null) continue;
+      const lines=content.split(/\r?\n/);
+      for(let index=0;index<lines.length;index++) {
+        const lineText=lines[index];
+        for(const symbol of group.symbols) if(regexes.get(symbol).test(lineText)) {
+          matches.push({file,line:index+1,text:lineText,symbol});
+          if(matches.length>=MAX_SYMBOL_MATCHES) return matches;
+        }
+      }
     }
   }
   return matches;
