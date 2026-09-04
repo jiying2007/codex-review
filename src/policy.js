@@ -11,6 +11,7 @@ const {
 const { readPolicySectionAtHead } = require('./codex-safe-core/policy');
 const { fingerprintPolicy } = require('./codex-safe-core/safe-contract');
 const { resolveCodexRuntime, inspectCodexRuntime } = require('./codex-safe-core/codex-runtime-resolver');
+const { resolveModelRegistry } = require('./codex-safe-core/model-registry-resolver');
 const { resolveReviewModeProfile } = require('./codex-safe-core/review-profile-pack');
 const { t } = require('./i18n');
 
@@ -74,6 +75,19 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   const profilePack = String(getUserOnlySetting(config, 'profilePack', 'general') || 'general');
   const profile = resolveReviewModeProfile(mode, profilePack);
 
+  const modelSelectionStrategy = String(getUserOnlySetting(config, 'modelSelectionStrategy', 'auto') || 'auto').trim();
+  if (!['auto','preference','fixed'].includes(modelSelectionStrategy)) throw new Error('User-level safeCodexReview.modelSelectionStrategy is invalid.');
+  const modelCompatibilityPolicy = String(getUserOnlySetting(config, 'modelCompatibilityPolicy', modelSelectionStrategy === 'fixed' ? 'warn' : 'strict') || 'strict').trim();
+  if (!['strict','warn','permissive'].includes(modelCompatibilityPolicy)) throw new Error('User-level safeCodexReview.modelCompatibilityPolicy is invalid.');
+  const rawCandidates = getUserOnlySetting(config, 'modelCandidates', []);
+  if (!Array.isArray(rawCandidates) || rawCandidates.length > 8) throw new Error('User-level safeCodexReview.modelCandidates is invalid.');
+  const modelCandidates = Object.freeze(rawCandidates.map((raw,index) => {
+    const text=String(raw||'').trim(), slash=text.indexOf('/');
+    if (slash <= 0 || slash === text.length-1 || text.length > 384 || /[\r\n\0]/.test(text)) throw new Error(`User-level safeCodexReview.modelCandidates[${index}] is invalid.`);
+    return Object.freeze({ provider:text.slice(0,slash), model:text.slice(slash+1) });
+  }));
+  const modelRegistryResolution = resolveModelRegistry();
+
   const sarifRaw = getUserOnlySetting(config, 'sarifFiles', []);
   if (!Array.isArray(sarifRaw) || sarifRaw.length > 8 || sarifRaw.some(value => typeof value !== 'string' || !value.trim() || value.length > 512 || /[\r\n\0]/.test(value))) throw new Error('User-level safeCodexReview.sarifFiles is invalid.');
   const sarifFiles = Object.freeze(sarifRaw.map(value => value.trim()));
@@ -117,6 +131,12 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     codexPath,
     model,
     fastModel,
+    modelSelectionStrategy,
+    modelCompatibilityPolicy,
+    modelCandidates,
+    modelRegistry: modelRegistryResolution.registry,
+    modelRegistrySource: modelRegistryResolution.source,
+    modelRegistryPath: modelRegistryResolution.configPath,
     codexRuntime,
     codexRuntimeInspection,
     mode: profile.mode,
@@ -150,6 +170,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     reviewRules: options.reviewRules,
     projectPolicyFingerprint: options.projectPolicyFingerprint,
     reviewProfile: `${options.mode}/${options.profilePack}`,
+    modelRouting: `${options.modelSelectionStrategy}/${options.modelCompatibilityPolicy}/${options.modelRegistry?.revision || 'unmanaged'}`,
     sarifEvidenceEnabled: options.sarifFiles.length > 0
   });
   return options;
