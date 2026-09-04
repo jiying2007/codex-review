@@ -61,14 +61,21 @@ function safeModelSetting(config, key) {
   if (value.length > 256 || /[\r\n\0]/.test(value)) throw new Error(t('User-level safeCodexReview.model is invalid.'));
   return value;
 }
+function routingFingerprint({ strategy, compatibilityPolicy, registry, candidates }) {
+  const registryIdentity = registry?.digest || registry?.revision || 'unmanaged';
+  const preference = strategy === 'preference'
+    ? (candidates || []).map(item => `${item.provider}/${item.model}`).join(',')
+    : '';
+  return `${strategy}/${compatibilityPolicy}/${registryIdentity}/${preference}`;
+}
 
 async function getEffectiveOptions(repoRoot, headOid, token) {
   const config = vscode.workspace.getConfiguration('safeCodexReview', vscode.Uri.file(repoRoot));
   const { rules: project, source: policySource, fingerprint: projectPolicyFingerprint } = await readProjectRulesAtHead(repoRoot, headOid, token);
 
   const codexPath = String(getUserOnlySetting(config, 'codexPath', 'codex') || 'codex').trim();
-  const model = safeModelSetting(config, 'model');
-  const fastModel = safeModelSetting(config, 'fastModel');
+  const configuredModel = safeModelSetting(config, 'model');
+  const configuredFastModel = safeModelSetting(config, 'fastModel');
   if (!codexPath || codexPath.length > 1024 || /[\r\n\0]/.test(codexPath)) throw new Error(t('User-level safeCodexReview.codexPath is invalid.'));
 
   const mode = String(getUserOnlySetting(config, 'mode', 'balanced') || 'balanced');
@@ -87,6 +94,11 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     return Object.freeze({ provider:text.slice(0,slash), model:text.slice(slash+1) });
   }));
   const modelRegistryResolution = resolveModelRegistry();
+  const managedRouting = Boolean(modelRegistryResolution.registry);
+  // In managed Registry mode the Registry owns Scout selection. Legacy fastModel must not
+  // alter ReviewSubject identity. Auto/Preference likewise ignore the legacy primary model.
+  const model = managedRouting && modelSelectionStrategy !== 'fixed' ? '' : configuredModel;
+  const fastModel = managedRouting ? '' : configuredFastModel;
 
   const sarifRaw = getUserOnlySetting(config, 'sarifFiles', []);
   if (!Array.isArray(sarifRaw) || sarifRaw.length > 8 || sarifRaw.some(value => typeof value !== 'string' || !value.trim() || value.length > 512 || /[\r\n\0]/.test(value))) throw new Error('User-level safeCodexReview.sarifFiles is invalid.');
@@ -131,6 +143,8 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     codexPath,
     model,
     fastModel,
+    configuredModel,
+    configuredFastModel,
     modelSelectionStrategy,
     modelCompatibilityPolicy,
     modelCandidates,
@@ -170,7 +184,14 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     reviewRules: options.reviewRules,
     projectPolicyFingerprint: options.projectPolicyFingerprint,
     reviewProfile: `${options.mode}/${options.profilePack}`,
-    modelRouting: `${options.modelSelectionStrategy}/${options.modelCompatibilityPolicy}/${options.modelRegistry?.revision || 'unmanaged'}`,
+    modelRouting: routingFingerprint({
+      strategy: options.modelSelectionStrategy,
+      compatibilityPolicy: options.modelCompatibilityPolicy,
+      registry: options.modelRegistry,
+      candidates: options.modelCandidates
+    }),
+    fixedOrUnmanagedModel: options.model,
+    unmanagedScoutModel: options.fastModel,
     sarifEvidenceEnabled: options.sarifFiles.length > 0
   });
   return options;
@@ -181,5 +202,6 @@ module.exports = {
   readProjectRulesAtHead,
   runtimeSelection,
   runtimeOptions,
+  routingFingerprint,
   getEffectiveOptions
 };
