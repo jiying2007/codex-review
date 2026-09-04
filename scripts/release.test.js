@@ -46,8 +46,8 @@ assert.match(release,/CONSUMER_CI_RECEIPT\.json\n\s+SHA256SUMS/);
 assert.match(release,/gh release create "\$RELEASE_TAG" "\$vsix" SBOM\.spdx\.json CONSUMER_CI_RECEIPT\.json SHA256SUMS/);
 
 const marketplace=fs.readFileSync(path.join(root,'.github','workflows','marketplace.yml'),'utf8');
-assert.match(marketplace,/workflow_run:/);
-assert.match(marketplace,/github\.event\.workflow_run\.head_sha/);
+assert.match(marketplace,/\n  workflow_dispatch:\n/);
+assert.doesNotMatch(marketplace,/\n  workflow_run:\n/,'Marketplace must not auto-publish from Release in the current stage');
 assert.match(marketplace,/gh release download/);
 assert.match(marketplace,/--pattern CONSUMER_CI_RECEIPT\.json/);
 assert.match(marketplace,/sha256sum -c SHA256SUMS/);
@@ -62,4 +62,4 @@ assert.equal(renovate.minimumReleaseAge,'3 days');
 const verification=fs.readFileSync(path.join(root,'VERIFY_RELEASE.md'),'utf8');
 assert.match(verification,/gh attestation verify codex-review-safe-<version>\.vsix -R jiying2007\/codex-review/);
 
-console.log('Release helper, Core 4.16 Product Contract, Consumer CI Receipt, exact-SHA Marketplace promotion, pinned vsce, Distribution Receipt, attestation and dependency governance tests passed.');
+console.log('Release helper, Core 4.16 Product Contract, Consumer CI Receipt, manual-only exact-SHA Marketplace promotion, pinned vsce, Distribution Receipt, attestation and dependency governance tests passed.');
