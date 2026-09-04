@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
         with:
           node-version: '22.22.2'
-      - name: Finalize Review 4.7.5 migration and remove helper
+      - name: Finalize ordinary Review files
         shell: bash
         run: |
           set -euo pipefail
@@ -45,7 +45,7 @@ jobs:
           let ch=fs.readFileSync('CHANGELOG.md','utf8');
           if(!ch.startsWith('## 4.7.5')) ch=`## 4.7.5 - 2026-09-04\n\n- Repin to immutable Codex Safe Core 4.15.0 and adopt Model Routing Contract v1 while preserving Safe Contract v2, Policy Schema v4 and Review Receipt v5.\n- Separate Review mode (fast/balanced/deep) from engineering Profile Pack, expose bounded fast-model hypothesis routing and whole-review token/evidence budgets, and keep verification on the primary model.\n- Add explicit Fresh Blind Review that bypasses result replay without weakening the existing replay/convergence evidence rules.\n- Package Core streaming JSONL and privacy-safe token-calibration primitives; budget omissions remain explicit coverage gaps and Change authority is unaffected.\n\n${ch}`;
           fs.writeFileSync('CHANGELOG.md',ch);
-          for(const file of ['scripts/verify-manifest.js','scripts/release.test.js','.github/workflows/family-release-guard.yml','.codex-safe.example.json']){
+          for(const file of ['scripts/verify-manifest.js','scripts/release.test.js','.codex-safe.example.json']){
             if(!fs.existsSync(file))continue;
             let s=fs.readFileSync(file,'utf8');
             s=s.split(oldSha).join(coreSha).split('4.14.4').join('4.15.0').split('4.7.4').join('4.7.5');
@@ -58,10 +58,9 @@ jobs:
             fs.writeFileSync(file,s);
           }
           NODE
-          git rm .github/workflows/_tmp-finalize-review-475.yml
           git config user.name 'codex-safe-family-bot'
           git config user.email 'codex-safe-family-bot@users.noreply.github.com'
-          git add -A
+          git add extension.js CHANGELOG.md scripts/verify-manifest.js scripts/release.test.js .codex-safe.example.json README.md README.zh-CN.md SECURITY.md ARCHITECTURE.md VERIFY_RELEASE.md
           git diff --cached --check
           git commit -m 'chore(review): finalize 4.7.5 Core 4.15 adoption'
           git push origin HEAD:feat/model-routing-v1
