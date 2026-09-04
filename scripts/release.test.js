@@ -25,24 +25,35 @@ assert.strictEqual(updateChangelog(source, '1.0.1'), '# Changelog\n\n## Unreleas
 assert.throws(() => updateChangelog('# Changelog\n\n## Unreleased\n\n## 1.0.0\n', '1.0.1'), /Unreleased 区域为空/);
 
 const root=path.resolve(__dirname,'..');
-const digestOutput=execFileSync(process.execPath,[path.join(root,'src','codex-safe-core','scripts','core-digests.js'),path.join(root,'src','codex-safe-core')],{cwd:root,encoding:'utf8'}).trim();
-console.log(`ROLLOUT_CORE_DIGESTS=${digestOutput}`);
 const productContract=require('../product-contract.json');
 const expectedCore=productContract.safeCoreCommit;
 assert.match(expectedCore,/^[0-9a-f]{40}$/);
+assert.strictEqual(expectedCore,'786e3a3fc896e0e623af6fe63dbf814ddd09bad8');
+assert.strictEqual(productContract.productContractVersion,2);
+assert.strictEqual(productContract.safeCoreRuntimeDigest,'3ea979b7903eac7740f5357e9346af5741ccb4090c2441146b2e8707642463bd');
 const gitlink=execFileSync('git',['ls-files','--stage','src/codex-safe-core'],{cwd:root,encoding:'utf8'}).trim();
 assert.match(gitlink,new RegExp(`^160000 ${expectedCore} 0\\tsrc/codex-safe-core$`));
 const policyExample=JSON.parse(fs.readFileSync(path.join(root,'.codex-safe.example.json'),'utf8'));
 assert.match(String(policyExample.$schema||''),new RegExp(expectedCore));
 assert.ok(!Object.prototype.hasOwnProperty.call(policyExample,'pr'),'retired PR policy surface must not return');
+
+const release=fs.readFileSync(path.join(root,'.github','workflows','release.yml'),'utf8');
+assert.match(release,/generate-consumer-ci-receipt\.js --output CONSUMER_CI_RECEIPT\.json/);
+assert.match(release,/CI_WORKFLOW_NAME: Release/);
+assert.match(release,/CI_SUITES: static-unit-contract,integration-linux-windows-macos,vscode-1\.90,zh-cn,workspace-trust,package/);
+assert.match(release,/sha256sum "\$vsix" SBOM\.spdx\.json CONSUMER_CI_RECEIPT\.json > SHA256SUMS/);
+assert.match(release,/CONSUMER_CI_RECEIPT\.json\n\s+SHA256SUMS/);
+assert.match(release,/gh release create "\$RELEASE_TAG" "\$vsix" SBOM\.spdx\.json CONSUMER_CI_RECEIPT\.json SHA256SUMS/);
+
 const marketplace=fs.readFileSync(path.join(root,'.github','workflows','marketplace.yml'),'utf8');
 assert.match(marketplace,/workflow_run:/);
 assert.match(marketplace,/github\.event\.workflow_run\.head_sha/);
 assert.match(marketplace,/gh release download/);
+assert.match(marketplace,/--pattern CONSUMER_CI_RECEIPT\.json/);
 assert.match(marketplace,/sha256sum -c SHA256SUMS/);
 assert.match(marketplace,/gh attestation verify .* -R "\$GITHUB_REPOSITORY"/);
 assert.match(marketplace,/@vscode\/vsce@3\.9\.2 publish --packagePath/);
-assert.match(marketplace,/distribution-receipt\.yml@e962826ee6556fd8ffa74ab1994bf43d62826f10/);
+assert.match(marketplace,/distribution-receipt\.yml@786e3a3fc896e0e623af6fe63dbf814ddd09bad8/);
 assert.match(marketplace,/channel: vscode-marketplace/);
 assert.doesNotMatch(marketplace,/npm run package|vsce package/,'Marketplace must publish the exact GitHub Release VSIX, never rebuild it');
 const renovate=JSON.parse(fs.readFileSync(path.join(root,'renovate.json'),'utf8'));
@@ -51,4 +62,4 @@ assert.equal(renovate.minimumReleaseAge,'3 days');
 const verification=fs.readFileSync(path.join(root,'VERIFY_RELEASE.md'),'utf8');
 assert.match(verification,/gh attestation verify codex-review-safe-<version>\.vsix -R jiying2007\/codex-review/);
 
-console.log('Release helper, Product Contract-bound Core/schema provenance, exact-SHA Marketplace promotion, pinned vsce, Distribution Receipt, attestation and dependency governance tests passed.');
+console.log('Release helper, Core 4.16 Product Contract, Consumer CI Receipt, exact-SHA Marketplace promotion, pinned vsce, Distribution Receipt, attestation and dependency governance tests passed.');
