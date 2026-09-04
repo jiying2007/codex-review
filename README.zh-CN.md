@@ -60,7 +60,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 - Safe Contract v2 使用 ephemeral、read-only、no approval，并显式关闭 shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency install；
 - 不自动修改源码、Commit、Push 或创建 PR。
 
-共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.14.4**，SHA 为 `25467922eeebffa93b7c820f2ffa7590c1625381`。
+共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.15.0**，SHA 为 `e962826ee6556fd8ffa74ab1994bf43d62826f10`。
 
 ## 正确理解 Readiness
 
@@ -78,7 +78,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/25467922eeebffa93b7c820f2ffa7590c1625381/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/e962826ee6556fd8ffa74ab1994bf43d62826f10/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "zh-CN",
@@ -148,14 +148,6 @@ npm run ci
 
 MIT
 
-## Codex Provider Runtime
-
-Codex Review Safe 为保持 Safe Contract 会主动忽略 `~/.codex/config.toml`。使用 OpenAI-compatible 中转站时，将 `safeCodexReview.providerMode` 设为 `openai-compatible`，配置 `safeCodexReview.providerBaseUrl`，并让 `safeCodexReview.providerApiKeyEnv` 指向 VS Code 进程可见的 API Key 环境变量。兼容 Provider 固定使用 Responses HTTP/SSE，不走 WebSocket。`Check Environment` 会真实执行一次结构化 Provider 探测。
-
-## 中转站凭据与局域网 HTTP
-
-Codex Review Safe 4.6.1 统一消费 Core Provider Contract v2。`providerCredentialSource=auto` 会先读取 `providerApiKeyEnv` 指定的环境变量；不存在时由 Core 读取 `${CODEX_HOME}/auth.json` 或 `~/.codex/auth.json`。auth 文件只有在 `auth_mode=apikey` 且存在非空 `OPENAI_API_KEY` 时才有效。非 loopback 的 `http://` 中转地址只有在用户/应用设置显式开启 `providerAllowInsecureHttp=true` 时才允许。仓库策略不能提供凭据，也不能开启不安全 HTTP。
-
-## Runtime Contract v3 — zero-config
+## Runtime/Provider Contract v3 — zero-config
 
 Review 默认使用 **Auto** Runtime。只要当前 VS Code Extension Host 中的 `codex` 已可正常使用，Review 就直接复用机器级 Family Runtime（`~/.codex-safe/runtime.json`）或机器级 Codex 配置（`${CODEX_HOME}/config.toml` / `~/.codex/config.toml`），无需再次填写中转站地址。Remote SSH 下 Workspace Extension 运行在远端，因此读取的是远端 Linux 用户的配置和 `auth.json`。字面量私网 IP HTTP 可继承，但 Doctor 会明确提示明文风险；公网/非 IP HTTP 继续 fail-closed。VS Code Provider 设置仅作为 machine-scope Advanced Override。

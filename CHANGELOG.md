@@ -1,3 +1,10 @@
+## 4.7.5 - 2026-09-04
+
+- Repin to immutable Codex Safe Core 4.15.0 and adopt Model Routing Contract v1 while preserving Safe Contract v2, Policy Schema v4 and Review Receipt v5.
+- Separate Review mode (fast/balanced/deep) from engineering Profile Pack, expose bounded fast-model hypothesis routing and whole-review token/evidence budgets, and keep verification on the primary model.
+- Add explicit Fresh Blind Review that bypasses result replay without weakening the existing replay/convergence evidence rules.
+- Package Core streaming JSONL and privacy-safe token-calibration primitives; budget omissions remain explicit coverage gaps and Change authority is unaffected.
+
 ## 4.7.4
 
 - Repin to Codex Safe Core 4.14.4 as a new immutable product release; no compatibility shim or stale artifact reuse is permitted.

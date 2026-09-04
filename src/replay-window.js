@@ -16,7 +16,14 @@ function createReplayWindow({now=()=>Date.now(),maxConsecutiveReplays=MAX_CONSEC
     return{replayed:true,reason:'recent_result_replay',review:clone(state.review),originReviewRunId:state.reviewRunId,replayStreak:state.replayStreak,replayAgeMs:age,nextReviewFresh:state.replayStreak>=maxConsecutiveReplays};
   }
   function recordFresh(repoRoot,{reviewSubjectKey,reviewRunId,review}){subjectMap(repoRoot).set(reviewSubjectKey,{reviewSubjectKey,reviewRunId,review:clone(review),freshAtMs:now(),replayStreak:0});}
+  function clearSubject(repoRoot,reviewSubjectKey){
+    const key=repoKey(repoRoot),map=byRepo.get(key);
+    if(!map)return false;
+    const removed=map.delete(String(reviewSubjectKey));
+    if(map.size===0)byRepo.delete(key);
+    return removed;
+  }
   function clear(repoRoot){if(repoRoot)byRepo.delete(repoKey(repoRoot));else byRepo.clear();}
-  return{tryReplay,recordFresh,clear,maxConsecutiveReplays,maxReplayAgeMs};
+  return{tryReplay,recordFresh,clearSubject,clear,maxConsecutiveReplays,maxReplayAgeMs};
 }
 module.exports={MAX_CONSECUTIVE_REPLAYS,MAX_REPLAY_AGE_MS,createReplayWindow};

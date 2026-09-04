@@ -27,6 +27,17 @@ For Remote SSH, Dev Containers, Codespaces or WSL, install/authenticate Codex in
 
 Working-tree-only edits are intentionally excluded from the reviewed snapshot.
 
+## Review mode and engineering profile
+
+Execution depth and engineering emphasis are separate controls:
+
+- `safeCodexReview.mode`: `fast | balanced | deep`;
+- `safeCodexReview.profilePack`: `general | backend | frontend | security | cpp | embedded-linux | embedded-mcu | driver | kernel | realtime`;
+- `safeCodexReview.fastModel` is optional and may be used only for bounded low-risk hypothesis generation; semantic verification remains on the primary model.
+- `safeCodexReview.maxTokenBudget` and `safeCodexReview.totalContextBudgetBytes` bound whole-review model consumption. Budget exhaustion is surfaced as a coverage gap, never silently treated as complete coverage.
+
+Use **Fresh Blind Review** when you explicitly require a new model run for the same ReviewSubject; normal Review keeps the bounded replay policy.
+
 See [Getting Started](docs/GETTING_STARTED.md) for installation, configuration and troubleshooting.
 
 ## Fresh review and bounded replay
@@ -60,7 +71,7 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
-Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.14.4** submodule at `25467922eeebffa93b7c820f2ffa7590c1625381`.
+Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.15.0** submodule at `e962826ee6556fd8ffa74ab1994bf43d62826f10`.
 
 ## Reading readiness correctly
 
@@ -78,7 +89,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/25467922eeebffa93b7c820f2ffa7590c1625381/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/e962826ee6556fd8ffa74ab1994bf43d62826f10/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "en",
@@ -148,14 +159,6 @@ npm run ci
 
 MIT
 
-## Codex provider runtime
-
-Codex Review Safe intentionally ignores `~/.codex/config.toml` to preserve the Safe Contract. For an OpenAI-compatible relay, set `safeCodexReview.providerMode` to `openai-compatible`, configure `safeCodexReview.providerBaseUrl`, and set `safeCodexReview.providerApiKeyEnv` to the name of an environment variable visible to the VS Code process. Compatible providers use Responses HTTP/SSE rather than WebSocket. `Check Environment` performs a live structured provider probe.
-
-## Relay credentials and private-network HTTP
-
-Codex Review Safe 4.6.1 consumes Core Provider Contract v2. With `providerCredentialSource=auto`, Review Safe first uses `providerApiKeyEnv`; when it is absent, Core reads `${CODEX_HOME}/auth.json` or `~/.codex/auth.json`. The auth file qualifies only with `auth_mode=apikey` and a non-empty `OPENAI_API_KEY`. A non-loopback `http://` relay is accepted only when `providerAllowInsecureHttp=true` is explicitly enabled in user/application settings. Repository policy cannot provide credentials or enable insecure HTTP.
-
-## Runtime Contract v3 — zero-config
+## Runtime/Provider Contract v3 — zero-config
 
 Review defaults to **Auto** runtime discovery. If `codex` already works in the current VS Code Extension Host, Review reuses machine Family Runtime (`~/.codex-safe/runtime.json`) or machine Codex configuration (`${CODEX_HOME}/config.toml` / `~/.codex/config.toml`) without re-entering the relay URL. In Remote SSH the workspace extension runs remotely, so the config and `auth.json` are read from the remote Linux account. Literal private-IP HTTP relays are inherited with a plaintext warning; public/non-IP HTTP remains fail-closed. VS Code provider settings are machine-scoped advanced overrides.
