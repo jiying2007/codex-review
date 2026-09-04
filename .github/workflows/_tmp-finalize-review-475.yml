@@ -33,17 +33,15 @@ jobs:
           function replace(file,from,to){let s=fs.readFileSync(file,'utf8');if(!s.includes(from))throw new Error(`${file}: expected text not found`);s=s.replace(from,to);fs.writeFileSync(file,s);}
           const coreSha='e962826ee6556fd8ffa74ab1994bf43d62826f10';
           const oldSha='25467922eeebffa93b7c820f2ffa7590c1625381';
-          // Fresh Blind Review bypasses result replay but still records the new fresh result normally.
           replace('extension.js','async function reviewStaged(commandArgs = []) {','async function reviewStaged(commandArgs = [], { forceFresh = false } = {}) {');
           replace('extension.js','        const replayDecision = replayWindow.tryReplay(repoRoot, reviewSubjectKey);','        if (forceFresh) { replayWindow.clearSubject(repoRoot, reviewSubjectKey); log(`fresh blind review: bypassing result replay for ${reviewSubjectKey.slice(0,12)}`); }\n        const replayDecision = replayWindow.tryReplay(repoRoot, reviewSubjectKey);');
-          const marker="    vscode.commands.registerCommand('safeCodexReview.clearReview', async (...args) => {";
+          const marker="    vscode.commands.registerCommand('safeCodexReview.clearReview', clearReview),";
           let ext=fs.readFileSync('extension.js','utf8');
-          if(!ext.includes("safeCodexReview.reviewFresh")){
+          if(!ext.includes("vscode.commands.registerCommand('safeCodexReview.reviewFresh'")){
             if(!ext.includes(marker))throw new Error('review command registration marker missing');
             ext=ext.replace(marker,"    vscode.commands.registerCommand('safeCodexReview.reviewFresh', async (...args) => {\n      try { await reviewStaged(args, { forceFresh: true }); }\n      catch (error) {\n        log(`fresh review failed: code=${error?.code || 'unknown'}`);\n        if (error?.code !== 'ECANCELLED') vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error)));\n      }\n    }),\n"+marker);
             fs.writeFileSync('extension.js',ext);
           }
-          // Release-bearing identity surfaces.
           let ch=fs.readFileSync('CHANGELOG.md','utf8');
           if(!ch.startsWith('## 4.7.5')) ch=`## 4.7.5 - 2026-09-04\n\n- Repin to immutable Codex Safe Core 4.15.0 and adopt Model Routing Contract v1 while preserving Safe Contract v2, Policy Schema v4 and Review Receipt v5.\n- Separate Review mode (fast/balanced/deep) from engineering Profile Pack, expose bounded fast-model hypothesis routing and whole-review token/evidence budgets, and keep verification on the primary model.\n- Add explicit Fresh Blind Review that bypasses result replay without weakening the existing replay/convergence evidence rules.\n- Package Core streaming JSONL and privacy-safe token-calibration primitives; budget omissions remain explicit coverage gaps and Change authority is unaffected.\n\n${ch}`;
           fs.writeFileSync('CHANGELOG.md',ch);
@@ -53,7 +51,6 @@ jobs:
             s=s.split(oldSha).join(coreSha).split('4.14.4').join('4.15.0').split('4.7.4').join('4.7.5');
             fs.writeFileSync(file,s);
           }
-          // Current-state docs only; historical changelog already handled append-only above.
           for(const file of ['README.md','README.zh-CN.md','SECURITY.md','ARCHITECTURE.md','VERIFY_RELEASE.md']){
             if(!fs.existsSync(file))continue;
             let s=fs.readFileSync(file,'utf8');
