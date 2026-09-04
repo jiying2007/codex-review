@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
         with:
           node-version: '22.22.2'
-      - name: Finalize ordinary Review files
+      - name: Finalize ordinary Review 4.7.5 files
         shell: bash
         run: |
           set -euo pipefail
@@ -60,7 +60,8 @@ jobs:
           NODE
           git config user.name 'codex-safe-family-bot'
           git config user.email 'codex-safe-family-bot@users.noreply.github.com'
-          git add extension.js CHANGELOG.md scripts/verify-manifest.js scripts/release.test.js .codex-safe.example.json README.md README.zh-CN.md SECURITY.md ARCHITECTURE.md VERIFY_RELEASE.md
+          git add extension.js CHANGELOG.md scripts/verify-manifest.js scripts/release.test.js .codex-safe.example.json README.md README.zh-CN.md SECURITY.md VERIFY_RELEASE.md 2>/dev/null || true
           git diff --cached --check
-          git commit -m 'chore(review): finalize 4.7.5 Core 4.15 adoption'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(review): finalize 4.7.5 ordinary release files'
           git push origin HEAD:feat/model-routing-v1
