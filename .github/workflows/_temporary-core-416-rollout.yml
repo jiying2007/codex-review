@@ -42,10 +42,14 @@ jobs:
           const ch='CHANGELOG.md';
           if(fs.existsSync(ch)){
             let s=fs.readFileSync(ch,'utf8');
-            s=s.replace(/^## 4\.8\.1 - /m,'## 4.9.0 - ');
+            s=s.replace(/^## 4\.8\.1\b/m,'## 4.9.0');
             fs.writeFileSync(ch,s);
           }
           NODE
+          # This GitHub Actions token cannot update workflow files. Preserve the
+          # old reusable-guard pin here; the connected GitHub writer applies the
+          # exact canonical guard change separately after this generated commit.
+          git checkout -- .github/workflows/family-release-guard.yml
           git config user.name 'codex-safe-family-bot'
           git config user.email 'codex-safe-family-bot@users.noreply.github.com'
           git add -A
