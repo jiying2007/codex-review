@@ -177,21 +177,40 @@
         },
         "safeCodexReview.mode": {
           "type": "string",
-          "enum": ["fast", "balanced", "deep"],
+          "enum": [
+            "fast",
+            "balanced",
+            "deep"
+          ],
           "default": "balanced",
           "scope": "application",
           "description": "Review execution intent. Mode controls depth/cost independently from the engineering profile pack."
         },
         "safeCodexReview.profilePack": {
           "type": "string",
-          "enum": ["general", "backend", "frontend", "security", "cpp", "embedded-linux", "embedded-mcu", "driver", "kernel", "realtime"],
+          "enum": [
+            "general",
+            "backend",
+            "frontend",
+            "security",
+            "cpp",
+            "embedded-linux",
+            "embedded-mcu",
+            "driver",
+            "kernel",
+            "realtime"
+          ],
           "default": "general",
           "scope": "application",
           "description": "Engineering emphasis profile, independent from Review mode."
         },
         "safeCodexReview.providerMode": {
           "type": "string",
-          "enum": ["auto", "openai", "openai-compatible"],
+          "enum": [
+            "auto",
+            "openai",
+            "openai-compatible"
+          ],
           "default": "auto",
           "scope": "machine",
           "description": "Runtime selection. Auto (recommended) inherits the machine Family Runtime or Codex CLI provider; other values are advanced machine-local overrides."
@@ -210,7 +229,11 @@
         },
         "safeCodexReview.providerCredentialSource": {
           "type": "string",
-          "enum": ["auto", "env", "auth-json"],
+          "enum": [
+            "auto",
+            "env",
+            "auth-json"
+          ],
           "default": "auto",
           "scope": "machine",
           "description": "Advanced override only. Auto runtime discovery reuses the machine credential contract."
@@ -255,22 +278,25 @@
         },
         "safeCodexReview.language": {
           "type": "string",
-          "enum": ["zh-CN", "en"],
+          "enum": [
+            "zh-CN",
+            "en"
+          ],
           "default": "zh-CN",
           "scope": "application",
           "description": "%config.language%",
-          "enumDescriptions": ["%config.language.zhCN%", "%config.language.en%"]
-        },
-        "safeCodexReview.profile": {
-          "type": "string",
-          "enum": ["quick", "standard", "deep", "security", "embedded"],
-          "default": "standard",
-          "scope": "application",
-          "description": "Legacy execution profile retained for compatibility during the Mode/Profile-Pack migration. New deployments should use mode + profilePack."
+          "enumDescriptions": [
+            "%config.language.zhCN%",
+            "%config.language.en%"
+          ]
         },
         "safeCodexReview.sarifFiles": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1, "maxLength": 512},
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
           "maxItems": 8,
           "default": [],
           "scope": "application",
@@ -310,7 +336,13 @@
         },
         "safeCodexReview.severityThreshold": {
           "type": "string",
-          "enum": ["critical", "high", "medium", "low", "info"],
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
           "default": "low",
           "scope": "application",
           "description": "%config.severityThreshold%"
@@ -358,10 +390,17 @@
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "3.9.2"
   },
-  "extensionDependencies": ["vscode.git"],
-  "repository": {"type": "git", "url": "https://github.com/jiying2007/codex-review.git"},
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jiying2007/codex-review.git"
+  },
   "homepage": "https://github.com/jiying2007/codex-review#readme",
-  "bugs": {"url": "https://github.com/jiying2007/codex-review/issues"},
+  "bugs": {
+    "url": "https://github.com/jiying2007/codex-review/issues"
+  },
   "pricing": "Free",
   "preview": false,
   "icon": "images/icon.png",
