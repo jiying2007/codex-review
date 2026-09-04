@@ -1,0 +1,43 @@
+name: Temporary Review 4.8 Model Routing Finalizer Retry
+
+on:
+  push:
+    branches: ["feat/model-routing-v1-runtime"]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feat/model-routing-v1-runtime
+          fetch-depth: 0
+      - name: Execute corrected deterministic migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+          workflow=Path('.github/workflows/_tmp-model-routing-480.yml').read_text()
+          start=workflow.index("          python3 - <<'PY'\n") + len("          python3 - <<'PY'\n")
+          end=workflow.index("\n          PY\n", start)
+          script=textwrap.dedent(workflow[start:end])
+          script=script.replace("assert.strictEqual(pkg.contributes.configuration.properties['safeCodexReview.profilePack'].default,'general');\\n", "assert.strictEqual(props['safeCodexReview.profilePack'].default,'general');\\n")
+          script=script.replace("pkg.contributes.configuration.properties['safeCodexReview.modelSelectionStrategy']", "props['safeCodexReview.modelSelectionStrategy']")
+          script=script.replace("pkg.contributes.configuration.properties['safeCodexReview.modelCompatibilityPolicy']", "props['safeCodexReview.modelCompatibilityPolicy']")
+          script=script.replace("'safeCodexReview.crossProvider' in pkg.contributes.configuration.properties", "'safeCodexReview.crossProvider' in props")
+          exec(compile(script,'review-4.8-migration','exec'))
+          PY
+          git config user.name codex-safe-family-bot
+          git config user.email codex-safe-family-bot@users.noreply.github.com
+          git add -A -- ':!.github/workflows/**'
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat(review): consume Model Routing Contract v1 at runtime'
+            git push origin HEAD:feat/model-routing-v1-runtime
+          fi
