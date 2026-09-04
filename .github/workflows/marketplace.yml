@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Immutable GitHub Release tag to publish, for example v4.7.4'
+        description: 'Immutable GitHub Release tag to publish, for example v4.7.5'
         required: true
 
 permissions:
@@ -114,7 +114,7 @@ jobs:
   receipt:
     needs: publish
     if: ${{ needs.publish.result == 'success' && needs.publish.outputs.published == 'true' }}
-    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@25467922eeebffa93b7c820f2ffa7590c1625381
+    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@e962826ee6556fd8ffa74ab1994bf43d62826f10
     with:
       product_id: codex-review-safe
       product_version: ${{ needs.publish.outputs.version }}
