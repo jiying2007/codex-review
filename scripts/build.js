@@ -14,10 +14,12 @@ const runtimeModules = [
 ];
 const coreModules = [
   'index.js', 'safe-contract.js', 'judgment-lifecycle.js', 'codex-runtime.js', 'codex-runtime-resolver.js',
-  'codex-cli.js', 'process-runner.js', 'git-repository.js', 'context-builder.js', 'efficiency-planner.js',
-  'quality-platform.js', 'semantic-review.js', 'policy.js', 'review-rules.js'
+  'model-registry-resolver.js', 'model-routing.js', 'model-capabilities.js', 'model-lineage.js', 'model-economics.js',
+  'codex-jsonl-stream.js', 'codex-cli.js', 'process-runner.js', 'git-repository.js', 'context-builder.js',
+  'efficiency-planner.js', 'token-calibration-store.js', 'quality-platform.js', 'review-profile-pack.js',
+  'semantic-review.js', 'policy.js', 'review-rules.js'
 ];
-const coreRuntimeData = ['core-contract.json'];
+const coreRuntimeData = ['core-contract.json', 'quality/profile-packs.json'];
 
 function copy(source, target) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -32,7 +34,7 @@ function main() {
   for (const name of coreModules) copy(path.join(root, 'src', 'codex-safe-core', name), path.join(dist, 'src', 'codex-safe-core', name));
   for (const name of coreRuntimeData) copy(path.join(root, 'src', 'codex-safe-core', name), path.join(dist, 'src', 'codex-safe-core', name));
   copy(path.join(root, 'src', 'codex-safe-core', 'codex-safe.schema.json'), path.join(dist, 'codex-safe.schema.json'));
-  for (const name of ['judgment-lifecycle.js', 'codex-runtime-resolver.js']) {
+  for (const name of ['judgment-lifecycle.js', 'codex-runtime-resolver.js', 'model-routing.js', 'review-profile-pack.js', 'codex-jsonl-stream.js']) {
     if (!fs.existsSync(path.join(dist, 'src', 'codex-safe-core', name))) throw new Error(`Required Core runtime module missing from dist: ${name}`);
   }
 }
