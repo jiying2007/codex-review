@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Immutable GitHub Release tag to publish, for example v4.8.0'
+        description: 'Immutable GitHub Release tag to publish, for example v4.9.0'
         required: true
 
 permissions:
@@ -88,8 +88,8 @@ jobs:
           set -euo pipefail
           vsix="codex-review-safe-${VERSION}.vsix"; mkdir -p release-artifacts
           verified=false; for attempt in {1..12}; do if gh release verify "$TAG"; then verified=true; break; fi; sleep 5; done; test "$verified" = true
-          gh release download "$TAG" --dir release-artifacts --pattern "$vsix" --pattern SBOM.spdx.json --pattern SHA256SUMS
-          test -f "release-artifacts/$vsix"; test -f release-artifacts/SBOM.spdx.json; test -f release-artifacts/SHA256SUMS
+          gh release download "$TAG" --dir release-artifacts --pattern "$vsix" --pattern SBOM.spdx.json --pattern CONSUMER_CI_RECEIPT.json --pattern SHA256SUMS
+          test -f "release-artifacts/$vsix"; test -f release-artifacts/SBOM.spdx.json; test -f release-artifacts/CONSUMER_CI_RECEIPT.json; test -f release-artifacts/SHA256SUMS
           (cd release-artifacts && sha256sum -c SHA256SUMS)
           gh attestation verify "release-artifacts/$vsix" -R "$GITHUB_REPOSITORY"
           unzip -Z1 "release-artifacts/$vsix" > /tmp/vsix-files.txt
@@ -114,7 +114,7 @@ jobs:
   receipt:
     needs: publish
     if: ${{ needs.publish.result == 'success' && needs.publish.outputs.published == 'true' }}
-    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@e962826ee6556fd8ffa74ab1994bf43d62826f10
+    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@786e3a3fc896e0e623af6fe63dbf814ddd09bad8
     with:
       product_id: codex-review-safe
       product_version: ${{ needs.publish.outputs.version }}
