@@ -57,7 +57,7 @@ function runtimeOptions(config, project) {
 
 function safeModelSetting(config, key) {
   const value = String(getUserOnlySetting(config, key, '') || '').trim();
-  if (value.length > 256 || /[\r\n\0]/.test(value)) throw new Error(t('User-level model setting is invalid.'));
+  if (value.length > 256 || /[\r\n\0]/.test(value)) throw new Error(t('User-level safeCodexReview.model is invalid.'));
   return value;
 }
 
