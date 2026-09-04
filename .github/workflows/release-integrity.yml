@@ -12,7 +12,7 @@ permissions:
 jobs:
   integrity:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
-    uses: jiying2007/codex-safe-core/.github/workflows/consumer-release-integrity.yml@25467922eeebffa93b7c820f2ffa7590c1625381
+    uses: jiying2007/codex-safe-core/.github/workflows/consumer-release-integrity.yml@e962826ee6556fd8ffa74ab1994bf43d62826f10
     with:
       expected_sha: ${{ github.event.workflow_run.head_sha }}
       product: codex-review-safe

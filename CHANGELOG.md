@@ -1,3 +1,9 @@
+## 4.8.0 - 2026-09-04
+
+- Consume Core Model Routing Contract v1 at runtime: approved machine Registry Auto routing, explicit Fixed/Preference strategies, low-risk Scout with reviewer escalation, Reviewer-only semantic verification, and per-call Model Evidence.
+- Preserve unmanaged Codex CLI/default behavior only when no machine Registry exists; never synthesize an approved model or silently cross providers.
+- Bind routing strategy/registry revision into policy identity so routing changes invalidate stale replay identity.
+
 ## 4.7.5 - 2026-09-04
 
 - Repin to immutable Codex Safe Core 4.15.0 and adopt Model Routing Contract v1 while preserving Safe Contract v2, Policy Schema v4 and Review Receipt v5.
