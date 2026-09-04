@@ -148,6 +148,6 @@ npm run ci
 
 MIT
 
-## Runtime / Provider Contract v3 — zero-config
+## Runtime/Provider Contract v3 — zero-config
 
 Review 默认使用 **Auto** Runtime。只要当前 VS Code Extension Host 中的 `codex` 已可正常使用，Review 就直接复用机器级 Family Runtime（`~/.codex-safe/runtime.json`）或机器级 Codex 配置（`${CODEX_HOME}/config.toml` / `~/.codex/config.toml`），无需再次填写中转站地址。Remote SSH 下 Workspace Extension 运行在远端，因此读取的是远端 Linux 用户的配置和 `auth.json`。字面量私网 IP HTTP 可继承，但 Doctor 会明确提示明文风险；公网/非 IP HTTP 继续 fail-closed。VS Code Provider 设置仅作为 machine-scope Advanced Override。
