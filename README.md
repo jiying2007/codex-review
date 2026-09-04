@@ -159,6 +159,6 @@ npm run ci
 
 MIT
 
-## Runtime / Provider Contract v3 — zero-config
+## Runtime/Provider Contract v3 — zero-config
 
 Review defaults to **Auto** runtime discovery. If `codex` already works in the current VS Code Extension Host, Review reuses machine Family Runtime (`~/.codex-safe/runtime.json`) or machine Codex configuration (`${CODEX_HOME}/config.toml` / `~/.codex/config.toml`) without re-entering the relay URL. In Remote SSH the workspace extension runs remotely, so the config and `auth.json` are read from the remote Linux account. Literal private-IP HTTP relays are inherited with a plaintext warning; public/non-IP HTTP remains fail-closed. VS Code provider settings are machine-scoped advanced overrides.
