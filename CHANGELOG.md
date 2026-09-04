@@ -1,3 +1,7 @@
+## 4.8.2
+
+- Make VS Code Marketplace publication manual-only for the current stage; immutable GitHub Release remains the required Family distribution authority, while manual Marketplace publication keeps exact-release verification and receipt generation when explicitly invoked.
+
 ## 4.8.1
 
 - Repin to Codex Safe Core 4.16.0 because the shipped Core runtime digest changed to `3ea979b7903eac7740f5357e9346af5741ccb4090c2441146b2e8707642463bd`; publish a new immutable product release and distribution receipt.
