@@ -11,19 +11,13 @@ const {
 const { readPolicySectionAtHead } = require('./codex-safe-core/policy');
 const { fingerprintPolicy } = require('./codex-safe-core/safe-contract');
 const { resolveCodexRuntime, inspectCodexRuntime } = require('./codex-safe-core/codex-runtime-resolver');
-const { resolveReviewProfile } = require('./codex-safe-core/quality-platform');
+const { resolveReviewModeProfile } = require('./codex-safe-core/review-profile-pack');
 const { t } = require('./i18n');
 
 const RAW_DIFF_HARD_LIMIT_BYTES = 8 * 1024 * 1024;
 
 function readProjectRulesAtHead(repoRoot, headOid, token) {
-  return readPolicySectionAtHead({
-    git,
-    repoRoot,
-    headOid,
-    section: 'review',
-    token
-  });
+  return readPolicySectionAtHead({ git, repoRoot, headOid, section: 'review', token });
 }
 
 function runtimeSelection(config, project) {
@@ -61,16 +55,25 @@ function runtimeOptions(config, project) {
   return resolveCodexRuntime(runtimeSelection(config, project)).runtime;
 }
 
+function safeModelSetting(config, key) {
+  const value = String(getUserOnlySetting(config, key, '') || '').trim();
+  if (value.length > 256 || /[\r\n\0]/.test(value)) throw new Error(t('User-level model setting is invalid.'));
+  return value;
+}
+
 async function getEffectiveOptions(repoRoot, headOid, token) {
   const config = vscode.workspace.getConfiguration('safeCodexReview', vscode.Uri.file(repoRoot));
-  const { rules: project, source: policySource, fingerprint: policyFingerprint } = await readProjectRulesAtHead(repoRoot, headOid, token);
+  const { rules: project, source: policySource, fingerprint: projectPolicyFingerprint } = await readProjectRulesAtHead(repoRoot, headOid, token);
 
   const codexPath = String(getUserOnlySetting(config, 'codexPath', 'codex') || 'codex').trim();
-  const model = String(getUserOnlySetting(config, 'model', '') || '').trim();
+  const model = safeModelSetting(config, 'model');
+  const fastModel = safeModelSetting(config, 'fastModel');
   if (!codexPath || codexPath.length > 1024 || /[\r\n\0]/.test(codexPath)) throw new Error(t('User-level safeCodexReview.codexPath is invalid.'));
-  if (model.length > 128 || /[\r\n\0]/.test(model)) throw new Error(t('User-level safeCodexReview.model is invalid.'));
 
-  const profile = resolveReviewProfile(String(getUserOnlySetting(config, 'profile', 'standard') || 'standard'));
+  const mode = String(getUserOnlySetting(config, 'mode', 'balanced') || 'balanced');
+  const profilePack = String(getUserOnlySetting(config, 'profilePack', 'general') || 'general');
+  const profile = resolveReviewModeProfile(mode, profilePack);
+
   const sarifRaw = getUserOnlySetting(config, 'sarifFiles', []);
   if (!Array.isArray(sarifRaw) || sarifRaw.length > 8 || sarifRaw.some(value => typeof value !== 'string' || !value.trim() || value.length > 512 || /[\r\n\0]/.test(value))) throw new Error('User-level safeCodexReview.sarifFiles is invalid.');
   const sarifFiles = Object.freeze(sarifRaw.map(value => value.trim()));
@@ -90,6 +93,14 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     project.maxDiffBytes ?? getUserOnlySetting(config, 'maxDiffBytes', 524288),
     524288, 4096, 2097152, 'maxDiffBytes'
   ));
+  const totalContextBudgetBytes = Math.round(clampNumber(
+    getUserOnlySetting(config, 'totalContextBudgetBytes', 1048576),
+    1048576, 4096, 8388608, 'totalContextBudgetBytes'
+  ));
+  const maxTokenBudget = Math.round(clampNumber(
+    getUserOnlySetting(config, 'maxTokenBudget', 250000),
+    250000, 1024, 1000000, 'maxTokenBudget'
+  ));
 
   const extraInstructions = [
     validateExtraInstructions(getUserOnlySetting(config, 'extraInstructions', '')),
@@ -105,8 +116,11 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
   const options = {
     codexPath,
     model,
+    fastModel,
     codexRuntime,
     codexRuntimeInspection,
+    mode: profile.mode,
+    profilePack: profile.packName,
     profile: profile.name,
     profileConfig: profile,
     sarifFiles,
@@ -114,13 +128,15 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     language,
     maxDiffBytes: RAW_DIFF_HARD_LIMIT_BYTES,
     contextBudgetBytes,
+    totalContextBudgetBytes,
+    maxTokenBudget,
     maxFindings: Math.round(clampNumber(project.maxFindings ?? getUserOnlySetting(config, 'maxFindings', 40), 40, 1, 100, 'maxFindings')),
     severityThreshold,
     confidenceThreshold,
     extraInstructions,
     reviewRules,
     policySource,
-    projectPolicyFingerprint: policyFingerprint
+    projectPolicyFingerprint
   };
 
   options.policyFingerprint = fingerprintPolicy({
@@ -133,7 +149,7 @@ async function getEffectiveOptions(repoRoot, headOid, token) {
     extraInstructions: options.extraInstructions,
     reviewRules: options.reviewRules,
     projectPolicyFingerprint: options.projectPolicyFingerprint,
-    reviewProfile: options.profile,
+    reviewProfile: `${options.mode}/${options.profilePack}`,
     sarifEvidenceEnabled: options.sarifFiles.length > 0
   });
   return options;
