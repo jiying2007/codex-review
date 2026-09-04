@@ -60,7 +60,7 @@ jobs:
           NODE
           git config user.name 'codex-safe-family-bot'
           git config user.email 'codex-safe-family-bot@users.noreply.github.com'
-          git add extension.js CHANGELOG.md scripts/verify-manifest.js scripts/release.test.js .codex-safe.example.json README.md README.zh-CN.md SECURITY.md VERIFY_RELEASE.md 2>/dev/null || true
+          git add -A -- . ':(exclude).github/workflows/**'
           git diff --cached --check
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'chore(review): finalize 4.7.5 ordinary release files'
