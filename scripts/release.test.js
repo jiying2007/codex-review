@@ -25,6 +25,8 @@ assert.strictEqual(updateChangelog(source, '1.0.1'), '# Changelog\n\n## Unreleas
 assert.throws(() => updateChangelog('# Changelog\n\n## Unreleased\n\n## 1.0.0\n', '1.0.1'), /Unreleased 区域为空/);
 
 const root=path.resolve(__dirname,'..');
+const digestOutput=execFileSync(process.execPath,[path.join(root,'src','codex-safe-core','scripts','core-digests.js'),path.join(root,'src','codex-safe-core')],{cwd:root,encoding:'utf8'}).trim();
+console.log(`ROLLOUT_CORE_DIGESTS=${digestOutput}`);
 const productContract=require('../product-contract.json');
 const expectedCore=productContract.safeCoreCommit;
 assert.match(expectedCore,/^[0-9a-f]{40}$/);
