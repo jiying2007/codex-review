@@ -372,7 +372,7 @@ function computeReviewSubjectKey(snapshot, diffFingerprint, options, analyzerDig
   return sha256(canonicalJson({ reviewSubjectProtocolVersion: 1, coreReviewKey, scopeFingerprint }));
 }
 
-async function reviewStaged(commandArgs = []) {
+async function reviewStaged(commandArgs = [], { forceFresh = false } = {}) {
   assertTrustedWorkspace();
   const repositoryInfo = await chooseRepository(commandArgs);
   if (!repositoryInfo) return;
@@ -436,6 +436,7 @@ async function reviewStaged(commandArgs = []) {
         evidenceManifestDigest = semanticEvidence.manifest.manifestDigest;
         reviewSubjectKey = computeReviewSubjectKey(snapshotAfter, diffFingerprint, options, analyzerDigest, scope.fingerprint, evidenceManifestDigest);
 
+        if (forceFresh) { replayWindow.clearSubject(repoRoot, reviewSubjectKey); log(`fresh blind review: bypassing result replay for ${reviewSubjectKey.slice(0,12)}`); }
         const replayDecision = replayWindow.tryReplay(repoRoot, reviewSubjectKey);
         if (replayDecision.replayed) {
           rawReview = replayDecision.review; reviewRunId = replayDecision.originReviewRunId; originReviewRunId = replayDecision.originReviewRunId; resultReplay = true;
@@ -740,6 +741,13 @@ function activate(context) {
     }),
     vscode.commands.registerCommand('safeCodexReview.resolveFinding', async (...args) => { try { await resolveFinding(args); } catch (error) { vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
     vscode.commands.registerCommand('safeCodexReview.clearFindingResolutions', async (...args) => { try { await clearFindingResolutions(args); } catch (error) { vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),
+    vscode.commands.registerCommand('safeCodexReview.reviewFresh', async (...args) => {
+      try { await reviewStaged(args, { forceFresh: true }); }
+      catch (error) {
+        log(`fresh review failed: code=${error?.code || 'unknown'}`);
+        if (error?.code !== 'ECANCELLED') vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error)));
+      }
+    }),
     vscode.commands.registerCommand('safeCodexReview.clearReview', clearReview),
     vscode.commands.registerCommand('safeCodexReview.showOutput', () => outputChannel.show(true)),
     vscode.commands.registerCommand('safeCodexReview.importSarif', async (...args) => { try { await importSarifEvidence(args); } catch (error) { vscode.window.showErrorMessage(t('Codex Review Safe failed: {0}', friendlyError(error))); } }),

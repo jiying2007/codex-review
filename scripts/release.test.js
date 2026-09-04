@@ -40,7 +40,7 @@ assert.match(marketplace,/gh release download/);
 assert.match(marketplace,/sha256sum -c SHA256SUMS/);
 assert.match(marketplace,/gh attestation verify .* -R "\$GITHUB_REPOSITORY"/);
 assert.match(marketplace,/@vscode\/vsce@3\.9\.2 publish --packagePath/);
-assert.match(marketplace,/distribution-receipt\.yml@25467922eeebffa93b7c820f2ffa7590c1625381/);
+assert.match(marketplace,/distribution-receipt\.yml@e962826ee6556fd8ffa74ab1994bf43d62826f10/);
 assert.match(marketplace,/channel: vscode-marketplace/);
 assert.doesNotMatch(marketplace,/npm run package|vsce package/,'Marketplace must publish the exact GitHub Release VSIX, never rebuild it');
 const renovate=JSON.parse(fs.readFileSync(path.join(root,'renovate.json'),'utf8'));
