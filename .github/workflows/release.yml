@@ -145,6 +145,15 @@ jobs:
         with: { node-version: '22.22.2', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run package
+      - name: Generate Consumer CI Receipt
+        env:
+          CI_SOURCE_SHA: ${{ github.sha }}
+          CI_WORKFLOW_NAME: Release
+          CI_RUN_ID: ${{ github.run_id }}
+          CI_RUN_ATTEMPT: ${{ github.run_attempt }}
+          CI_EVENT: ${{ github.event_name }}
+          CI_SUITES: static-unit-contract,integration-linux-windows-macos,vscode-1.90,zh-cn,workspace-trust,package
+        run: node src/codex-safe-core/scripts/generate-consumer-ci-receipt.js --output CONSUMER_CI_RECEIPT.json
       - name: Verify package, generate SBOM and checksums
         shell: bash
         run: |
@@ -159,13 +168,15 @@ jobs:
           if grep -E '^extension/(extension\.js|src/|test|scripts|package-lock\.json|\.gitmodules|PUBLISHING\.md|CONTRIBUTING\.md|\.gitignore|\.gitattributes)' /tmp/vsix-files.txt; then echo 'VSIX contains development-only files' >&2; exit 1; fi
           npm sbom --sbom-format spdx > SBOM.spdx.json
           test -s SBOM.spdx.json
-          sha256sum "$vsix" SBOM.spdx.json > SHA256SUMS
+          test -s CONSUMER_CI_RECEIPT.json
+          sha256sum "$vsix" SBOM.spdx.json CONSUMER_CI_RECEIPT.json > SHA256SUMS
       - name: Attest immutable release provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             codex-review-safe-${{ needs.validate.outputs.version }}.vsix
             SBOM.spdx.json
+            CONSUMER_CI_RECEIPT.json
             SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -173,6 +184,7 @@ jobs:
           path: |
             codex-review-safe-${{ needs.validate.outputs.version }}.vsix
             SBOM.spdx.json
+            CONSUMER_CI_RECEIPT.json
             SHA256SUMS
           if-no-files-found: error
       - name: Ensure immutable release tag
@@ -197,4 +209,4 @@ jobs:
             echo "Release ${RELEASE_TAG} already exists; immutable assets will not be overwritten." >&2
             exit 1
           fi
-          gh release create "$RELEASE_TAG" "$vsix" SBOM.spdx.json SHA256SUMS --title "Codex Review Safe ${version}" --generate-notes --verify-tag
+          gh release create "$RELEASE_TAG" "$vsix" SBOM.spdx.json CONSUMER_CI_RECEIPT.json SHA256SUMS --title "Codex Review Safe ${version}" --generate-notes --verify-tag
