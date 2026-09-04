@@ -1,0 +1,46 @@
+name: Temporary Review 4.8.1 Version Correction
+
+on:
+  push:
+    branches: [review-4.9-efficiency-ux]
+
+permissions:
+  contents: write
+
+jobs:
+  correct-version:
+    if: ${{ !contains(github.event.head_commit.message, '[review-481-generated]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: review-4.9-efficiency-ux
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with:
+          node-version: '22.22.2'
+          check-latest: false
+      - name: Restore canonical patch release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm version 4.8.1 --no-git-tag-version
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p='product-contract.json';
+          const c=JSON.parse(fs.readFileSync(p,'utf8'));
+          c.productVersion='4.8.1';
+          fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n');
+          const ch='CHANGELOG.md';
+          let text=fs.readFileSync(ch,'utf8');
+          text=text.replace(/^## 4\.9\.0$/m,'## 4.8.1');
+          fs.writeFileSync(ch,text);
+          NODE
+          git config user.name 'codex-safe-family-bot'
+          git config user.email 'codex-safe-family-bot@users.noreply.github.com'
+          git add package.json package-lock.json product-contract.json CHANGELOG.md
+          git diff --cached --quiet && { echo 'version correction produced no changes' >&2; exit 2; }
+          git commit -m '[review-481-generated] chore(release): Review 4.8.1 uses canonical Core patch bump'
+          git push origin HEAD:review-4.9-efficiency-ux
