@@ -9,6 +9,7 @@ const { runTests } = require('@vscode/test-electron');
 function exec(command, args, cwd) {
   const r = spawnSync(command, args, { cwd, encoding: 'utf8', shell: false });
   if (r.status !== 0) throw new Error(r.stderr || r.stdout);
+  return r.stdout.trim();
 }
 
 function initRepo(root, file) {
@@ -40,7 +41,7 @@ const mode=process.env.CODEX_REVIEW_IT_MODE||'normal';
 const schemaIndex=args.indexOf('--output-schema');
 const schemaPath=schemaIndex>=0?String(args[schemaIndex+1]||''):'';
 let payload;
-if(schemaPath.includes('review-hypothesis-schema')){
+if(schemaPath.includes('review-hypothesis-schema')||schemaPath.includes('review-hypothesis-retry-schema')){
   const hypotheses=[{
     severity:'medium',category:'correctness',file:'a.c',line:mode==='farline'?500:1,endLine:mode==='farline'?500:1,
     claim:'测试诊断',suggestion:'修复它',modelConfidence:0.9,assumptions:[],requiredSymbols:[],rootCauseSymbol:'value',claimClass:'incorrect-value',

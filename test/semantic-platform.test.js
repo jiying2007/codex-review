@@ -2,6 +2,7 @@
 
 const assert=require('assert');
 const fs=require('fs');
+const Module=require('module');
 const core=require('../src/codex-safe-core/semantic-review');
 
 const evidenceSource=fs.readFileSync('src/semantic-evidence.js','utf8');
@@ -9,6 +10,19 @@ const semanticSource=fs.readFileSync('src/semantic-review.js','utf8');
 const cacheSource=fs.readFileSync('src/review-cache.js','utf8');
 const codexSource=fs.readFileSync('src/codex.js','utf8');
 const extensionSource=fs.readFileSync('extension.js','utf8');
+
+const originalLoad=Module._load;
+Module._load=function(request,parent,isMain){
+  if(request==='vscode') return {
+    extensions:{getExtension:()=>undefined},
+    workspace:{workspaceFolders:[],textDocuments:[]},
+    window:{},
+    l10n:{t:(message,...args)=>String(message).replace(/\{(\d+)\}/g,(_match,index)=>args[Number(index)]===undefined?`{${index}}`:String(args[Number(index)]))}
+  };
+  return originalLoad.call(this,request,parent,isMain);
+};
+const productSemantic=require('../src/semantic-review');
+Module._load=originalLoad;
 
 const trimDiff=[
   'diff --git a/app.c b/app.c','--- a/app.c','+++ b/app.c','@@ -10,1 +10,3 @@',
@@ -38,6 +52,16 @@ const insufficient=core.validateEvidenceBackedFinding({
 assert.strictEqual(insufficient.publishable,false,'0.99 confidence cannot bypass missing semantic evidence');
 assert.strictEqual(insufficient.evidenceGrade,'C');
 
+const localHypothesis={category:'correctness',claim:'changed condition is inverted',claimClass:'bounds',rootCauseSymbol:'',requiredSymbols:[],assumptions:[],supportingLocations:[],file:'app.c'};
+const omittedDependency={category:'resource',claim:'free may invalidate ownership after the call',claimClass:'invalid-free',rootCauseSymbol:'',requiredSymbols:[],assumptions:[],supportingLocations:[],file:'app.c'};
+assert.strictEqual(productSemantic.requiresIndependentVerification(localHypothesis),false,'strictly local correctness can remain controller-auto-verifiable');
+assert.strictEqual(productSemantic.requiresIndependentVerification(omittedDependency),true,'semantic category/text must force verification even when the model omits requiredSymbols and assumptions');
+const stagedManifest={manifest:{entries:[{id:'staged-app',kind:'staged',path:'app.c'}]},callSymbolsByPath:new Map(),blocks:[]};
+const prepared=productSemantic.prepareVerification([localHypothesis,omittedDependency],stagedManifest);
+assert.strictEqual(prepared.automatic.length,1);
+assert.strictEqual(prepared.needsModel.length,1);
+assert.strictEqual(prepared.needsModel[0].hypothesisIndex,1);
+
 const stableIdA=core.computeStableFindingId({category:'resource',file:'app.c',line:10,rootCauseSymbol:'VSAPISTRING_Trim',anchorContextDigest:'trim-call',claimClass:'invalid-free'});
 const stableIdB=core.computeStableFindingId({category:'resource',file:'app.c',line:999,rootCauseSymbol:'VSAPISTRING_Trim',anchorContextDigest:'trim-call',claimClass:'invalid-free',title:'different wording'});
 assert.strictEqual(stableIdA,stableIdB);
@@ -48,8 +72,12 @@ assert.match(evidenceSource,/\['grep','--cached'/,'symbol lookup must be index-p
 assert.doesNotMatch(evidenceSource,/fs\.readFileSync/,'semantic dependency evidence must not read working-tree files');
 assert.match(semanticSource,/insufficient_evidence/);
 assert.match(semanticSource,/contradicted/);
+assert.match(semanticSource,/requiresIndependentVerification/);
 assert.match(codexSource,/hypothesisSchema/);
 assert.match(codexSource,/verificationSchema/);
+assert.match(codexSource,/HYPOTHESIS_RETRY_LIMIT = 1/);
+assert.match(codexSource,/hypothesis-retry:/);
+assert.match(codexSource,/repaired\.rejected\.length<validated\.rejected\.length/);
 assert.match(extensionSource,/computeReviewSubjectKey/);
 assert.match(extensionSource,/structuralEvidenceKey/);
 assert.match(extensionSource,/REVIEW_EVIDENCE_PROTOCOL_VERSION = 3/);

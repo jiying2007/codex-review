@@ -10,6 +10,17 @@ const RECEIPT_STORAGE_KEY = 'safeCodexReview.receipts.v5';
 const MAX_RECEIPTS_PER_REPO = 50;
 function localSubject(receipt) { return receipt?.subject?.type === 'git-index' ? receipt.subject : null; }
 function receiptIdentity(receipt) { return receipt ? `${receipt.reviewSubjectFingerprint}:${receipt.evidenceManifestDigest}` : ''; }
+function durableReceiptIdentity(receipt) {
+  const subject=localSubject(receipt);
+  return subject ? [subject.headOid,subject.indexFingerprint,receipt.diffFingerprint,receipt.reviewSubjectFingerprint,receipt.evidenceManifestDigest,receipt.createdAt].join(':') : '';
+}
+function monotonicReceipt(receipt, latest) {
+  const validated=validateReviewReceipt(receipt);
+  const latestMs=Date.parse(String(latest?.createdAt||''));
+  const currentMs=Date.parse(String(validated.createdAt||''));
+  if(!Number.isFinite(latestMs)||!Number.isFinite(currentMs)||currentMs>latestMs)return validated;
+  return validateReviewReceipt({...validated,createdAt:new Date(latestMs+1).toISOString()});
+}
 
 function createReviewReceiptStore(globalState) {
   const receiptsByRepo = new Map();
@@ -27,17 +38,12 @@ function createReviewReceiptStore(globalState) {
   }
 
   async function persist(repoRoot, receipt) {
-    const validated = validateReviewReceipt(receipt), subject = localSubject(validated);
-    if (!validated || !subject) throw new Error('Local Review Receipt v5 is invalid and was not stored.');
     const key = normalizeFsPath(repoRoot);
-    const receipts = [validated, ...(receiptsByRepo.get(key) || [])]
-      .filter((item, index, all) => {
-        const itemSubject = localSubject(item);
-        return itemSubject && all.findIndex(other => {
-          const otherSubject = localSubject(other);
-          return otherSubject && otherSubject.headOid === itemSubject.headOid && otherSubject.indexFingerprint === itemSubject.indexFingerprint && other.diffFingerprint === item.diffFingerprint && other.reviewSubjectFingerprint === item.reviewSubjectFingerprint && other.evidenceManifestDigest === item.evidenceManifestDigest;
-        }) === index;
-      })
+    const existing=receiptsByRepo.get(key)||[];
+    const validated = monotonicReceipt(receipt,existing[0]), subject = localSubject(validated);
+    if (!validated || !subject) throw new Error('Local Review Receipt v5 is invalid and was not stored.');
+    const receipts = [validated, ...existing]
+      .filter((item, index, all) => all.findIndex(other => durableReceiptIdentity(other) === durableReceiptIdentity(item)) === index)
       .slice(0, MAX_RECEIPTS_PER_REPO);
     receiptsByRepo.set(key, receipts);
     currentIdentityByRepo.set(key, receiptIdentity(validated));
@@ -79,4 +85,4 @@ function createReviewReceiptStore(globalState) {
   function resetMemory() { receiptsByRepo.clear(); currentIdentityByRepo.clear(); }
   return { restore, persist, getReceipts, getLatest, getStatus, getEvidenceForRange, clear, resetMemory };
 }
-module.exports = { RECEIPT_STORAGE_KEY, MAX_RECEIPTS_PER_REPO, createReviewReceiptStore };
+module.exports = { RECEIPT_STORAGE_KEY, MAX_RECEIPTS_PER_REPO, durableReceiptIdentity, monotonicReceipt, createReviewReceiptStore };
