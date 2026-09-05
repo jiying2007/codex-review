@@ -14,6 +14,13 @@ function durableReceiptIdentity(receipt) {
   const subject=localSubject(receipt);
   return subject ? [subject.headOid,subject.indexFingerprint,receipt.diffFingerprint,receipt.reviewSubjectFingerprint,receipt.evidenceManifestDigest,receipt.createdAt].join(':') : '';
 }
+function monotonicReceipt(receipt, latest) {
+  const validated=validateReviewReceipt(receipt);
+  const latestMs=Date.parse(String(latest?.createdAt||''));
+  const currentMs=Date.parse(String(validated.createdAt||''));
+  if(!Number.isFinite(latestMs)||!Number.isFinite(currentMs)||currentMs>latestMs)return validated;
+  return validateReviewReceipt({...validated,createdAt:new Date(latestMs+1).toISOString()});
+}
 
 function createReviewReceiptStore(globalState) {
   const receiptsByRepo = new Map();
@@ -31,12 +38,12 @@ function createReviewReceiptStore(globalState) {
   }
 
   async function persist(repoRoot, receipt) {
-    const validated = validateReviewReceipt(receipt), subject = localSubject(validated);
-    if (!validated || !subject) throw new Error('Local Review Receipt v5 is invalid and was not stored.');
     const key = normalizeFsPath(repoRoot);
-    const receiptKey=durableReceiptIdentity(validated);
-    const receipts = [validated, ...(receiptsByRepo.get(key) || [])]
-      .filter((item, index, all) => receiptKey && all.findIndex(other => durableReceiptIdentity(other) === durableReceiptIdentity(item)) === index)
+    const existing=receiptsByRepo.get(key)||[];
+    const validated = monotonicReceipt(receipt,existing[0]), subject = localSubject(validated);
+    if (!validated || !subject) throw new Error('Local Review Receipt v5 is invalid and was not stored.');
+    const receipts = [validated, ...existing]
+      .filter((item, index, all) => all.findIndex(other => durableReceiptIdentity(other) === durableReceiptIdentity(item)) === index)
       .slice(0, MAX_RECEIPTS_PER_REPO);
     receiptsByRepo.set(key, receipts);
     currentIdentityByRepo.set(key, receiptIdentity(validated));
@@ -70,7 +77,7 @@ function createReviewReceiptStore(globalState) {
       qualifiedCommits, blockedCommits: matched.filter(item => item.receipt.qualityVerdict === 'blocked').length,
       incompleteCommits: matched.filter(item => item.receipt.coverageVerdict !== 'complete').length,
       needsEvidenceCommits: Math.max(0, commits.length - qualifiedCommits),
-      matches: matched.map(item => ({ commitOid: item.commitOid, receipt: { ...item.receipt, subject: { ...item.receipt.subject } } }))
+      matches: matched.map(item => ({ commitOid, receipt: { ...item.receipt, subject: { ...item.receipt.subject } } }))
     };
   }
 
@@ -78,4 +85,4 @@ function createReviewReceiptStore(globalState) {
   function resetMemory() { receiptsByRepo.clear(); currentIdentityByRepo.clear(); }
   return { restore, persist, getReceipts, getLatest, getStatus, getEvidenceForRange, clear, resetMemory };
 }
-module.exports = { RECEIPT_STORAGE_KEY, MAX_RECEIPTS_PER_REPO, durableReceiptIdentity, createReviewReceiptStore };
+module.exports = { RECEIPT_STORAGE_KEY, MAX_RECEIPTS_PER_REPO, durableReceiptIdentity, monotonicReceipt, createReviewReceiptStore };
