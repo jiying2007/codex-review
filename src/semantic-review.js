@@ -14,6 +14,8 @@ const {
 const SEVERITY_ORDER = Object.freeze({ critical:5, high:4, medium:3, low:2, info:1 });
 const ALLOWED_CATEGORIES = Object.freeze(['correctness','security','concurrency','resource','performance','robustness','maintainability','api','test','other']);
 const SCOPE_DISPOSITIONS = Object.freeze(['in_scope','non_goal_risk','needs_scope_decision']);
+const INDEPENDENT_VERIFICATION_CATEGORIES = new Set(['security','concurrency','resource','performance','robustness','api']);
+const INDEPENDENT_VERIFICATION_TEXT = /\b(api[- ]?contract|ownership|lifetime|callback|free|alloc(?:ation)?|race|deadlock|mutex|lock|atomic|thread|rollback|transaction|state[- ]?transition|authorization|authentication|permission|signature|timeout|retry|compat(?:ibility)?|abi)\b/i;
 
 function hypothesisSchema(options) {
   return {
@@ -54,6 +56,7 @@ function buildHypothesisPrompt(options, stagedPaths, chunkIndex=0, chunkCount=1,
     '- For any claim that depends on API/function/type/macro semantics outside the changed line, list every required symbol in requiredSymbols.',
     '- Make hidden premises explicit in assumptions. If you cannot state the needed premise, omit the hypothesis.',
     '- modelConfidence is only self-assessment; it does not make a hypothesis publishable.',
+    '- The controller independently decides whether a claim requires semantic verification; omitting requiredSymbols or assumptions never makes a semantic claim automatically verified.',
     '- Prefer omission over speculation. Pure style/naming/formatting is out of scope.',
     '- scopeDisposition=in_scope for defects within the current phase. Use non_goal_risk when the concern only asks for an explicitly excluded redesign; use needs_scope_decision when the product scope is genuinely ambiguous.',
     '- A non-goal may still be in scope when the changed line violates an exact invariant from the Scope Contract; copy that invariant verbatim into scopeInvariant.',
@@ -96,15 +99,25 @@ function validateHypothesisResult(value, options, stagedPaths, changedLineRanges
   return {hypotheses,rejected,modelHypothesisCount:value.hypotheses.length};
 }
 function stagedEvidenceRef(manifest,file) { return (manifest?.entries||[]).find(entry=>entry.kind==='staged'&&entry.path===String(file||'').replace(/\\/g,'/')); }
+function requiresIndependentVerification(hypothesis={}) {
+  if((hypothesis.requiredSymbols||[]).length||(hypothesis.assumptions||[]).length||(hypothesis.supportingLocations||[]).length)return true;
+  if(INDEPENDENT_VERIFICATION_CATEGORIES.has(String(hypothesis.category||'')))return true;
+  const semanticText=[hypothesis.claimClass,hypothesis.rootCauseSymbol,hypothesis.claim,hypothesis.suggestion].filter(Boolean).join(' ');
+  return INDEPENDENT_VERIFICATION_TEXT.test(semanticText);
+}
 function prepareVerification(hypotheses,evidence) {
   const automatic=[],needsModel=[];
   hypotheses.forEach((hypothesis,index)=>{
     const staged=stagedEvidenceRef(evidence.manifest,hypothesis.file);
     const symbolRefs=evidenceForSymbols(evidence,hypothesis.requiredSymbols);
-    if(hypothesis.requiredSymbols.length||hypothesis.assumptions.length){
-      if(!symbolRefs.length) automatic.push({hypothesisIndex:index,verificationStatus:'insufficient_evidence',evidenceRefs:staged?[staged.id]:[],verificationReason:'Required external semantic evidence is absent from the immutable Evidence Manifest.'});
-      else needsModel.push({hypothesisIndex:index,hypothesis,stagedRef:staged?.id||'',symbolRefs});
-    } else automatic.push({hypothesisIndex:index,verificationStatus:'verified',evidenceRefs:staged?[staged.id]:[],verificationReason:'Claim is local to the staged evidence and has no unresolved external semantic requirement.'});
+    const declaredExternal=(hypothesis.requiredSymbols||[]).length||(hypothesis.assumptions||[]).length;
+    if(declaredExternal&&!symbolRefs.length){
+      automatic.push({hypothesisIndex:index,verificationStatus:'insufficient_evidence',evidenceRefs:staged?[staged.id]:[],verificationReason:'Required external semantic evidence is absent from the immutable Evidence Manifest.'});
+    }else if(requiresIndependentVerification(hypothesis)){
+      needsModel.push({hypothesisIndex:index,hypothesis,stagedRef:staged?.id||'',symbolRefs});
+    }else{
+      automatic.push({hypothesisIndex:index,verificationStatus:'verified',evidenceRefs:staged?[staged.id]:[],verificationReason:'Controller classified the claim as strictly local to the staged evidence with no semantic dependency indicators.'});
+    }
   });
   return {automatic,needsModel};
 }
@@ -173,6 +186,6 @@ function applyResolutionLedger(review,records=[],language='en'){
 }
 
 module.exports={
-  ALLOWED_CATEGORIES,SUPPORT_KINDS,SCOPE_DISPOSITIONS,hypothesisSchema,verificationSchema,buildHypothesisPrompt,validateHypothesis,validateHypothesisResult,
-  prepareVerification,buildVerificationInput,validateVerificationResult,materializeVerifiedFindings,semanticSummary,recomputeReview,applyResolutionLedger,stagedEvidenceRef
+  ALLOWED_CATEGORIES,SUPPORT_KINDS,SCOPE_DISPOSITIONS,INDEPENDENT_VERIFICATION_CATEGORIES,hypothesisSchema,verificationSchema,buildHypothesisPrompt,validateHypothesis,validateHypothesisResult,
+  requiresIndependentVerification,prepareVerification,buildVerificationInput,validateVerificationResult,materializeVerifiedFindings,semanticSummary,recomputeReview,applyResolutionLedger,stagedEvidenceRef
 };
