@@ -20,6 +20,7 @@ const REVIEW_CHUNK_LIMIT = 8;
 const DEFAULT_REVIEW_TOKEN_BUDGET = 250000;
 const DEFAULT_TOTAL_EVIDENCE_CAP_BYTES = 2 * 1024 * 1024;
 const HYPOTHESIS_TOKEN_SHARE = 0.65;
+const HYPOTHESIS_RETRY_LIMIT = 1;
 const capabilityCache = new Map();
 const sharedCodexCli = createCodexCli({ runPreparedProcess: runProcess, tempPrefix: 'codex-review-safe-', capabilityCache });
 const findWindowsCodexCandidates = sharedCodexCli.findWindowsCodexCandidates;
@@ -41,7 +42,11 @@ function runtimeProviderId(options){return String(options?.codexRuntimeInspectio
 function resolveManagedModel(options,{role='reviewer',mode=options?.mode||'balanced',explicitModel=''}={}){
   if(!options?.modelRegistry)return Object.freeze({managed:false,role,model:String(explicitModel||'').trim(),selection:null});
   const provider=runtimeProviderId(options),strategy=String(options.modelSelectionStrategy||'auto');
-  const request={registry:options.modelRegistry,role,mode,strategy,provider,compatibilityPolicy:options.modelCompatibilityPolicy|| (strategy==='fixed'?'warn':'strict'),crossProvider:false};
+  const request={
+    registry:options.modelRegistry,role,mode,strategy,provider,
+    compatibilityPolicy:options.modelCompatibilityPolicy|| (strategy==='fixed'?'warn':'strict'),crossProvider:false,
+    economicsByModel:options.modelEconomicsByModel||{},minimumEconomicsSamples:options.modelEconomicsMinimumSamples||5
+  };
   if(strategy==='fixed'){request.model=String(explicitModel||'').trim();request.fixed={provider,model:request.model};}
   else if(strategy==='preference')request.candidates=options.modelCandidates||[];
   const selection=resolveModelSelection(request);
@@ -67,6 +72,10 @@ function dedupeHypotheses(values) {
   for(const item of values){const key=`${item.category}\n${item.file}\n${item.line}\n${item.claimClass}\n${item.rootCauseSymbol}`;const previous=map.get(key);if(!previous||item.modelConfidence>previous.modelConfidence)map.set(key,item);}
   return [...map.values()];
 }
+function repairHypothesisInput(input,rejected){
+  const reasons=(rejected||[]).slice(0,12).map(item=>`- candidate ${item.index}: ${item.reason}`).join('\n');
+  return [input,'','--- CONTROLLER VALIDATION REPAIR ---','The previous hypothesis response contained candidate(s) rejected by deterministic validation. Re-review the SAME staged chunk once. Return a complete replacement hypothesis set, preserving only claims that can satisfy the exact changed-line causal-anchor and schema rules. Do not invent nearby lines or unseen evidence.',reasons,'--- END CONTROLLER VALIDATION REPAIR ---'].filter(Boolean).join('\n');
+}
 async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={}) {
   const profile=options.profileConfig||resolveReviewProfile(options.profile||'standard');
   const semanticEvidence=extraEvidence.semanticEvidence;
@@ -81,7 +90,7 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
   const evidence={...rawEvidence,chunks:bytePlan.chunks,complete:rawEvidence.complete&&bytePlan.complete,coverageGaps};
   const changedLineRanges=parseChangedLineRanges(diff),deadline=Date.now()+operationTimeout(options),tokenBudget=configuredTokenBudget(options,profile),usage={...usageShape()},models=new Set();
   const hypothesisBudget=tokenBudget>0?Math.max(1,Math.floor(tokenBudget*HYPOTHESIS_TOKEN_SHARE)):0;
-  let estimatedTokens=0,resolvedVersion='not-run',modelHypothesisCount=0,processedChunks=0;
+  let estimatedTokens=0,resolvedVersion='not-run',modelHypothesisCount=0,processedChunks=0,retriedChunks=0;
   const modelEvidence=[];
   const hypotheses=[],rejectedHypotheses=[];
 
@@ -95,7 +104,22 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
     if(hypothesisBudget>0&&estimatedTokens+estimate.totalTokens>hypothesisBudget){evidence.complete=false;coverageGaps.push(`hypothesis_token_budget:chunk-${chunk.index+1}`);break;}
     const result=await sharedCodexCli.runStructuredCodex({codexPath:options.codexPath,model,runtime:options.codexRuntime,phase:`hypothesis:${chunk.index+1}/${evidence.chunks.length}`,timeoutMs:remainingMs,schema:hypothesisSchema(options),input,schemaFileName:'review-hypothesis-schema.json',token,maxStdoutBytes:6*1024*1024,maxStderrBytes:1024*1024,processOptions:{detached:process.platform!=='win32'},maxEstimatedTokens:hypothesisBudget>0?Math.max(1,hypothesisBudget-estimatedTokens):0,estimatedOutputTokens});
     estimatedTokens+=result.requestEstimate?.totalTokens||estimate.totalTokens;usageAdd(usage,result.usage);resolvedVersion=result.resolved.version||resolvedVersion;models.add(model||'cli-default');{const evidenceItem=modelEvidenceFor(route,result.usage);if(evidenceItem)modelEvidence.push(evidenceItem);}
-    const validated=validateHypothesisResult(result.parsed,options,chunk.paths,changedLineRanges,diff);
+    let validated=validateHypothesisResult(result.parsed,options,chunk.paths,changedLineRanges,diff);
+
+    if(validated.rejected.length&&HYPOTHESIS_RETRY_LIMIT>0){
+      const retryRemainingMs=deadline-Date.now();
+      const retryInput=repairHypothesisInput(input,validated.rejected);
+      const retryEstimate=estimateRequestTokens(retryInput,{estimatedOutputTokens});
+      const retryFitsTime=retryRemainingMs>0;
+      const retryFitsBudget=hypothesisBudget<=0||estimatedTokens+retryEstimate.totalTokens<=hypothesisBudget;
+      if(retryFitsTime&&retryFitsBudget){
+        const retry=await sharedCodexCli.runStructuredCodex({codexPath:options.codexPath,model,runtime:options.codexRuntime,phase:`hypothesis-retry:${chunk.index+1}/${evidence.chunks.length}`,timeoutMs:retryRemainingMs,schema:hypothesisSchema(options),input:retryInput,schemaFileName:'review-hypothesis-retry-schema.json',token,maxStdoutBytes:6*1024*1024,maxStderrBytes:1024*1024,processOptions:{detached:process.platform!=='win32'},maxEstimatedTokens:hypothesisBudget>0?Math.max(1,hypothesisBudget-estimatedTokens):0,estimatedOutputTokens});
+        estimatedTokens+=retry.requestEstimate?.totalTokens||retryEstimate.totalTokens;usageAdd(usage,retry.usage);resolvedVersion=retry.resolved.version||resolvedVersion;models.add(model||'cli-default');{const evidenceItem=modelEvidenceFor(route,retry.usage);if(evidenceItem)modelEvidence.push(evidenceItem);}retriedChunks++;
+        const repaired=validateHypothesisResult(retry.parsed,options,chunk.paths,changedLineRanges,diff);
+        if(repaired.rejected.length<validated.rejected.length)validated=repaired;
+      }
+    }
+
     hypotheses.push(...validated.hypotheses);rejectedHypotheses.push(...validated.rejected);modelHypothesisCount+=validated.modelHypothesisCount;processedChunks++;
   }
 
@@ -131,7 +155,7 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
   review.findingSetDigest=digestFindingSet(review.findings);
   const statusCounts={verified:0,insufficient_evidence:0,contradicted:0,suppressed_by_resolution:0};
   for(const item of verificationResults) if(statusCounts[item.verificationStatus]!==undefined)statusCounts[item.verificationStatus]++;
-  review.semanticVerification={hypotheses:uniqueHypotheses.length,rejectedHypotheses:rejectedHypotheses.length,verifierCalled,statusCounts,evidenceManifestDigest:semanticEvidence.manifest.manifestDigest};
+  review.semanticVerification={hypotheses:uniqueHypotheses.length,rejectedHypotheses:rejectedHypotheses.length,verifierCalled,retriedChunks,statusCounts,evidenceManifestDigest:semanticEvidence.manifest.manifestDigest};
   review.executionMeta={
     codexVersion:resolvedVersion,model:[...models].join(',')||options.model||'cli-default',reviewProfile:profile.name,
     providerMode:options.codexRuntime?.provider?.mode||'openai',providerEndpoint:options.codexRuntime?.provider?.baseUrl?new URL(options.codexRuntime.provider.baseUrl).host:'',
@@ -155,4 +179,4 @@ async function runCodexPatchProposal(diff,stagedPaths,options,finding,token){
   const result=await sharedCodexCli.runStructuredCodex({codexPath:options.codexPath,model:route.model,runtime:options.codexRuntime,phase:'patch-proposal',schema:patchSchema(),input,schemaFileName:'patch-schema.json',token,maxStdoutBytes:1024*1024,maxStderrBytes:1024*1024,processOptions:{detached:process.platform!=='win32'},maxEstimatedTokens:80000,estimatedOutputTokens:4096});
   return {...validatePatchProposal(result.parsed,{allowedPaths:stagedPaths,maxBytes:256*1024}),usage:result.usage,durationMs:result.durationMs,modelEvidence:modelEvidenceFor(route,result.usage)};
 }
-module.exports={REVIEW_CHUNK_LIMIT,DEFAULT_REVIEW_TOKEN_BUDGET,DEFAULT_TOTAL_EVIDENCE_CAP_BYTES,HYPOTHESIS_TOKEN_SHARE,configuredTokenBudget,configuredTotalEvidenceBudget,findWindowsCodexCandidates,resolveCodexExecutable,probeCodexCapabilities,probeCodexRuntime,buildCodexArgs,withTemporaryDirectory,runCodexReview,runCodexPatchProposal,isCliCompatibilityError,_capabilityCache:capabilityCache};
+module.exports={REVIEW_CHUNK_LIMIT,DEFAULT_REVIEW_TOKEN_BUDGET,DEFAULT_TOTAL_EVIDENCE_CAP_BYTES,HYPOTHESIS_TOKEN_SHARE,HYPOTHESIS_RETRY_LIMIT,configuredTokenBudget,configuredTotalEvidenceBudget,findWindowsCodexCandidates,resolveCodexExecutable,probeCodexCapabilities,probeCodexRuntime,buildCodexArgs,withTemporaryDirectory,repairHypothesisInput,runCodexReview,runCodexPatchProposal,isCliCompatibilityError,_capabilityCache:capabilityCache};
