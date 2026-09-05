@@ -157,15 +157,69 @@ jobs:
             SHA256SUMS
           if-no-files-found: error
 
+  codeql:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/codeql.yml
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with:
+          node-version: 22.22.2
+      - id: graph
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" >/dev/null 2>&1; then echo 'enabled=true' >> "$GITHUB_OUTPUT"; else echo 'enabled=false' >> "$GITHUB_OUTPUT"; fi
+      - if: steps.graph.outputs.enabled == 'true'
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+      - if: steps.graph.outputs.enabled != 'true'
+        shell: bash
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm audit --audit-level=high --omit=dev
+          node src/codex-safe-core/scripts/verify-package-licenses.js .
+
+  family-release-guard:
+    if: github.event_name == 'pull_request'
+    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@00403dd14877e978698c63d06f6dbdfe2ba9b8cc
+    with:
+      product: codex-review-safe
+      expected_core_sha: 00403dd14877e978698c63d06f6dbdfe2ba9b8cc
+
   ci-gate:
     name: CI Gate
     if: ${{ always() }}
-    needs: [static, integration-latest, integration-minimum, integration-zh-cn, integration-trust, package]
+    needs: [static, integration-latest, integration-minimum, integration-zh-cn, integration-trust, package, codeql, dependency-review, family-release-guard]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Require every CI dependency to succeed
+      - name: Require every applicable CI dependency to succeed
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          node -e "const needs=JSON.parse(process.env.NEEDS_JSON);const failed=Object.entries(needs).filter(([,v])=>v.result!=='success');if(failed.length){console.error('CI Gate blocked:',failed.map(([k,v])=>k+'='+v.result).join(', '));process.exit(1)}"
+          node - <<'NODE'
+          const needs=JSON.parse(process.env.NEEDS_JSON);
+          const prOnly=new Set(['dependency-review','family-release-guard']);
+          const failed=Object.entries(needs).filter(([name,value]) => {
+            if (value.result === 'success') return false;
+            return !(process.env.EVENT_NAME !== 'pull_request' && prOnly.has(name) && value.result === 'skipped');
+          });
+          if(failed.length){
+            console.error('CI Gate blocked:',failed.map(([k,v])=>k+'='+v.result).join(', '));
+            process.exit(1);
+          }
+          NODE
