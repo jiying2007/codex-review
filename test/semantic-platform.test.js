@@ -3,6 +3,7 @@
 const assert=require('assert');
 const fs=require('fs');
 const core=require('../src/codex-safe-core/semantic-review');
+const productSemantic=require('../src/semantic-review');
 
 const evidenceSource=fs.readFileSync('src/semantic-evidence.js','utf8');
 const semanticSource=fs.readFileSync('src/semantic-review.js','utf8');
@@ -38,6 +39,16 @@ const insufficient=core.validateEvidenceBackedFinding({
 assert.strictEqual(insufficient.publishable,false,'0.99 confidence cannot bypass missing semantic evidence');
 assert.strictEqual(insufficient.evidenceGrade,'C');
 
+const localHypothesis={category:'correctness',claim:'changed condition is inverted',claimClass:'bounds',rootCauseSymbol:'',requiredSymbols:[],assumptions:[],supportingLocations:[],file:'app.c'};
+const omittedDependency={category:'resource',claim:'free may invalidate ownership after the call',claimClass:'invalid-free',rootCauseSymbol:'',requiredSymbols:[],assumptions:[],supportingLocations:[],file:'app.c'};
+assert.strictEqual(productSemantic.requiresIndependentVerification(localHypothesis),false,'strictly local correctness can remain controller-auto-verifiable');
+assert.strictEqual(productSemantic.requiresIndependentVerification(omittedDependency),true,'semantic category/text must force verification even when the model omits requiredSymbols and assumptions');
+const stagedManifest={manifest:{entries:[{id:'staged-app',kind:'staged',path:'app.c'}]},callSymbolsByPath:new Map(),blocks:[]};
+const prepared=productSemantic.prepareVerification([localHypothesis,omittedDependency],stagedManifest);
+assert.strictEqual(prepared.automatic.length,1);
+assert.strictEqual(prepared.needsModel.length,1);
+assert.strictEqual(prepared.needsModel[0].hypothesisIndex,1);
+
 const stableIdA=core.computeStableFindingId({category:'resource',file:'app.c',line:10,rootCauseSymbol:'VSAPISTRING_Trim',anchorContextDigest:'trim-call',claimClass:'invalid-free'});
 const stableIdB=core.computeStableFindingId({category:'resource',file:'app.c',line:999,rootCauseSymbol:'VSAPISTRING_Trim',anchorContextDigest:'trim-call',claimClass:'invalid-free',title:'different wording'});
 assert.strictEqual(stableIdA,stableIdB);
@@ -48,6 +59,7 @@ assert.match(evidenceSource,/\['grep','--cached'/,'symbol lookup must be index-p
 assert.doesNotMatch(evidenceSource,/fs\.readFileSync/,'semantic dependency evidence must not read working-tree files');
 assert.match(semanticSource,/insufficient_evidence/);
 assert.match(semanticSource,/contradicted/);
+assert.match(semanticSource,/requiresIndependentVerification/);
 assert.match(codexSource,/hypothesisSchema/);
 assert.match(codexSource,/verificationSchema/);
 assert.match(extensionSource,/computeReviewSubjectKey/);
