@@ -2,14 +2,27 @@
 
 const assert=require('assert');
 const fs=require('fs');
+const Module=require('module');
 const core=require('../src/codex-safe-core/semantic-review');
-const productSemantic=require('../src/semantic-review');
 
 const evidenceSource=fs.readFileSync('src/semantic-evidence.js','utf8');
 const semanticSource=fs.readFileSync('src/semantic-review.js','utf8');
 const cacheSource=fs.readFileSync('src/review-cache.js','utf8');
 const codexSource=fs.readFileSync('src/codex.js','utf8');
 const extensionSource=fs.readFileSync('extension.js','utf8');
+
+const originalLoad=Module._load;
+Module._load=function(request,parent,isMain){
+  if(request==='vscode') return {
+    extensions:{getExtension:()=>undefined},
+    workspace:{workspaceFolders:[],textDocuments:[]},
+    window:{},
+    l10n:{t:(message,...args)=>String(message).replace(/\{(\d+)\}/g,(_match,index)=>args[Number(index)]===undefined?`{${index}}`:String(args[Number(index)]))}
+  };
+  return originalLoad.call(this,request,parent,isMain);
+};
+const productSemantic=require('../src/semantic-review');
+Module._load=originalLoad;
 
 const trimDiff=[
   'diff --git a/app.c b/app.c','--- a/app.c','+++ b/app.c','@@ -10,1 +10,3 @@',
@@ -62,6 +75,9 @@ assert.match(semanticSource,/contradicted/);
 assert.match(semanticSource,/requiresIndependentVerification/);
 assert.match(codexSource,/hypothesisSchema/);
 assert.match(codexSource,/verificationSchema/);
+assert.match(codexSource,/HYPOTHESIS_RETRY_LIMIT = 1/);
+assert.match(codexSource,/hypothesis-retry:/);
+assert.match(codexSource,/repaired\.rejected\.length<validated\.rejected\.length/);
 assert.match(extensionSource,/computeReviewSubjectKey/);
 assert.match(extensionSource,/structuralEvidenceKey/);
 assert.match(extensionSource,/REVIEW_EVIDENCE_PROTOCOL_VERSION = 3/);
