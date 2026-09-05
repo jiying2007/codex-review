@@ -156,3 +156,16 @@ jobs:
             codex-review-safe-*.vsix
             SHA256SUMS
           if-no-files-found: error
+
+  ci-gate:
+    name: CI Gate
+    if: ${{ always() }}
+    needs: [static, integration-latest, integration-minimum, integration-zh-cn, integration-trust, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every CI dependency to succeed
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          node -e "const needs=JSON.parse(process.env.NEEDS_JSON);const failed=Object.entries(needs).filter(([,v])=>v.result!=='success');if(failed.length){console.error('CI Gate blocked:',failed.map(([k,v])=>k+'='+v.result).join(', '));process.exit(1)}"
