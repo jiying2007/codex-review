@@ -1,3 +1,8 @@
+## 4.8.3
+
+- Repin to Codex Safe Core 4.17.0 because the shipped Core runtime digest changed to `a41fa0e2c02d1977d6f1f8e0b7efff0a3d220d1149498c3d4d5a4ecbb1b03808`; publish a new immutable product release and distribution receipt.
+- Refresh Product Contract v2 and generated/current-state Family identity for the exact Core pin.
+
 ## 4.8.2
 
 - Make VS Code Marketplace publication manual-only for the current stage; immutable GitHub Release remains the required Family distribution authority, while manual Marketplace publication keeps exact-release verification and receipt generation when explicitly invoked.
