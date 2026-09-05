@@ -1,3 +1,7 @@
+## 4.8.4
+
+- Consolidate all merge-blocking pull-request validation behind the canonical `CI Gate` without reducing Review product, Extension Host, security, dependency or Family governance coverage; publish this exact workflow-consolidated main snapshot as a new immutable product release.
+
 ## 4.8.3
 
 - Repin to Codex Safe Core 4.17.0 because the shipped Core runtime digest changed to `a41fa0e2c02d1977d6f1f8e0b7efff0a3d220d1149498c3d4d5a4ecbb1b03808`; publish a new immutable product release and distribution receipt.
