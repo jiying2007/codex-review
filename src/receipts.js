@@ -77,7 +77,7 @@ function createReviewReceiptStore(globalState) {
       qualifiedCommits, blockedCommits: matched.filter(item => item.receipt.qualityVerdict === 'blocked').length,
       incompleteCommits: matched.filter(item => item.receipt.coverageVerdict !== 'complete').length,
       needsEvidenceCommits: Math.max(0, commits.length - qualifiedCommits),
-      matches: matched.map(item => ({ commitOid, receipt: { ...item.receipt, subject: { ...item.receipt.subject } } }))
+      matches: matched.map(item => ({ commitOid: item.commitOid, receipt: { ...item.receipt, subject: { ...item.receipt.subject } } }))
     };
   }
 
