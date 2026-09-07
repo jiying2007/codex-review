@@ -1,3 +1,7 @@
+## Unreleased
+
+- Unify user-visible Review report timestamps with the Family display-time contract, including fixed Core time-zone formatting compatibility, while keeping machine-readable receipts/evidence canonical UTC and leaving the exact Safe Core runtime/protocol pin unchanged.
+
 ## 4.8.4
 
 - Consolidate all merge-blocking pull-request validation behind the canonical `CI Gate` without reducing Review product, Extension Host, security, dependency or Family governance coverage; publish this exact workflow-consolidated main snapshot as a new immutable product release.
@@ -24,7 +28,7 @@
 
 ## 4.7.5 - 2026-09-04
 
-- Repin to immutable Codex Safe Core 4.15.0 and adopt Model Routing Contract v1 while preserving Safe Contract v2, Policy Schema v4 and Review Receipt v5.
+- Repin to Codex Safe Core 4.15.0 and adopt Model Routing Contract v1 while preserving Safe Contract v2, Policy Schema v4 and Review Receipt v5.
 - Separate Review mode (fast/balanced/deep) from engineering Profile Pack, expose bounded fast-model hypothesis routing and whole-review token/evidence budgets, and keep verification on the primary model.
 - Add explicit Fresh Blind Review that bypasses result replay without weakening the existing replay/convergence evidence rules.
 - Package Core streaming JSONL and privacy-safe token-calibration primitives; budget omissions remain explicit coverage gaps and Change authority is unaffected.
@@ -33,8 +37,6 @@
 
 - Repin to Codex Safe Core 4.14.4 as a new immutable product release; no compatibility shim or stale artifact reuse is permitted.
 - Refresh generated/current-state Family identity and release evidence for the exact Core pin.
-
-## Unreleased
 
 ## 4.7.3
 
