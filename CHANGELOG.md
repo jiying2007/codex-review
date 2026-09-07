@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 4.8.5
+
 - Unify user-visible Review report timestamps with the Family display-time contract, including fixed Core time-zone formatting compatibility, while keeping machine-readable receipts/evidence canonical UTC and leaving the exact Safe Core runtime/protocol pin unchanged.
 
 ## 4.8.4
