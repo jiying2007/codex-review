@@ -2,19 +2,15 @@
 
 const { t } = require('./i18n');
 const { severityPasses, shortFingerprint } = require('./review');
+const { formatDisplayTime } = require('./codex-safe-core/display-time');
 
 function pct(value) { return `${(Math.max(0, Math.min(1, Number(value) || 0)) * 100).toFixed(0)}%`; }
-function pad2(value) { return String(value).padStart(2, '0'); }
 function formatReviewTime(value, language = 'en') {
   if (typeof value !== 'string' || !value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  const offsetMinutes = -date.getTimezoneOffset();
-  const sign = offsetMinutes >= 0 ? '+' : '-';
-  const absolute = Math.abs(offsetMinutes);
-  const offset = `UTC${sign}${pad2(Math.floor(absolute / 60))}:${pad2(absolute % 60)}`;
-  const local = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
-  return language === 'zh-CN' ? `审查时间: ${local} ${offset} (UTC: ${date.toISOString()})` : `Review time: ${local} ${offset} (UTC: ${date.toISOString()})`;
+  const displayTime = formatDisplayTime(date, { includeUtc: true });
+  return language === 'zh-CN' ? `审查时间: ${displayTime}` : `Review time: ${displayTime}`;
 }
 function defectVerdict(review) {
   if (review.qualityVerdict === 'blocked') return 'blocked';
