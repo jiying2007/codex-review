@@ -274,6 +274,14 @@ for (const [key, value] of Object.entries(properties)) {
   assert.match(report, /Overall readiness: needs_evidence/);
   assert.doesNotMatch(report, /Finding verdict:/, 'legacy overloaded finding verdict label must not return');
   assert.match(report, /Review time: .* UTC[+-]\d{2}:\d{2} \(UTC: 2026-08-22T00:00:00.000Z\)/);
+  const previousDisplayZone = process.env.CODEX_SAFE_DISPLAY_TIME_ZONE;
+  process.env.CODEX_SAFE_DISPLAY_TIME_ZONE = 'Asia/Singapore';
+  try {
+    assert.match(unit.formatReviewTime('2026-08-22T00:00:00.000Z'), /2026-08-22 08:00:00 UTC\+08:00 \(UTC: 2026-08-22T00:00:00.000Z\)/);
+  } finally {
+    if (previousDisplayZone === undefined) delete process.env.CODEX_SAFE_DISPLAY_TIME_ZONE;
+    else process.env.CODEX_SAFE_DISPLAY_TIME_ZONE = previousDisplayZone;
+  }
   assert.match(report, /Review policy: head-policy/);
   assert.match(report, /\[MEDIUM\]/);
 

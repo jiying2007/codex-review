@@ -4,17 +4,24 @@ const { t } = require('./i18n');
 const { severityPasses, shortFingerprint } = require('./review');
 
 function pct(value) { return `${(Math.max(0, Math.min(1, Number(value) || 0)) * 100).toFixed(0)}%`; }
-function pad2(value) { return String(value).padStart(2, '0'); }
+function displayTimeParts(formatter, date) { return Object.fromEntries(formatter.formatToParts(date).filter(part => part.type !== 'literal').map(part => [part.type, part.value])); }
+function reviewDisplayTime(date) {
+  const configured = String(process.env.CODEX_SAFE_DISPLAY_TIME_ZONE || '').trim();
+  const timeZone = !configured || configured === 'system' || configured === 'local' ? undefined : configured;
+  const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZoneName: 'longOffset' };
+  if (timeZone) options.timeZone = timeZone;
+  let parts;
+  try { parts = displayTimeParts(new Intl.DateTimeFormat('en-CA', options), date); } catch { return ''; }
+  const offset = (parts.timeZoneName || 'GMT').replace(/^GMT$/, 'UTC+00:00').replace(/^GMT([+-]\d{2}:\d{2})$/, 'UTC$1');
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second} ${offset} (UTC: ${date.toISOString()})`;
+}
 function formatReviewTime(value, language = 'en') {
   if (typeof value !== 'string' || !value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  const offsetMinutes = -date.getTimezoneOffset();
-  const sign = offsetMinutes >= 0 ? '+' : '-';
-  const absolute = Math.abs(offsetMinutes);
-  const offset = `UTC${sign}${pad2(Math.floor(absolute / 60))}:${pad2(absolute % 60)}`;
-  const local = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
-  return language === 'zh-CN' ? `审查时间: ${local} ${offset} (UTC: ${date.toISOString()})` : `Review time: ${local} ${offset} (UTC: ${date.toISOString()})`;
+  const displayTime = reviewDisplayTime(date);
+  if (!displayTime) return '';
+  return language === 'zh-CN' ? `审查时间: ${displayTime}` : `Review time: ${displayTime}`;
 }
 function defectVerdict(review) {
   if (review.qualityVerdict === 'blocked') return 'blocked';
