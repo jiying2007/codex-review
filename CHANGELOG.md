@@ -6,6 +6,8 @@
 
 ## Unreleased
 
+## 4.8.7
+
 - Accept exact old/new causal anchors so removed-line regressions such as deleted authorization checks can become validated blocking findings without being mis-mapped into post-image Problems.
 - Close stable blind fresh convergence into `readiness=ready`, while distinguishing suppressed/rejected candidates from genuinely clean `no_findings` results.
 - Add a permanent removed-authorization High regression case while preserving Safe Contract v2, Policy Schema v4, Review Receipt v5, confidence/severity/coverage gates, and the exact Safe Core pin.
