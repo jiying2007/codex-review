@@ -48,9 +48,18 @@ function evaluateConvergence(review, lineage = null, scope = null) {
   else if (!findings.length) state = 'converged';
   else if (reintroduced > 0 || likelyFixInduced > 0 || added > fixed) state = 'regressing';
   else if (fixed > added) state = 'improving';
+
+  const blocked = review?.qualityVerdict === 'blocked' || findings.some(finding => finding?.severity === 'critical' || finding?.severity === 'high');
+  const readinessVerdict = blocked || !coverageComplete ? 'blocked' : state === 'converged' && findings.length === 0 ? 'ready' : 'needs_evidence';
+  if (review && typeof review === 'object') {
+    review.readinessVerdict = readinessVerdict;
+    if (readinessVerdict === 'ready') review.verdict = 'ready';
+  }
+
   const invariants = invariantCandidates(findings);
   return Object.freeze({
     state,
+    readinessVerdict,
     coverageComplete,
     stabilityOk,
     provenanceComplete,
