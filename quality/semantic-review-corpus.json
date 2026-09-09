@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "source": "repeated production-aging thermal review case",
+  "source": "repeated production-aging thermal review case plus cross-review false-negative regressions",
   "cases": [
     {
       "id": "vsapi-trim-ownership-hard-negative",
@@ -9,6 +9,14 @@
       "claimClass": "invalid-free",
       "expected": "suppressed_or_contradicted",
       "description": "Ownership-replacing trim API must not be treated as pointer-view trim when index evidence shows free/realloc and pointer replacement."
+    },
+    {
+      "id": "removed-authorization-old-side-high",
+      "kind": "hard_positive",
+      "category": "security",
+      "claimClass": "missing-check",
+      "expected": "verified_old_side_high",
+      "description": "Deleting an authorization guard is a first-class High regression and must remain publishable as an exact old-side causal finding instead of being omitted for lack of a post-image anchor."
     },
     {
       "id": "thermal-recover-reason-loss",

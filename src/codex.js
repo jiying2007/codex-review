@@ -69,12 +69,12 @@ function deterministicSummary(review, language='en') {
 }
 function dedupeHypotheses(values) {
   const map=new Map();
-  for(const item of values){const key=`${item.category}\n${item.file}\n${item.line}\n${item.claimClass}\n${item.rootCauseSymbol}`;const previous=map.get(key);if(!previous||item.modelConfidence>previous.modelConfidence)map.set(key,item);}
+  for(const item of values){const key=`${item.category}\n${item.file}\n${item.side||'new'}\n${item.line}\n${item.claimClass}\n${item.rootCauseSymbol}`;const previous=map.get(key);if(!previous||item.modelConfidence>previous.modelConfidence)map.set(key,item);}
   return [...map.values()];
 }
 function repairHypothesisInput(input,rejected){
   const reasons=(rejected||[]).slice(0,12).map(item=>`- candidate ${item.index}: ${item.reason}`).join('\n');
-  return [input,'','--- CONTROLLER VALIDATION REPAIR ---','The previous hypothesis response contained candidate(s) rejected by deterministic validation. Re-review the SAME staged chunk once. Return a complete replacement hypothesis set, preserving only claims that can satisfy the exact changed-line causal-anchor and schema rules. Do not invent nearby lines or unseen evidence.',reasons,'--- END CONTROLLER VALIDATION REPAIR ---'].filter(Boolean).join('\n');
+  return [input,'','--- CONTROLLER VALIDATION REPAIR ---','The previous hypothesis response contained candidate(s) rejected by deterministic validation. Re-review the SAME staged chunk once. Return a complete replacement hypothesis set, preserving only claims that can satisfy the exact side-aware changed-line causal-anchor and schema rules. Use side=old for exact removed causal lines and side=new for exact added/modified causal lines. Do not invent nearby lines or unseen evidence.',reasons,'--- END CONTROLLER VALIDATION REPAIR ---'].filter(Boolean).join('\n');
 }
 async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={}) {
   const profile=options.profileConfig||resolveReviewProfile(options.profile||'standard');
