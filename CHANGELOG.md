@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+- Accept exact old/new causal anchors so removed-line regressions such as deleted authorization checks can become validated blocking findings without being mis-mapped into post-image Problems.
+- Close stable blind fresh convergence into `readiness=ready`, while distinguishing suppressed/rejected candidates from genuinely clean `no_findings` results.
+- Add a permanent removed-authorization High regression case while preserving Safe Contract v2, Policy Schema v4, Review Receipt v5, confidence/severity/coverage gates, and the exact Safe Core pin.
+
 ## 4.8.5
 
 - Unify user-visible Review report timestamps with the Family display-time contract, including fixed Core time-zone formatting compatibility, while keeping machine-readable receipts/evidence canonical UTC and leaving the exact Safe Core runtime/protocol pin unchanged.
@@ -132,7 +136,7 @@
 - Bind dependency context to the Git Index, never the unstaged working tree, and resolve ordinary C/C++ call symbols to bounded declaration/definition evidence.
 - Split model work into hypothesis and evidence-verification stages; high model confidence cannot publish an external-semantics finding without supporting evidence.
 - Add immutable Evidence Manifests, stable ReviewKeys/Finding IDs, same-subject result caching, evidence-scoped human resolutions, Force Re-review stability suppression, and chunk-scoped evidence.
-- Add HEAD-pinned Scope Contracts, cross-index Review Lineage, changed causal anchors with unchanged supporting locations, convergence metrics, deterministic invariant candidates, and repeated-review hard-positive regression cases.
+- Add HEAD-pinned Scope Contracts, cross-index Review Lineage, changed causal anchors with unchanged supporting locations, convergence metrics, deterministic invariant candidates, repeated-review hard-positive regression cases.
 - Add a hard-negative gate for ownership-replacing APIs such as `VSAPISTRING_Trim`, plus an index-safe discovery adapter boundary for future Tree-sitter/SCIP/LSP providers.
 
 ## 4.3.2 - 2026-08-30
@@ -187,6 +191,7 @@
 - Remove the ambiguous Review product `src/core.js` boundary in favor of `src/review-support.js`; `codex-safe-core` is now the only Core.
 - Keep Review-specific adapters only where they add localization or domain semantics while delegating shared safety/runtime behavior to Safe Core.
 - Preserve confidence-gated findings, Review Receipt v2, HEAD-pinned `.codex-safe.json`, dist-only packaging, Trust/localization gates, SHA-256, and provenance attestation as the long-term baseline.
+- Rewrite English/Chinese user, security, and publishing documentation around the v2 product-family contract.
 
 ## 2.0.0
 
