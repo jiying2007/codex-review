@@ -19,8 +19,9 @@ assert.strictEqual(fs.existsSync('src/core.js'), false, 'ambiguous Review src/co
 assert.strictEqual(fs.existsSync('src/safe-contract.js'), false, 'legacy src/safe-contract.js shim must not return');
 assert.strictEqual(fs.existsSync('safe-core.lock.json'), false, 'legacy Safe Core lock must not return');
 assert.strictEqual(fs.existsSync('scripts/safe-core.js'), false, 'legacy Safe Core sync script must not return');
+const coreContract=require('../src/codex-safe-core/core-contract.json');
 for (const name of ['index.js','safe-contract.js','codex-cli.js','process-runner.js','git-repository.js','context-builder.js','efficiency-planner.js','quality-platform.js','semantic-review.js','policy.js','review-rules.js','core-contract.json']) {
-  assert.strictEqual(fs.existsSync(path.join('src','codex-safe-core',name)), true, `Safe Core v4.5 runtime missing ${name}`);
+  assert.strictEqual(fs.existsSync(path.join('src','codex-safe-core',name)), true, `Safe Core ${coreContract.coreVersion} runtime missing ${name}`);
 }
 assert.doesNotMatch(extension, /\b__test\b/, 'extension.js must not expose a transitional private test surface');
 assert.doesNotMatch(extension, /require\(['\"]child_process['\"]\)/, 'extension.js must not own subprocess execution');
@@ -70,4 +71,4 @@ for (const file of ['test.js', ...collectJsFiles('test')]) {
   assert.doesNotMatch(source, /src[\\/]safe-contract\.js|require\(['\"]\.\/src\/safe-contract['\"]\)/, `${file} must not depend on a removed contract shim`);
 }
 
-console.log('Review runtime boundaries verified against Codex Safe Core v4.5 with index-pinned semantic evidence, exact-line-only publication and evidence-backed verification.');
+console.log(`Review runtime boundaries verified against Codex Safe Core ${coreContract.coreVersion} with index-pinned semantic evidence, exact-line-only publication and evidence-backed verification.`);

@@ -194,10 +194,10 @@ jobs:
 
   family-release-guard:
     if: github.event_name == 'pull_request'
-    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@00403dd14877e978698c63d06f6dbdfe2ba9b8cc
+    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@190651770a444b0693d82228afc66879dd57b0c0
     with:
       product: codex-review-safe
-      expected_core_sha: 00403dd14877e978698c63d06f6dbdfe2ba9b8cc
+      expected_core_sha: 190651770a444b0693d82228afc66879dd57b0c0
 
   ci-gate:
     name: CI Gate
