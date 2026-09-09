@@ -43,13 +43,13 @@ const schemaPath=schemaIndex>=0?String(args[schemaIndex+1]||''):'';
 let payload;
 if(schemaPath.includes('review-hypothesis-schema')||schemaPath.includes('review-hypothesis-retry-schema')){
   const hypotheses=[{
-    severity:'medium',category:'correctness',file:'a.c',line:mode==='farline'?500:1,endLine:mode==='farline'?500:1,
+    severity:'medium',category:'correctness',file:'a.c',side:'new',line:mode==='farline'?500:1,endLine:mode==='farline'?500:1,
     claim:'测试诊断',suggestion:'修复它',modelConfidence:0.9,assumptions:[],requiredSymbols:[],rootCauseSymbol:'value',claimClass:'incorrect-value',
     supportingLocations:[],scopeDisposition:'in_scope',scopeReason:'The changed assignment is the direct review target.',scopeInvariant:'',
     invariantCandidate:false,invariantText:''
   }];
   if(mode==='malformed')hypotheses.push({
-    severity:'high',category:'correctness',file:'not-staged.c',line:1,endLine:1,claim:'应被丢弃',suggestion:'',modelConfidence:1,
+    severity:'high',category:'correctness',file:'not-staged.c',side:'new',line:1,endLine:1,claim:'应被丢弃',suggestion:'',modelConfidence:1,
     assumptions:[],requiredSymbols:[],rootCauseSymbol:'bad',claimClass:'invalid-path',supportingLocations:[],scopeDisposition:'in_scope',scopeReason:'invalid test case',scopeInvariant:'',invariantCandidate:false,invariantText:''
   });
   payload={hypotheses};
