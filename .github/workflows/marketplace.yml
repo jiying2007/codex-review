@@ -111,7 +111,7 @@ jobs:
   receipt:
     needs: publish
     if: ${{ needs.publish.result == 'success' && needs.publish.outputs.published == 'true' }}
-    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@1df3a632c12d349f17f985cd928e40df7876b11d
+    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@190651770a444b0693d82228afc66879dd57b0c0
     with:
       product_id: codex-review-safe
       product_version: ${{ needs.publish.outputs.version }}
