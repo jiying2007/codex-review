@@ -194,7 +194,7 @@ jobs:
 
   family-release-guard:
     if: github.event_name == 'pull_request'
-    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@00403dd14877e978698c63d06f6dbdfe2ba9b8cc
+    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@1df3a632c12d349f17f985cd928e40df7876b11d
     with:
       product: codex-review-safe
       expected_core_sha: 00403dd14877e978698c63d06f6dbdfe2ba9b8cc

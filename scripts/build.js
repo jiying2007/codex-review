@@ -15,11 +15,11 @@ const runtimeModules = [
   'causal-anchor.js', 'code-intelligence.js'
 ];
 const coreModules = [
-  'index.js', 'safe-contract.js', 'judgment-lifecycle.js', 'codex-runtime.js', 'codex-runtime-resolver.js',
+  'safe-contract.js', 'judgment-lifecycle.js', 'codex-runtime.js', 'codex-runtime-resolver.js',
   'model-registry-resolver.js', 'model-routing.js', 'model-capabilities.js', 'model-lineage.js', 'model-economics.js',
   'codex-jsonl-stream.js', 'codex-cli.js', 'process-runner.js', 'git-repository.js', 'context-builder.js',
   'efficiency-planner.js', 'token-calibration-store.js', 'quality-platform.js', 'review-profile-pack.js',
-  'semantic-review.js', 'policy.js', 'review-rules.js'
+  'semantic-review.js', 'display-time.js', 'policy.js', 'review-rules.js'
 ];
 const optionalCoreModules = ['secure-local-file.js'];
 const coreRuntimeData = ['core-contract.json', 'quality/profile-packs.json'];
@@ -79,9 +79,10 @@ function main() {
   }
   for (const name of coreRuntimeData) copy(path.join(root, 'src', 'codex-safe-core', name), path.join(dist, 'src', 'codex-safe-core', name));
   copy(path.join(root, 'src', 'codex-safe-core', 'codex-safe.schema.json'), path.join(dist, 'codex-safe.schema.json'));
-  for (const name of ['judgment-lifecycle.js', 'codex-runtime-resolver.js', 'model-routing.js', 'review-profile-pack.js', 'codex-jsonl-stream.js']) {
+  for (const name of ['judgment-lifecycle.js', 'codex-runtime-resolver.js', 'model-routing.js', 'review-profile-pack.js', 'codex-jsonl-stream.js', 'display-time.js']) {
     if (!fs.existsSync(path.join(dist, 'src', 'codex-safe-core', name))) throw new Error(`Required Core runtime module missing from dist: ${name}`);
   }
+  if (fs.existsSync(path.join(dist, 'src', 'codex-safe-core', 'index.js'))) throw new Error('Partial Core index must not be shipped without its complete module closure.');
   if (fs.existsSync(path.join(root, 'src', 'codex-safe-core', 'secure-local-file.js')) && !fs.existsSync(path.join(dist, 'src', 'codex-safe-core', 'secure-local-file.js'))) {
     throw new Error('Required Core secure-local-file runtime module missing from dist.');
   }
