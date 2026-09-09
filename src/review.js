@@ -77,7 +77,7 @@ function buildPrompt(options, stagedPaths, chunkIndex = 0, chunkCount = 1) {
     '', 'Rules:',
     '- Report only issues introduced or exposed by the supplied change evidence.', '- Do not report pure style, naming, or formatting nitpicks.',
     '- Do not guess about unseen code; omit a finding when evidence is insufficient.', `- Findings below confidence ${options.confidenceThreshold} will be suppressed; prefer omission over weak speculation.`,
-    '- file must be one of the staged relative paths listed below.', '- file/side/line/endLine form the causal anchor: side=new must be an exact staged added/modified line; side=old must be an exact staged removed line. Never approximate or snap to a nearby line.',
+    '- file must be one of the staged relative paths listed below.', '- file/side/line/endLine form the causal anchor: side=new must be an exact added/modified changed line in the staged post-image; side=old must be an exact removed line in the staged pre-image. Never approximate or snap to a nearby line.',
     '- Removed-only regressions are valid findings. Use side=old when deletion of an authorization, bounds, lifetime, lock, rollback, state, or error check is the causal change. Old-side findings are report-only for local Problems but still participate in severity/blocking verdicts.', '- Do not duplicate findings with the same root cause.',
     '- Return an empty findings array when there is no substantive issue.', '- Set summary to an empty string. The controller generates the final summary deterministically from validated findings.', `- ${languageRule}`,
     '', `Review chunk: ${chunkIndex + 1}/${chunkCount}`, `Chunk files: ${stagedPaths.join(', ')}`,
@@ -104,7 +104,7 @@ function normalizeFinding(finding, stagedPathSet, changedLineRanges) {
   const category = String(finding.category || ''); const allowedCategories = new Set(['correctness', 'security', 'concurrency', 'resource', 'performance', 'robustness', 'maintainability', 'api', 'test', 'other']);
   if (!allowedCategories.has(category)) throw new Error(t('Invalid category: {0}', category));
   const file = normalizeGitPathForComparison(finding.file); if (!stagedPathSet.has(file)) throw new Error(t('Codex returned a path that is not staged: {0}', file));
-  const side=String(finding.side||''); if(!CAUSAL_SIDES.includes(side)) throw new Error(`Invalid finding side: ${side}`);
+  const side=String(finding.side||'new'); if(!CAUSAL_SIDES.includes(side)) throw new Error(`Invalid finding side: ${side}`);
   const line = Math.round(Number(finding.line)); if (!Number.isInteger(line) || line < 1) throw new Error(t('The model line cannot be mapped to a changed line; the finding is report-only.'));
   const sideRanges=side==='old'?changedLineRanges?.old:changedLineRanges;
   if (!lineInChangedRanges(line, sideRanges?.get(file) || [])) throw new Error(t('The model line cannot be mapped to a changed line; the finding is report-only.'));
