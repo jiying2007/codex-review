@@ -1,9 +1,21 @@
 'use strict';
 const assert = require('node:assert/strict');
+const Module = require('node:module');
+const originalLoad = Module._load;
+Module._load = function(request,parent,isMain) {
+  if (request === 'vscode') return {
+    extensions:{getExtension:()=>undefined},
+    workspace:{workspaceFolders:[],textDocuments:[]},
+    window:{},
+    l10n:{t:(message,...args)=>String(message).replace(/\{(\d+)\}/g,(_match,index)=>args[Number(index)]===undefined?`{${index}}`:String(args[Number(index)]))}
+  };
+  return originalLoad.call(this,request,parent,isMain);
+};
 const { validateCausalAnchor, normalizeSupportingLocations, anchorContextDigestForSide } = require('../src/causal-anchor');
 const { normalizeReviewScope, scopeDispositionAllowsPublish } = require('../src/review-scope');
 const { validateHypothesis, hypothesisSchema } = require('../src/semantic-review');
 const { evaluateConvergence } = require('../src/convergence');
+Module._load = originalLoad;
 const semanticSource = require('node:fs').readFileSync('src/semantic-review.js','utf8');
 
 const changed = new Map([['pt_common.c', [{ start:100, end:101 }]]]);
