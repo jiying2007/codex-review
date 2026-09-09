@@ -1,7 +1,7 @@
 'use strict';
 
-const { anchorContextDigest, evidenceForSymbols } = require('./semantic-evidence');
-const { SUPPORT_KINDS, normalizeSupportingLocations, validateCausalAnchor } = require('./causal-anchor');
+const { evidenceForSymbols } = require('./semantic-evidence');
+const { SUPPORT_KINDS, CAUSAL_SIDES, normalizeSupportingLocations, validateCausalAnchor, anchorContextDigestForSide } = require('./causal-anchor');
 const { scopePromptBlock, scopeDispositionAllowsPublish } = require('./review-scope');
 const {
   normalizeHypothesis,
@@ -23,14 +23,14 @@ function hypothesisSchema(options) {
     properties:{
       hypotheses:{type:'array',maxItems:options.maxFindings,items:{type:'object',additionalProperties:false,properties:{
         severity:{type:'string',enum:['critical','high','medium','low','info']},
-        category:{type:'string',enum:ALLOWED_CATEGORIES}, file:{type:'string',maxLength:1024}, line:{type:'integer',minimum:1}, endLine:{type:'integer',minimum:1},
+        category:{type:'string',enum:ALLOWED_CATEGORIES}, file:{type:'string',maxLength:1024}, side:{type:'string',enum:CAUSAL_SIDES}, line:{type:'integer',minimum:1}, endLine:{type:'integer',minimum:1},
         claim:{type:'string',minLength:1,maxLength:1600}, suggestion:{type:'string',maxLength:1200}, modelConfidence:{type:'number',minimum:0,maximum:1},
         assumptions:{type:'array',maxItems:12,items:{type:'string',minLength:1,maxLength:500}},
         requiredSymbols:{type:'array',maxItems:24,items:{type:'string',minLength:1,maxLength:256}}, rootCauseSymbol:{type:'string',maxLength:256}, claimClass:{type:'string',maxLength:160},
         supportingLocations:{type:'array',maxItems:12,items:{type:'object',additionalProperties:false,properties:{file:{type:'string',maxLength:1024},line:{type:'integer',minimum:1},endLine:{type:'integer',minimum:1},kind:{type:'string',enum:SUPPORT_KINDS},reason:{type:'string',maxLength:500}},required:['file','line','endLine','kind','reason']}},
         scopeDisposition:{type:'string',enum:SCOPE_DISPOSITIONS}, scopeReason:{type:'string',maxLength:800}, scopeInvariant:{type:'string',maxLength:500},
         invariantCandidate:{type:'boolean'}, invariantText:{type:'string',maxLength:500}
-      },required:['severity','category','file','line','endLine','claim','suggestion','modelConfidence','assumptions','requiredSymbols','rootCauseSymbol','claimClass','supportingLocations','scopeDisposition','scopeReason','scopeInvariant','invariantCandidate','invariantText']}}
+      },required:['severity','category','file','side','line','endLine','claim','suggestion','modelConfidence','assumptions','requiredSymbols','rootCauseSymbol','claimClass','supportingLocations','scopeDisposition','scopeReason','scopeInvariant','invariantCandidate','invariantText']}}
     },required:['hypotheses']
   };
 }
@@ -50,8 +50,9 @@ function buildHypothesisPrompt(options, stagedPaths, chunkIndex=0, chunkCount=1,
     '', scopePromptBlock(scope), '',
     'Produce hypotheses, not final findings.',
     '- Report only issues introduced or exposed by exact changed lines in the staged target.',
-    '- file/line/endLine are the causal anchor and MUST identify an exact staged added/modified line. Never use an unchanged symptom line as the causal anchor.',
-    '- If the visible symptom is on unchanged code, place it in supportingLocations and anchor the finding to the changed line that introduced or exposed the behavior.',
+    '- file/side/line/endLine are the causal anchor. Use side=new for exact staged added/modified lines and side=old for exact removed lines.',
+    '- Removed-only regressions are first-class review targets. If deleting an authorization, bounds, lifetime, lock, rollback, state, or error check creates the defect, anchor it to the exact removed line with side=old; never omit it merely because the causal line was deleted.',
+    '- Never use an unchanged symptom line as the causal anchor. If the visible symptom is on unchanged code, place it in supportingLocations and anchor the finding to the exact new-side or old-side changed line that introduced or exposed the behavior.',
     '- supportingLocations are evidence locations only; they are never review targets and may not be used to bypass the exact changed-line gate.',
     '- For any claim that depends on API/function/type/macro semantics outside the changed line, list every required symbol in requiredSymbols.',
     '- Make hidden premises explicit in assumptions. If you cannot state the needed premise, omit the hypothesis.',
@@ -71,16 +72,19 @@ function validateHypothesis(raw, stagedPathSet, changedLineRanges, diff) {
   const normalized=normalizeHypothesis(raw);
   if(!(normalized.severity in SEVERITY_ORDER)) throw new Error(`Invalid severity: ${normalized.severity}`);
   if(!ALLOWED_CATEGORIES.includes(normalized.category)) throw new Error(`Invalid category: ${normalized.category}`);
-  const anchor=validateCausalAnchor(normalized.file,normalized.line,stagedPathSet,changedLineRanges,normalized.endLine);
+  const side=String(raw?.side||'');
+  if(!CAUSAL_SIDES.includes(side)) throw new Error(`Invalid causal anchor side: ${side}`);
+  const anchor=validateCausalAnchor(normalized.file,normalized.line,stagedPathSet,changedLineRanges,normalized.endLine,{side,diff});
   if(!normalized.claim) throw new Error('Hypothesis claim is empty.');
   const scopeDisposition=SCOPE_DISPOSITIONS.includes(String(raw.scopeDisposition))?String(raw.scopeDisposition):'needs_scope_decision';
   const invariantCandidate=raw.invariantCandidate===true;
   const invariantText=String(raw.invariantText||'').trim().slice(0,500);
   if(invariantCandidate&&!invariantText) throw new Error('invariantCandidate requires invariantText.');
-  const contextDigest=anchorContextDigest(diff,anchor.file,anchor.line);
+  const contextDigest=anchorContextDigestForSide(diff,anchor.file,anchor.line,side);
   return {
     ...normalized,
     file:anchor.file,
+    side,
     line:anchor.line,
     anchorContextDigest:contextDigest,
     claimClass:String(raw.claimClass||normalized.category).trim().slice(0,160),
@@ -144,7 +148,7 @@ function materializeVerifiedFindings(hypotheses,verificationResults,evidence,res
     const stableFindingId=computeStableFindingId({...hypothesis,claimClass:hypothesis.claimClass});
     const checked=validateEvidenceBackedFinding({...hypothesis,stableFindingId,...verification},evidence.manifest,resolutions);
     const legacy={
-      severity:checked.severity,category:checked.category,file:checked.file,line:checked.line,endLine:checked.endLine,
+      severity:checked.severity,category:checked.category,file:checked.file,side:hypothesis.side,line:checked.line,endLine:checked.endLine,
       title:checked.claim.slice(0,160),description:checked.claim,suggestion:checked.suggestion,confidence:checked.modelConfidence,modelConfidence:checked.modelConfidence,
       stableFindingId:checked.stableFindingId,verificationStatus:checked.verificationStatus,evidenceGrade:checked.evidenceGrade,evidenceRefs:checked.evidenceRefs,evidenceDigest:checked.evidenceDigest,
       verificationReason:checked.verificationReason,rootCauseSymbol:checked.rootCauseSymbol,claimClass:hypothesis.claimClass,anchorContextDigest:checked.anchorContextDigest,
