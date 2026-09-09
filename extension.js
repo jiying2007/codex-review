@@ -57,6 +57,7 @@ const { computeReviewKey, canonicalJson, sha256, SEMANTIC_REVIEW_VERSION, digest
 const { REVIEW_PROMPT_CONTRACT_VERSION } = require('./src/codex-safe-core/safe-contract');
 
 const REVIEW_EVIDENCE_PROTOCOL_VERSION = 3;
+const REVIEW_SUBJECT_PROTOCOL_VERSION = 2;
 
 let outputChannel;
 let diagnosticCollection;
@@ -270,7 +271,8 @@ async function publishDiagnostics(repoRoot, review, options, changedLineRanges, 
     const ranges = changedLineRanges.get(normalizedFile) || [];
     const exactChangedLine = lineInChangedRanges(finding.line, ranges);
     const meta = { published: false, reason: '', mappedLine: finding.line };
-    if (isDeleted) meta.reason = 'deleted_file';
+    if (finding.side === 'old') meta.reason = 'old_side_removed';
+    else if (isDeleted) meta.reason = 'deleted_file';
     else if (isSubmodule) meta.reason = 'submodule_change';
     else if (isBinary) meta.reason = 'binary_file';
     else if (hasDirtyEditor) meta.reason = 'dirty_editor';
@@ -345,6 +347,7 @@ function reviewOptionsFingerprint(options) {
   const profile = options.profileConfig || {};
   return sha256(canonicalJson({
     semanticReviewVersion: SEMANTIC_REVIEW_VERSION,
+    causalAnchorContractVersion: 2,
     language: options.language,
     profile: options.profile,
     profileConfig: { evidenceFactor: profile.evidenceFactor, tokenFactor: profile.tokenFactor, impactDepth: profile.impactDepth, maxImpactFiles: profile.maxImpactFiles, analyzerMode: profile.analyzerMode, focusCategories: profile.focusCategories },
@@ -369,7 +372,7 @@ function computeReviewSubjectKey(snapshot, diffFingerprint, options, analyzerDig
     evidenceManifestDigest, analyzerDigest, promptContractVersion: REVIEW_PROMPT_CONTRACT_VERSION,
     modelIdentity: `${options.model || 'cli-default'}|${options.fastModel || ''}`, optionsFingerprint: reviewOptionsFingerprint(options)
   });
-  return sha256(canonicalJson({ reviewSubjectProtocolVersion: 1, coreReviewKey, scopeFingerprint }));
+  return sha256(canonicalJson({ reviewSubjectProtocolVersion: REVIEW_SUBJECT_PROTOCOL_VERSION, coreReviewKey, scopeFingerprint }));
 }
 
 async function reviewStaged(commandArgs = [], { forceFresh = false } = {}) {
@@ -581,8 +584,22 @@ async function reviewStaged(commandArgs = [], { forceFresh = false } = {}) {
     } else {
       const visibleFindings = result.review.findings.filter(f => severityPasses(f.severity, result.options.severityThreshold)).length;
       const hiddenFindings = result.review.findings.length - visibleFindings;
-      if (result.review.verdict === 'pass') {
-        vscode.window.showInformationMessage(t('Codex Review Safe: no substantive diff issues found; delivery readiness still needs additional fresh evidence.'));
+      if (result.review.readinessVerdict === 'ready') {
+        const message = uiText(
+          'Codex Review Safe: review converged for this exact staged subject; the required fresh blind reviews are complete and stable with no substantive diff defects found.',
+          'Codex Review Safe：当前 exact staged subject 已完成收敛；所需 fresh blind 审查覆盖完整且结论稳定，未发现实质性 diff 缺陷。'
+        );
+        vscode.window.showInformationMessage(message);
+      } else if (result.review.verdict === 'pass') {
+        const suppressedCount = result.review.suppressedFindings?.length || 0;
+        if (suppressedCount > 0) {
+          vscode.window.showInformationMessage(uiText(
+            `Codex Review Safe: no confirmed defects; ${suppressedCount} hypothesis/finding candidate(s) were suppressed by verification, scope, resolution, or confidence gates. Delivery readiness still needs additional fresh evidence.`,
+            `Codex Review Safe：当前没有已确认缺陷；另有 ${suppressedCount} 个 hypothesis/finding 候选因 verification、scope、resolution 或 confidence 门禁未发布。交付就绪仍需要额外 fresh 证据。`
+          ));
+        } else {
+          vscode.window.showInformationMessage(t('Codex Review Safe: no substantive diff issues found; delivery readiness still needs additional fresh evidence.'));
+        }
       } else {
         const rejectedCount = result.review.rejectedFindings?.length || 0;
         const allRejected = result.review.findings.length === 0 && rejectedCount > 0;
@@ -619,7 +636,7 @@ async function generateFixProposal(commandArgs = []) {
   if (!last?.review?.findings?.length) { vscode.window.showInformationMessage(t('No completed review with actionable findings is available.')); return; }
   const current = await getRepositorySnapshot(repoRoot);
   if (!snapshotsEqual(current, last.snapshot)) { vscode.window.showWarningMessage(t('The reviewed staged snapshot changed. Generate the fix again from a current review.')); return; }
-  const items = last.review.findings.map(finding => ({ label: `[${finding.severity.toUpperCase()}] ${finding.title}`, description: `${finding.file}:${finding.line}`, finding }));
+  const items = last.review.findings.map(finding => ({ label: `[${finding.severity.toUpperCase()}] ${finding.title}`, description: `${finding.file}:${finding.line} [${finding.side || 'new'}]`, finding }));
   const selected = await vscode.window.showQuickPick(items, { placeHolder: t('Select a finding to generate a fix proposal') }); if (!selected) return;
   const proposal = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: t('Codex is generating a bounded fix proposal…'), cancellable: true }, async (_progress, token) => runCodexPatchProposal(last.diff,last.stagedPaths,last.options,selected.finding,token));
   const document = await vscode.workspace.openTextDocument({ language: 'diff', content: proposal.patch });
@@ -641,7 +658,7 @@ async function resolveFinding(commandArgs = []) {
   const repoRoot = repositoryInfo.root, key = normalizeFsPath(repoRoot), last = lastReviewsByRepo.get(key);
   const candidates = (last?.rawReview?.findings || []).filter(finding => finding.stableFindingId && finding.evidenceDigest && !finding.deterministic);
   if (!candidates.length) { vscode.window.showInformationMessage(t('No completed review with a resolvable finding is available.')); return; }
-  const selected = await vscode.window.showQuickPick(candidates.map(finding => ({ label:`[${finding.severity.toUpperCase()}] ${finding.title}`, description:`${finding.file}:${finding.line}`, finding })), { placeHolder:t('Select a verified finding to resolve') });
+  const selected = await vscode.window.showQuickPick(candidates.map(finding => ({ label:`[${finding.severity.toUpperCase()}] ${finding.title}`, description:`${finding.file}:${finding.line} [${finding.side || 'new'}]`, finding })), { placeHolder:t('Select a verified finding to resolve') });
   if (!selected) return;
   const picked = await vscode.window.showQuickPick(RESOLUTION_VALUES.map(value => ({ label:value, value })), { placeHolder:t('Select a resolution') });
   if (!picked) return;
