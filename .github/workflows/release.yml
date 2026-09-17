@@ -27,7 +27,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+      - uses: actions/setup-node@db0fb3a98ed314b69026b6e8c9be26a7e2fe65a8 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
           node-version: '22.22.2'
           cache: npm
@@ -71,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+      - uses: actions/setup-node@db0fb3a98ed314b69026b6e8c9be26a7e2fe65a8 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with: { node-version: '22.22.2', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - if: runner.os == 'Linux'
@@ -91,7 +91,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+      - uses: actions/setup-node@db0fb3a98ed314b69026b6e8c9be26a7e2fe65a8 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with: { node-version: '22.22.2', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
@@ -107,7 +107,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+      - uses: actions/setup-node@db0fb3a98ed314b69026b6e8c9be26a7e2fe65a8 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with: { node-version: '22.22.2', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
@@ -122,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+      - uses: actions/setup-node@db0fb3a98ed314b69026b6e8c9be26a7e2fe65a8 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with: { node-version: '22.22.2', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: sudo apt-get update && (sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2)
@@ -141,7 +141,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+      - uses: actions/setup-node@db0fb3a98ed314b69026b6e8c9be26a7e2fe65a8 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with: { node-version: '22.22.2', cache: npm }
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run package
