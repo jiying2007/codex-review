@@ -55,7 +55,7 @@ jobs:
           ref: ${{ steps.source.outputs.source_sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+      - uses: actions/setup-node@680d1e489b82f1243de15bc7665c0007e3c9a860
         with: { node-version: '24.19.0' }
       - name: Resolve exact immutable product release
         id: release
