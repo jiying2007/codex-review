@@ -422,7 +422,7 @@
   },
   "devDependencies": {
     "@vscode/test-electron": "3.1.0",
-    "@vscode/vsce": "3.9.2"
+    "@vscode/vsce": "4.0.0"
   },
   "extensionDependencies": [
     "vscode.git"
