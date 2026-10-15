@@ -28,7 +28,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # post-v7.0.0 GHSA-3jxr-9vmj-r5cp fix
         with:
           node-version: '22.22.2'
           cache: npm
