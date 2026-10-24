@@ -7,7 +7,10 @@ function normalizeRepositoryPath(value) {
 }
 
 function decodeGitPath(raw) {
-  if (!raw.startsWith('"')) return raw.split('\t', 1)[0];
+  // Git appends a literal tab after ---/+++ names containing spaces, including
+  // quoted names. A tab inside a quoted filename is C-escaped as backslash+t.
+  raw = raw.split('\t', 1)[0];
+  if (!raw.startsWith('"')) return raw;
   if (!raw.endsWith('"')) throw new Error('Unterminated quoted Git diff path.');
   const bytes = [];
   const escapes = { a:7, b:8, t:9, n:10, v:11, f:12, r:13, '"':34, '\\':92 };
@@ -40,7 +43,9 @@ function parseGitDiff(diff = '') {
   const sections = [];
   let section = null, oldLine = 0, newLine = 0, inHunk = false;
   for (const raw of String(diff || '').split(/\r?\n/)) {
-    const header = raw.match(/^diff --git ("(?:\\.|[^"])*"|a\/.*?) ("(?:\\.|[^"])*"|b\/.*)$/);
+    // A backslash belongs only to the escape branch. Overlapping alternatives
+    // make unterminated quoted paths backtrack exponentially.
+    const header = raw.match(/^diff --git ("(?:\\.|[^"\\])*"|a\/.*?) ("(?:\\.|[^"\\])*"|b\/.*)$/);
     if (header) {
       section = { oldPath:headerPath(header[1], 'a/'), newPath:headerPath(header[2], 'b/'), lines:[raw], oldLines:new Map(), newLines:new Map() };
       sections.push(section); oldLine = 0; newLine = 0; inHunk = false;
