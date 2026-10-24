@@ -33,6 +33,7 @@ Execution depth and engineering emphasis are separate controls:
 
 - `safeCodexReview.mode`: `fast | balanced | deep`;
 - `safeCodexReview.profilePack`: `general | backend | frontend | security | cpp | embedded-linux | embedded-mcu | driver | kernel | realtime`;
+- the selected pack's engineering checks are supplied to both hypothesis generation and independent verification;
 - `safeCodexReview.fastModel` is optional and may be used only for bounded low-risk hypothesis generation; semantic verification remains on the primary model.
 - `safeCodexReview.maxTokenBudget` and `safeCodexReview.totalContextBudgetBytes` bound whole-review model consumption. Budget exhaustion is surfaced as a coverage gap, never silently treated as complete coverage.
 
@@ -62,16 +63,20 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - deterministic Evidence Cache is separated from model Judgment Replay;
 - fresh blind re-review performs fresh blind inference and never consumes previous findings/suppressed hypotheses as reviewer input;
 - convergence requires fresh provenance rather than cached-output equality;
-- model findings must resolve to exact post-change changed lines;
+- model findings must resolve to exact added or removed causal lines; removed-line findings remain report-only in Problems;
+- independent verification receives the staged before/after change and must cite the supplied evidence ID; unresolved required evidence remains a coverage gap;
 - deterministic repository rules run outside the model;
 - low-confidence findings are filtered before Problems/verdicts;
 - incomplete coverage or invalid findings fail closed;
+- a failed mechanical rule blocks readiness and convergence even when the change has no publishable line;
 - Review Receipt v5 records immutable evidence/provenance for fresh review executions;
 - Restricted Mode is rejected;
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
 Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.18.1** submodule at `190651770a444b0693d82228afc66879dd57b0c0`.
+
+The executable semantic fixtures validate the controller using real Git and controlled model outputs. They do not measure live model recall. See [Validation](docs/VALIDATION.md).
 
 ## Reading readiness correctly
 

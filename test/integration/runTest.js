@@ -58,7 +58,11 @@ if(schemaPath.includes('review-hypothesis-schema')||schemaPath.includes('review-
 }else{
   payload={summary:'',findings:[]};
 }
-setTimeout(()=>console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify(payload)}})),delay);
+process.stdin.resume();
+process.stdin.on('end',()=>setTimeout(()=>{
+  console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify(payload)}}));
+  console.log(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:1}}));
+},delay));
 `);
 
   if (process.platform === 'win32') {

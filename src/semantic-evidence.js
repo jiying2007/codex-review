@@ -12,6 +12,7 @@ const {
 } = require('./codex-safe-core/semantic-review');
 const { extractImpactSignals, buildImpactEvidenceGraph } = require('./codex-safe-core/quality-platform');
 const { rehydrateDiscoveryCandidates } = require('./code-intelligence');
+const { parseGitDiff } = require('./git-diff');
 
 const MAX_INDEX_FILE_BYTES = 128 * 1024;
 const MAX_SYMBOLS = 64;
@@ -28,18 +29,7 @@ function safeIndexPath(value) {
   return path;
 }
 function diffSections(diff = '') {
-  const sections = new Map();
-  let current = '';
-  for (const line of String(diff || '').split(/\r?\n/)) {
-    const header = line.match(/^diff --git a\/(.+?) b\/(.+)$/);
-    if (header) {
-      current = normalizeGitPathForComparison(header[2] || header[1]);
-      sections.set(current, [line]);
-      continue;
-    }
-    if (current) sections.get(current).push(line);
-  }
-  return new Map([...sections.entries()].map(([path, lines]) => [path, lines.join('\n')]));
+  return new Map(parseGitDiff(diff).map(section=>[section.path,section.text]));
 }
 function callSymbolsByPath(diff = '') {
   const result = new Map();
@@ -47,21 +37,7 @@ function callSymbolsByPath(diff = '') {
   return result;
 }
 function addedLineTextByPath(diff = '') {
-  const result = new Map();
-  for (const [path, section] of diffSections(diff)) {
-    let newLine = 0;
-    const lines = new Map();
-    for (const raw of section.split(/\r?\n/)) {
-      const hunk = raw.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-      if (hunk) { newLine = Number(hunk[1]); continue; }
-      if (!newLine) continue;
-      if (raw.startsWith('+') && !raw.startsWith('+++')) { lines.set(newLine, raw.slice(1)); newLine += 1; }
-      else if (raw.startsWith('-') && !raw.startsWith('---')) {}
-      else if (!raw.startsWith('\\')) newLine += 1;
-    }
-    result.set(path, lines);
-  }
-  return result;
+  return new Map(parseGitDiff(diff).map(section=>[section.path,new Map(section.newLines)]));
 }
 function anchorContextDigest(diff, file, line) {
   const map = addedLineTextByPath(diff).get(normalizeGitPathForComparison(file));
@@ -240,12 +216,15 @@ function composeSemanticEvidence(structuralEvidence,analyzerFindings,snapshot,di
   const manifest=buildEvidenceManifest(blocks.map(block=>block.entry),{headOid:snapshot?.headOid,indexFingerprint:snapshot?.indexFingerprint,diffFingerprint});
   return {impact:structuralEvidence?.impact||{},callSymbolsByPath:structuralEvidence?.callSymbolsByPath||new Map(),blocks,manifest,analyzerDigest:digestAnalyzerEvidence(analyzerFindings)};
 }
-function renderEvidenceForPaths(evidence,paths,{maxBytes=96*1024,maxEntries=32,includeStaged=false}={}) {
-  const sourceEntries=(evidence?.manifest?.entries||[]).filter(entry=>includeStaged||entry.kind!=='staged');
+function renderEvidenceForPaths(evidence,paths,{maxBytes=96*1024,maxEntries=32,includeStaged=false,requiredIds=[]}={}) {
+  const required=new Set(requiredIds);
+  const sourceEntries=(evidence?.manifest?.entries||[]).filter(entry=>includeStaged||entry.kind!=='staged')
+    .sort((a,b)=>Number(required.has(b.id))-Number(required.has(a.id)));
   const selected=selectEvidenceForPaths(sourceEntries,paths,{maxBytes,maxEntries});
   const contentById=new Map((evidence?.blocks||[]).map(block=>[block.entry.id,block.content]));
   const text=selected.entries.map(entry=>`--- EVIDENCE ${entry.id} kind=${entry.kind} source=${entry.source} path=${entry.path}${entry.symbol?` symbol=${entry.symbol}`:''} ---\n${contentById.get(entry.id)||''}\n--- END EVIDENCE ${entry.id} ---`).join('\n');
-  return {...selected,text};
+  const suppliedIds=new Set(selected.entries.map(entry=>entry.id));
+  return {...selected,text,missingRequiredIds:[...required].filter(id=>!suppliedIds.has(id))};
 }
 function evidenceForSymbols(evidence,symbols=[]) {
   const wanted=new Set(symbols||[]);return (evidence?.manifest?.entries||[]).filter(entry=>entry.symbol&&wanted.has(entry.symbol));

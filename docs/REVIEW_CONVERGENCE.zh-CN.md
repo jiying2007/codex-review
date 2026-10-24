@@ -2,11 +2,13 @@
 
 Codex Review Safe 将**确定性证据**、**fresh 模型判断**、**短期重放**和**长期审计历史**彻底分离。
 
-## 只有一个 Review 入口
+## Review 与 Fresh Blind Review
 
-用户只需要使用一个 Review。`fresh blind review` 已退役。对完全相同的 `ReviewSubjectKey`，Review 自动执行：
+对完全相同的 `ReviewSubjectKey`，常规 Review 自动执行：
 
 `fresh → replay → replay → fresh → replay → replay → fresh ...`
+
+**Fresh Blind Review** 会显式绕过 replay window，为当前 subject 发起一次 fresh 模型审查；证据、coverage 与 convergence 门禁保持生效。
 
 HEAD/index/diff、Policy、Scope/Profile、模型/选项、Prompt Contract、Analyzer/SARIF 输入或 Evidence Manifest 任一变化，都会形成新的 Subject，并立即要求 fresh inference。
 
@@ -34,5 +36,7 @@ Replay 不生成新的 `ReviewRunId`、Lineage run、Review Receipt，也不能�
 ## Lineage 与 Convergence
 
 `ReviewSubjectKey` 标识不可变审查对象；`ReviewRunId` 标识一次真实 fresh 模型执行。Convergence 仍要求至少两次 coverage complete 且 finding set 一致的 fresh blind runs，Replay 永远不能满足该条件。
+
+Verifier 无法确认结论、缺失必需 staged/dependency 证据时，coverage 必须 incomplete。Mechanical gate 失败时，即使没有可发布 Finding，readiness 仍被阻止；重复这样的结果不会变成 ready。
 
 Report 必须明确区分 `fresh`、`result-replay` 与 `structural-cache-hit`。长期 Judgment 历史只由 Review Receipt + Review Lineage 保存，它们用于审计，不作为下一轮模型输入。

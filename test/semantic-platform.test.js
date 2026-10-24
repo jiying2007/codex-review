@@ -80,7 +80,7 @@ assert.match(codexSource,/hypothesis-retry:/);
 assert.match(codexSource,/repaired\.rejected\.length<validated\.rejected\.length/);
 assert.match(extensionSource,/computeReviewSubjectKey/);
 assert.match(extensionSource,/structuralEvidenceKey/);
-assert.match(extensionSource,/REVIEW_EVIDENCE_PROTOCOL_VERSION = 3/);
+assert.match(extensionSource,/REVIEW_EVIDENCE_PROTOCOL_VERSION = 4/);
 assert.match(extensionSource,/createReviewCache/);
 assert.match(extensionSource,/createReplayWindow/);
 assert.match(extensionSource,/replayWindow\.tryReplay/);

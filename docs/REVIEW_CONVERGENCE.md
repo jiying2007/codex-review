@@ -2,11 +2,13 @@
 
 Codex Review Safe separates **deterministic evidence**, **fresh model judgment**, **short-lived replay**, and **durable audit history**.
 
-## One Review command
+## Review and Fresh Blind Review
 
-There is one user-facing Review action. `fresh blind review` is retired. For an unchanged `ReviewSubjectKey`, Review automatically follows:
+For an unchanged `ReviewSubjectKey`, the normal Review action automatically follows:
 
 `fresh → replay → replay → fresh → replay → replay → fresh ...`
+
+**Fresh Blind Review** explicitly bypasses this replay window and starts a fresh model run for the current subject. It preserves all evidence, coverage, and convergence gates.
 
 A changed HEAD/index/diff, policy, scope/profile, model/options, prompt contract, analyzer/SARIF input, or Evidence Manifest produces a different subject and therefore requires fresh inference.
 
@@ -34,5 +36,7 @@ Every fresh run receives the current diff/evidence but never previous findings, 
 ## Review lineage and convergence
 
 `ReviewSubjectKey` identifies the immutable review subject. `ReviewRunId` identifies one actual fresh model execution. Convergence still requires at least two fresh blind runs with complete coverage and matching finding sets. Replay cannot satisfy this requirement.
+
+An unresolved verifier result or missing mandatory staged/dependency evidence makes coverage incomplete. A failed mechanical gate blocks readiness even if there are no publishable findings. Repeating either result cannot make it ready.
 
 The report must distinguish `fresh`, `result-replay`, and `structural-cache-hit`. Durable judgment history lives only in Review Receipt + Review Lineage; it is audit evidence, not future model input.

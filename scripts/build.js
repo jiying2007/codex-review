@@ -12,7 +12,7 @@ const runtimeModules = [
   'review.js', 'report.js', 'receipts.js', 'codex.js', 'quality.js',
   'semantic-evidence.js', 'semantic-review.js', 'review-cache.js', 'replay-window.js',
   'finding-ledger.js', 'review-scope.js', 'review-lineage.js', 'convergence.js',
-  'causal-anchor.js', 'code-intelligence.js'
+  'causal-anchor.js', 'code-intelligence.js', 'git-diff.js'
 ];
 const coreModules = [
   'safe-contract.js', 'judgment-lifecycle.js', 'codex-runtime.js', 'codex-runtime-resolver.js',
