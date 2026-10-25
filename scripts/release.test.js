@@ -18,11 +18,124 @@ assert.deepStrictEqual(parseGitHubRemote('https://github.com/owner/repo.git'), {
 assert.throws(() => parseGitHubRemote('https://example.com/owner/repo.git'), /GitHub URL/);
 assert.strictEqual(platformCommand('npm', 'win32'), 'npm.cmd');
 assert.strictEqual(platformCommand('npm', 'linux'), 'npm');
-assert.strictEqual(sameFiles(['package.json', 'CHANGELOG.md', 'package-lock.json']), true);
+assert.strictEqual(sameFiles(['package.json', 'CHANGELOG.md', 'package-lock.json', 'product-contract.json']), true);
+assert.strictEqual(sameFiles(['package.json', 'CHANGELOG.md', 'package-lock.json']), false);
+assert.strictEqual(sameFiles(['package.json', 'CHANGELOG.md', 'package-lock.json', 'product-contract.json', 'extension.js']), false);
 assert.strictEqual(sameFiles(['package.json', 'CHANGELOG.md']), false);
 const source = '# Changelog\n\n## Unreleased\n\n- New behavior.\n\n## 1.0.0\n\n- Initial.\n';
 assert.strictEqual(updateChangelog(source, '1.0.1'), '# Changelog\n\n## Unreleased\n\n## 1.0.1\n\n- New behavior.\n\n## 1.0.0\n\n- Initial.\n');
 assert.throws(() => updateChangelog('# Changelog\n\n## Unreleased\n\n## 1.0.0\n', '1.0.1'), /Unreleased 区域为空/);
+
+function verifyReleaseMetadataWorkspace() {
+  const os = require('node:os');
+  const { spawnSync } = require('node:child_process');
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-release-metadata-'));
+  const sourcePackage = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  const sourceContract = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'product-contract.json'), 'utf8'));
+  const currentVersion = sourcePackage.version;
+  const parts = currentVersion.split('.');
+  const nextVersion = [parts[0], parts[1], Number(parts[2]) + 1].join('.');
+  const releaseFiles = ['CHANGELOG.md', 'package-lock.json', 'package.json', 'product-contract.json'];
+  const execute = (directory, command, args) => {
+    const result = spawnSync(command, args, { cwd: directory, encoding: 'utf8', timeout: 15000 });
+    assert.ifError(result.error);
+    return { status: result.status, text: (result.stdout || '') + (result.stderr || '') };
+  };
+  const git = (directory, ...args) => {
+    const result = execute(directory, 'git', args);
+    assert.strictEqual(result.status, 0, result.text);
+    return result.text.trim();
+  };
+  const release = (directory, ...args) => execute(directory, process.execPath, ['scripts/release.js', ...args]);
+  const writeJson = (directory, name, value) => fs.writeFileSync(path.join(directory, name), JSON.stringify(value, null, 2) + '\n');
+  const readJson = (directory, name) => JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'));
+  const expectFailure = (result, message) => {
+    assert.strictEqual(result.status, 1, result.text);
+    assert.match(result.text, message);
+  };
+  const fixture = (name, mutate = () => {}) => {
+    const directory = path.join(temporary, name);
+    fs.mkdirSync(path.join(directory, 'scripts'), { recursive: true });
+    fs.copyFileSync(path.join(__dirname, 'release.js'), path.join(directory, 'scripts/release.js'));
+    const pkg = { name: sourcePackage.name, version: currentVersion };
+    const lock = { name: pkg.name, version: currentVersion, lockfileVersion: 3, packages: { '': { name: pkg.name, version: currentVersion } } };
+    const contract = { ...sourceContract };
+    mutate({ pkg, lock, contract });
+    writeJson(directory, 'package.json', pkg);
+    writeJson(directory, 'package-lock.json', lock);
+    writeJson(directory, 'product-contract.json', contract);
+    fs.writeFileSync(path.join(directory, 'CHANGELOG.md'), '# Changelog\n\n## Unreleased\n\n- Prepared metadata.\n\n## ' + currentVersion + '\n\n- Existing release history.\n');
+    git(directory, 'init', '--quiet', '--initial-branch=main');
+    git(directory, 'config', 'user.name', 'Local release fixture');
+    git(directory, 'config', 'user.email', 'release-fixture@example.invalid');
+    git(directory, 'config', 'core.autocrlf', 'false');
+    git(directory, 'add', '.');
+    git(directory, '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'fixture baseline');
+    const origin = path.join(temporary, name + '-origin.git');
+    git(temporary, 'clone', '--quiet', '--bare', directory, origin);
+    git(directory, 'remote', 'add', 'origin', origin);
+    return directory;
+  };
+  try {
+    const directory = fixture('consistent');
+    const beforePackage = readJson(directory, 'package.json');
+    const beforeLock = readJson(directory, 'package-lock.json');
+    const beforeContract = readJson(directory, 'product-contract.json');
+    let result = release(directory, 'prepare', nextVersion, '--dry-run');
+    assert.strictEqual(result.status, 0, result.text);
+    assert.strictEqual(git(directory, 'status', '--porcelain'), '', 'prepare --dry-run must preserve the clean workspace');
+
+    result = release(directory, 'prepare', nextVersion);
+    assert.strictEqual(result.status, 0, result.text);
+    assert.deepStrictEqual(git(directory, 'diff', '--name-only').split(/\r?\n/).sort(), releaseFiles);
+    const preparedPackage = readJson(directory, 'package.json');
+    const preparedLock = readJson(directory, 'package-lock.json');
+    const preparedContract = readJson(directory, 'product-contract.json');
+    assert.strictEqual(preparedPackage.version, nextVersion);
+    assert.strictEqual(preparedLock.version, nextVersion);
+    assert.strictEqual(preparedLock.packages[''].version, nextVersion);
+    assert.strictEqual(preparedContract.productVersion, nextVersion);
+    assert.deepStrictEqual({ ...preparedPackage, version: currentVersion }, beforePackage);
+    assert.deepStrictEqual({ ...preparedLock, version: currentVersion, packages: { ...preparedLock.packages, '': { ...preparedLock.packages[''], version: currentVersion } } }, beforeLock);
+    assert.deepStrictEqual({ ...preparedContract, productVersion: currentVersion }, beforeContract, 'prepare must preserve every non-version product contract field');
+    assert.ok(fs.readFileSync(path.join(directory, 'CHANGELOG.md'), 'utf8').endsWith('## ' + currentVersion + '\n\n- Existing release history.\n'));
+    result = release(directory, 'check', '--dry-run');
+    assert.strictEqual(result.status, 0, result.text);
+
+    fs.writeFileSync(path.join(directory, 'UNRELATED.txt'), 'outside release metadata\n');
+    expectFailure(release(directory, 'check', '--dry-run'), /UNRELATED\.txt/);
+    fs.unlinkSync(path.join(directory, 'UNRELATED.txt'));
+
+    writeJson(directory, 'product-contract.json', { ...preparedContract, productVersion: '0.0.0' });
+    expectFailure(release(directory, 'check', '--dry-run'), /product-contract\.json 与 package\.json 版本不一致/);
+    writeJson(directory, 'product-contract.json', { ...preparedContract, safeCoreCommit: 'f'.repeat(40) });
+    expectFailure(release(directory, 'check', '--dry-run'), /其他契约字段不得变更/);
+    writeJson(directory, 'product-contract.json', { ...preparedContract, productId: 'another-product' });
+    expectFailure(release(directory, 'check', '--dry-run'), /产品身份不一致/);
+    writeJson(directory, 'product-contract.json', preparedContract);
+
+    writeJson(directory, 'package-lock.json', { ...preparedLock, version: '0.0.0' });
+    expectFailure(release(directory, 'check', '--dry-run'), /package-lock\.json 版本不一致/);
+    writeJson(directory, 'package-lock.json', preparedLock);
+    result = release(directory, 'check', '--dry-run');
+    assert.strictEqual(result.status, 0, result.text);
+
+    for (const [name, mutate, message] of [
+      ['contract-drift', ({ contract }) => { contract.productVersion = '0.0.0'; }, /product-contract\.json 与 package\.json 版本不一致/],
+      ['identity-drift', ({ contract }) => { contract.productId = 'another-product'; }, /产品身份不一致/],
+      ['lock-root-drift', ({ lock }) => { lock.version = '0.0.0'; }, /package-lock\.json 版本不一致/],
+      ['lock-package-drift', ({ lock }) => { lock.packages[''].version = '0.0.0'; }, /package-lock\.json 版本不一致/]
+    ]) {
+      const invalid = fixture(name, mutate);
+      expectFailure(release(invalid, 'prepare', nextVersion), message);
+      assert.strictEqual(git(invalid, 'status', '--porcelain'), '', 'invalid existing metadata must not be silently repaired or partially written');
+    }
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+  console.log('Real Git release workspace: synchronized four-file preparation, unchanged contract identity, dry-run, unrelated-file rejection and metadata-drift rejection passed.');
+}
+verifyReleaseMetadataWorkspace();
 
 const root=path.resolve(__dirname,'..');
 const productContract=require('../product-contract.json');
