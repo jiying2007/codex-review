@@ -1,7 +1,5 @@
 # Changelog
 
-## Unreleased
-
 ## 4.8.8
 
 - Supply staged before/after evidence and exact evidence IDs to independent verification; require decisive results to cite evidence actually supplied to that request. Missing, insufficient, or budget-omitted mandatory evidence remains a coverage gap and cannot converge into delivery readiness.
