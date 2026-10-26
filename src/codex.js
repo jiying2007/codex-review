@@ -120,6 +120,7 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
       }
     }
 
+    if(validated.omittedHypothesisCount>0){coverageGaps.push(`unverified_hypotheses_chunk_limit:chunk-${chunk.index+1}:${validated.omittedHypothesisCount}`);evidence.complete=false;}
     hypotheses.push(...validated.hypotheses);rejectedHypotheses.push(...validated.rejected);modelHypothesisCount+=validated.modelHypothesisCount;processedChunks++;
   }
 
