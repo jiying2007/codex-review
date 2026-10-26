@@ -199,6 +199,8 @@ jobs:
     with:
       product: codex-review-safe
       expected_core_sha: 190651770a444b0693d82228afc66879dd57b0c0
+    secrets:
+      CODEX_SAFE_FAMILY_READ_TOKEN: ${{ secrets.CODEX_SAFE_FAMILY_READ_TOKEN }}
 
   ci-gate:
     name: CI Gate
