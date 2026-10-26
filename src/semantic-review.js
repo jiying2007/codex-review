@@ -101,7 +101,7 @@ function validateHypothesisResult(value, options, stagedPaths, changedLineRanges
   if(!value||typeof value!=='object'||!Array.isArray(value.hypotheses)) throw new Error('Codex hypothesis output is invalid.');
   const stagedPathSet=new Set(stagedPaths.map(value=>String(value||'').replace(/\\/g,'/'))), hypotheses=[],rejected=[];
   value.hypotheses.slice(0,options.maxFindings).forEach((raw,index)=>{try{hypotheses.push(validateHypothesis(raw,stagedPathSet,changedLineRanges,diff));}catch(error){rejected.push({index,reason:String(error?.message||error).slice(0,300)});}});
-  return {hypotheses,rejected,modelHypothesisCount:value.hypotheses.length};
+  return {hypotheses,rejected,modelHypothesisCount:value.hypotheses.length,omittedHypothesisCount:Math.max(0,value.hypotheses.length-options.maxFindings)};
 }
 function stagedEvidenceRef(manifest,file) { return (manifest?.entries||[]).find(entry=>entry.kind==='staged'&&entry.path===String(file||'').replace(/\\/g,'/')); }
 function requiresIndependentVerification(hypothesis={}) {
