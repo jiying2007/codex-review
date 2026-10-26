@@ -152,3 +152,30 @@ test('maxFindings truncation cannot certify review coverage or delivery', async 
     assert.equal(harness.reviewReceiptQualifiesForDelivery(receipt), false);
   });
 });
+
+test('two valid one-candidate chunks cannot silently truncate one at aggregate maxFindings',async()=>{
+  const before={ 'a.c':'allowed = false;\n', 'b.c':'allowed = false;\n' };
+  const after={ 'a.c':'allowed = true; /* '+ 'x'.repeat(2500)+' */\n', 'b.c':'allowed = true; /* '+ 'y'.repeat(2500)+' */\n' };
+  await harness.withGitFixture(before,after,async({repo,snapshot,diff,paths})=>{
+    const options={...harness.options(),maxFindings:1,contextBudgetBytes:4096};
+    const evidence=await harness.collectStructuralEvidence(repo,diff,paths,snapshot,options.profileConfig);
+    harness.respond(async request=>{
+      if(request.phase.startsWith('hypothesis:')){
+        const index=Number(request.phase.split(':')[1].split('/')[0])-1;
+        return{hypotheses:[candidate(paths[index])]};
+      }
+      if(request.phase.startsWith('hypothesis-retry:'))throw Error('No retry expected from valid candidates.');
+      return{results:harness.verificationSubjects(request.input).map(subject=>({
+        hypothesisIndex:subject.hypothesisIndex,
+        verificationStatus:'contradicted',
+        evidenceRefs:[subject.stagedEvidenceRef],
+        verificationReason:'Synthetic negative verification for bounded aggregate.'
+      }))};
+    });
+    const review=await harness.runCodexReview(diff,paths,options,undefined,{semanticEvidence:evidence});
+    assert.ok(harness.calls.filter(call=>call.phase.startsWith('hypothesis:')).length>=2,'must exercise multiple real chunks');
+    assert.ok(review.coverageGaps.some(x=>x==='unverified_hypotheses_limit:1'),JSON.stringify(review.coverageGaps));
+    assert.equal(review.coverageVerdict,'incomplete');
+    assert.equal(review.readinessVerdict,'blocked');
+  });
+});
