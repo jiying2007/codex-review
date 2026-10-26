@@ -130,3 +130,25 @@ test('mechanical failures remain blocked even when there is no publishable line 
   assert.equal(review.qualityVerdict, 'no_findings');
   assert.equal(harness.convergenceCoverageGap(convergence), 'convergence_mechanical_gate_failed');
 });
+
+test('maxFindings truncation cannot certify review coverage or delivery', async () => {
+  const prior = { 'a.c':'allowed = false;\n', 'b.c':'allowed = false;\n' };
+  const changed = { 'a.c':'allowed = true;\n', 'b.c':'allowed = true;\n' };
+  await harness.withGitFixture(prior, changed, async ({ repo, snapshot, diff, paths }) => {
+    const options = { ...harness.options(), maxFindings:1 };
+    const evidence = await harness.collectStructuralEvidence(repo, diff, paths, snapshot, options.profileConfig);
+    harness.respond(async request => {
+      if (request.phase.startsWith('hypothesis')) return { hypotheses:paths.map(file => ({ ...candidate(file), claim:`Unauthorized access in ${file}.` })) };
+      return { results:harness.verificationSubjects(request.input).map(subject => ({
+        hypothesisIndex:subject.hypothesisIndex, verificationStatus:'contradicted',
+        evidenceRefs:[subject.stagedEvidenceRef], verificationReason:'Controlled negative verdict.'
+      })) };
+    });
+    const review = await harness.runCodexReview(diff, paths, options, undefined, { semanticEvidence:evidence });
+    assert.equal(review.coverageVerdict, 'incomplete');
+    assert.equal(review.readinessVerdict, 'blocked');
+    assert.ok(review.coverageGaps.some(gap => gap.startsWith('unverified_hypotheses_limit:')), JSON.stringify(review.coverageGaps));
+    const receipt = harness.createReviewReceipt(review, { ...snapshot, stagedFileCount:2, diffFingerprint:digest(diff), policyFingerprint:digest('maxFindings'), reviewSubjectKey:digest(diff), evidenceManifestDigest:evidence.manifest.manifestDigest });
+    assert.equal(harness.reviewReceiptQualifiesForDelivery(receipt), false);
+  });
+});
