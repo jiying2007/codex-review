@@ -123,7 +123,13 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
     hypotheses.push(...validated.hypotheses);rejectedHypotheses.push(...validated.rejected);modelHypothesisCount+=validated.modelHypothesisCount;processedChunks++;
   }
 
-  const uniqueHypotheses=dedupeHypotheses(hypotheses).slice(0,options.maxFindings);
+  const allUniqueHypotheses=dedupeHypotheses(hypotheses);
+  const uniqueHypotheses=allUniqueHypotheses.slice(0,options.maxFindings);
+  if(allUniqueHypotheses.length>uniqueHypotheses.length){
+    // maxFindings is not a license to silently mark unverified claims as covered.
+    coverageGaps.push(`unverified_hypotheses_limit:${allUniqueHypotheses.length-uniqueHypotheses.length}`);
+    evidence.complete=false;
+  }
   if(rejectedHypotheses.length){coverageGaps.push(`invalid_model_hypotheses:${rejectedHypotheses.length}`);evidence.complete=false;}
   const prepared=prepareVerification(uniqueHypotheses,semanticEvidence);
   let verificationResults=[...prepared.automatic];
