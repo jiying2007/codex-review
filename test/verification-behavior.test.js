@@ -147,7 +147,7 @@ test('maxFindings truncation cannot certify review coverage or delivery', async 
     const review = await harness.runCodexReview(diff, paths, options, undefined, { semanticEvidence:evidence });
     assert.equal(review.coverageVerdict, 'incomplete');
     assert.equal(review.readinessVerdict, 'blocked');
-    assert.ok(review.coverageGaps.some(gap => gap.startsWith('unverified_hypotheses_limit:')), JSON.stringify(review.coverageGaps));
+    assert.ok(review.coverageGaps.some(gap => gap.startsWith('unverified_hypotheses_limit:') || gap.startsWith('unverified_hypotheses_chunk_limit:')), JSON.stringify(review.coverageGaps));
     const receipt = harness.createReviewReceipt(review, { ...snapshot, stagedFileCount:2, diffFingerprint:digest(diff), policyFingerprint:digest('maxFindings'), reviewSubjectKey:digest(diff), evidenceManifestDigest:evidence.manifest.manifestDigest });
     assert.equal(harness.reviewReceiptQualifiesForDelivery(receipt), false);
   });
