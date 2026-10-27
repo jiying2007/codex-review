@@ -62,6 +62,8 @@ function operationTimeout(options){return Math.max(10000,Number(options?.codexRu
 function operationTimeoutError(phase){const error=new Error(`Codex review operation timed out during ${phase}.`);error.code='ECODEX_OPERATION_TIMEOUT';error.phase=phase;return error;}
 function deterministicSummary(review, language='en') {
   const counts={critical:0,high:0,medium:0,low:0,info:0}; for (const f of review.findings||[]) if (counts[f.severity]!==undefined) counts[f.severity]++;
+  const incomplete=review.coverageVerdict!=='complete'||(review.coverageGaps||[]).length>0;
+  if (!(review.findings||[]).length && incomplete) return language==='zh-CN'?'审查覆盖不完整：存在未验证候选或证据缺口。没有已验证问题不代表代码已通过审查。':'Review coverage incomplete: unresolved hypotheses or evidence gaps remain. No verified findings does not mean the code passed review.';
   if (!(review.findings||[]).length) return language==='zh-CN'?'未发现通过证据验证且达到阈值的实质性问题。':'No substantive evidence-verified findings met the configured threshold.';
   return language==='zh-CN'
     ? `已验证 ${review.findings.length} 个问题：Critical ${counts.critical}，High ${counts.high}，Medium ${counts.medium}，Low ${counts.low}，Info ${counts.info}。`
