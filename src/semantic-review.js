@@ -18,11 +18,18 @@ const SCOPE_DISPOSITIONS = Object.freeze(['in_scope','non_goal_risk','needs_scop
 const INDEPENDENT_VERIFICATION_CATEGORIES = new Set(['security','concurrency','resource','performance','robustness','api']);
 const INDEPENDENT_VERIFICATION_TEXT = /\b(api[- ]?contract|ownership|lifetime|callback|free|alloc(?:ation)?|race|deadlock|mutex|lock|atomic|thread|rollback|transaction|state[- ]?transition|authorization|authentication|permission|signature|timeout|retry|compat(?:ibility)?|abi)\b/i;
 
+function hypothesisCandidateLimit(options={}) {
+  const configured=Number(options.maxFindings);
+  const displayed=Number.isSafeInteger(configured)&&configured>0?configured:20;
+  // Reserve headroom beyond the display/verification limit so the model's
+  // output schema cannot hide additional candidates at maxFindings=1.
+  return Math.max(2,Math.min(128,displayed*2));
+}
 function hypothesisSchema(options) {
   return {
     type:'object', additionalProperties:false,
     properties:{
-      hypotheses:{type:'array',maxItems:options.maxFindings,items:{type:'object',additionalProperties:false,properties:{
+      hypotheses:{type:'array',maxItems:hypothesisCandidateLimit(options),items:{type:'object',additionalProperties:false,properties:{
         severity:{type:'string',enum:['critical','high','medium','low','info']},
         category:{type:'string',enum:ALLOWED_CATEGORIES}, file:{type:'string',maxLength:1024}, side:{type:'string',enum:CAUSAL_SIDES}, line:{type:'integer',minimum:1}, endLine:{type:'integer',minimum:1},
         claim:{type:'string',minLength:1,maxLength:1600}, suggestion:{type:'string',maxLength:1200}, modelConfidence:{type:'number',minimum:0,maximum:1},
@@ -100,8 +107,9 @@ function validateHypothesis(raw, stagedPathSet, changedLineRanges, diff) {
 function validateHypothesisResult(value, options, stagedPaths, changedLineRanges, diff) {
   if(!value||typeof value!=='object'||!Array.isArray(value.hypotheses)) throw new Error('Codex hypothesis output is invalid.');
   const stagedPathSet=new Set(stagedPaths.map(value=>String(value||'').replace(/\\/g,'/'))), hypotheses=[],rejected=[];
-  value.hypotheses.slice(0,options.maxFindings).forEach((raw,index)=>{try{hypotheses.push(validateHypothesis(raw,stagedPathSet,changedLineRanges,diff));}catch(error){rejected.push({index,reason:String(error?.message||error).slice(0,300)});}});
-  return {hypotheses,rejected,modelHypothesisCount:value.hypotheses.length,omittedHypothesisCount:Math.max(0,value.hypotheses.length-options.maxFindings)};
+  const candidateLimit=hypothesisCandidateLimit(options);
+  value.hypotheses.slice(0,candidateLimit).forEach((raw,index)=>{try{hypotheses.push(validateHypothesis(raw,stagedPathSet,changedLineRanges,diff));}catch(error){rejected.push({index,reason:String(error?.message||error).slice(0,300)});}});
+  return {hypotheses,rejected,modelHypothesisCount:value.hypotheses.length,omittedHypothesisCount:Math.max(0,value.hypotheses.length-candidateLimit),capacitySaturated:value.hypotheses.length>=candidateLimit};
 }
 function stagedEvidenceRef(manifest,file) { return (manifest?.entries||[]).find(entry=>entry.kind==='staged'&&entry.path===String(file||'').replace(/\\/g,'/')); }
 function requiresIndependentVerification(hypothesis={}) {
@@ -213,6 +221,6 @@ function applyResolutionLedger(review,records=[],language='en'){
 }
 
 module.exports={
-  ALLOWED_CATEGORIES,SUPPORT_KINDS,SCOPE_DISPOSITIONS,INDEPENDENT_VERIFICATION_CATEGORIES,hypothesisSchema,verificationSchema,buildHypothesisPrompt,validateHypothesis,validateHypothesisResult,
+  ALLOWED_CATEGORIES,SUPPORT_KINDS,SCOPE_DISPOSITIONS,INDEPENDENT_VERIFICATION_CATEGORIES,hypothesisCandidateLimit,hypothesisSchema,verificationSchema,buildHypothesisPrompt,validateHypothesis,validateHypothesisResult,
   requiresIndependentVerification,prepareVerification,buildVerificationInput,validateVerificationResult,materializeVerifiedFindings,semanticSummary,recomputeReview,applyResolutionLedger,stagedEvidenceRef
 };
