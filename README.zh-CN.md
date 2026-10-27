@@ -104,6 +104,8 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 
 `maxDiffBytes` 是模型/evidence 预算，不是原始 staged diff 拒绝阈值；完整原始 diff 继续用于确定性 fingerprint。
 
+`maxFindings` 限制最终输出与验证预算，不代表“最多只有这么多缺陷”。假设阶段使用独立的候选容量；若模型响应填满候选容量，或候选数超过可验证上限，Review 会保留明确的 coverage gap 并阻止交付，而不是静默丢弃候选。**覆盖不完整但已验证 findings 为零，不等于审查通过。**
+
 ## Family 工作流
 
 ```text
