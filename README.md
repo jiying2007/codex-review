@@ -116,6 +116,8 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 `maxDiffBytes` is the model/evidence budget, not the raw staged-diff rejection threshold. The raw staged diff has a fixed safety ceiling and remains the deterministic fingerprint source.
 
+`maxFindings` limits the final validated findings and verification budget; it is **not** a guarantee that no other defects exist. The hypothesis stage has a separate candidate capacity. If a response fills that capacity, or candidate counts exceed the verification limit, Review records an explicit coverage gap and blocks delivery rather than silently dropping unverified candidates. An incomplete review with zero validated findings is **not** a PASS.
+
 ## Family workflow
 
 ```text
