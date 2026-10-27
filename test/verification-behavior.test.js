@@ -179,3 +179,40 @@ test('two valid one-candidate chunks cannot silently truncate one at aggregate m
     assert.equal(review.readinessVerdict,'blocked');
   });
 });
+
+test('model schema reserves candidates beyond maxFindings and saturating it blocks coverage',async()=>{
+ const prior={'a.c':'allowed = false;\n','b.c':'allowed = false;\n'};
+ const changed={'a.c':'allowed = true;\n','b.c':'allowed = true;\n'};
+ await harness.withGitFixture(prior,changed,async({repo,snapshot,diff,paths})=>{
+  const options={...harness.options(),maxFindings:1};
+  const evidence=await harness.collectStructuralEvidence(repo,diff,paths,snapshot,options.profileConfig);
+  harness.respond(async request=>{
+   if(request.phase.startsWith('hypothesis:')){
+    assert.equal(request.schema.properties.hypotheses.maxItems,2);
+    return{hypotheses:[candidate(paths[0]),candidate(paths[1])]};
+   }
+   return{results:harness.verificationSubjects(request.input).map(item=>({
+    hypothesisIndex:item.hypothesisIndex,verificationStatus:'contradicted',
+    evidenceRefs:[item.stagedEvidenceRef],verificationReason:'Contradicted by controlled fixture.'
+   }))};
+  });
+  const review=await harness.runCodexReview(diff,paths,options,undefined,{semanticEvidence:evidence});
+  assert.equal(review.coverageVerdict,'incomplete');
+  assert.equal(review.readinessVerdict,'blocked');
+  assert.ok(review.coverageGaps.some(x=>x.startsWith('hypothesis_response_capacity_saturated:')),JSON.stringify(review.coverageGaps));
+  assert.ok(review.coverageGaps.some(x=>x.startsWith('unverified_hypotheses_limit:')),JSON.stringify(review.coverageGaps));
+ });
+});
+test('one candidate at display cap is not by itself evidence of saturation',async()=>{
+ const before={'a.c':'allowed = false;\n'},after={'a.c':'allowed = true;\n'};
+ await harness.withGitFixture(before,after,async({repo,snapshot,diff,paths})=>{
+  const options={...harness.options(),maxFindings:1};
+  const evidence=await harness.collectStructuralEvidence(repo,diff,paths,snapshot,options.profileConfig);
+  harness.respond(async request=>request.phase.startsWith('hypothesis:')?{hypotheses:[candidate('a.c')]}:{results:harness.verificationSubjects(request.input).map(item=>({
+    hypothesisIndex:item.hypothesisIndex,verificationStatus:'contradicted',
+    evidenceRefs:[item.stagedEvidenceRef],verificationReason:'Controlled contradiction.'
+  }))});
+  const review=await harness.runCodexReview(diff,paths,options,undefined,{semanticEvidence:evidence});
+  assert.ok(!review.coverageGaps.some(x=>x.startsWith('hypothesis_response_capacity_saturated:')),JSON.stringify(review.coverageGaps));
+ });
+});
