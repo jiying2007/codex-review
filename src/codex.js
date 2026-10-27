@@ -12,7 +12,7 @@ const { digestFindingSet } = require('./codex-safe-core/semantic-review');
 const { parseChangedLineRanges, consolidateReviewResults } = require('./review');
 const { renderEvidenceForPaths } = require('./semantic-evidence');
 const {
-  hypothesisSchema, verificationSchema, buildHypothesisPrompt, validateHypothesisResult,
+  hypothesisCandidateLimit, hypothesisSchema, verificationSchema, buildHypothesisPrompt, validateHypothesisResult,
   prepareVerification, buildVerificationInput, validateVerificationResult, materializeVerifiedFindings
 } = require('./semantic-review');
 
@@ -100,7 +100,7 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
     const chunkEvidence=renderEvidenceForPaths(semanticEvidence,chunk.paths,{maxBytes:Math.min(96*1024,Math.max(24*1024,chunkBudgetBytes)),maxEntries:32});
     const input=[prompt,'',`Review execution profile: ${profile.name}; focus: ${profile.focusCategories.join(', ')}`,chunkEvidence.text,'','--- STAGED REVIEW TARGET START ---',chunk.text,'--- STAGED REVIEW TARGET END ---',''].filter(Boolean).join('\n');
     const riskScore=scoreEvidenceRisk({paths:chunk.paths,text:chunk.text}),route=resolveHypothesisRoute(options,riskScore),model=route.model;
-    const estimatedOutputTokens=384+Math.max(1,Number(options.maxFindings)||20)*190,estimate=estimateRequestTokens(input,{estimatedOutputTokens});
+    const estimatedOutputTokens=384+hypothesisCandidateLimit(options)*190,estimate=estimateRequestTokens(input,{estimatedOutputTokens});
     if(hypothesisBudget>0&&estimatedTokens+estimate.totalTokens>hypothesisBudget){evidence.complete=false;coverageGaps.push(`hypothesis_token_budget:chunk-${chunk.index+1}`);break;}
     const result=await sharedCodexCli.runStructuredCodex({codexPath:options.codexPath,model,runtime:options.codexRuntime,phase:`hypothesis:${chunk.index+1}/${evidence.chunks.length}`,timeoutMs:remainingMs,schema:hypothesisSchema(options),input,schemaFileName:'review-hypothesis-schema.json',token,maxStdoutBytes:6*1024*1024,maxStderrBytes:1024*1024,processOptions:{detached:process.platform!=='win32'},maxEstimatedTokens:hypothesisBudget>0?Math.max(1,hypothesisBudget-estimatedTokens):0,estimatedOutputTokens});
     estimatedTokens+=result.requestEstimate?.totalTokens||estimate.totalTokens;usageAdd(usage,result.usage);resolvedVersion=result.resolved.version||resolvedVersion;models.add(model||'cli-default');{const evidenceItem=modelEvidenceFor(route,result.usage);if(evidenceItem)modelEvidence.push(evidenceItem);}
@@ -121,6 +121,7 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
     }
 
     if(validated.omittedHypothesisCount>0){coverageGaps.push(`unverified_hypotheses_chunk_limit:chunk-${chunk.index+1}:${validated.omittedHypothesisCount}`);evidence.complete=false;}
+    if(validated.capacitySaturated){coverageGaps.push(`hypothesis_response_capacity_saturated:chunk-${chunk.index+1}`);evidence.complete=false;}
     hypotheses.push(...validated.hypotheses);rejectedHypotheses.push(...validated.rejected);modelHypothesisCount+=validated.modelHypothesisCount;processedChunks++;
   }
 
