@@ -1,16 +1,25 @@
-## 4.8.6
+# Changelog
 
-- Repin to Codex Safe Core 4.18.0 because the shipped Core runtime digest changed to `0b9c507ddb74bf40a0b950c3d8548ae747f547f76d3d2d37cebbd761cf28f5a0`; publish a new immutable product release and distribution receipt.
-- Refresh Product Contract v2 and generated/current-state Family identity for the exact Core pin.
-- Use the exact-pinned Core display-time implementation directly and stop shipping an unused partial Core index whose dependency closure was incomplete.
+## 4.8.8
 
-## Unreleased
+- Supply staged before/after evidence and exact evidence IDs to independent verification; require decisive results to cite evidence actually supplied to that request. Missing, insufficient, or budget-omitted mandatory evidence remains a coverage gap and cannot converge into delivery readiness.
+- Apply selected Profile Pack checks in both hypothesis and verifier inputs, and invalidate older evidence/subject protocol identities.
+- Parse Git presentation prefixes separately from repository paths, preserving genuine a/ and b/ directories, removed-line anchors, renames, and source lines beginning with ++ or --.
+- Keep failed mechanical gates blocked through result consolidation, convergence, and readiness even when no changed line can become a finding.
+- Replace metadata-only semantic corpus checks with 16 executable real-Git/controller fixtures, plus verification and delivery-qualification regressions. Model outputs are controlled fixtures, not a measurement of live model recall.
+- Refresh compatible packaging dependencies and constrain Azure Identity to its unaffected compatible 4.13.0 dependency branch, with a tested UUID 11.1.1 override for MSAL's unchanged CommonJS v4 call.
 
 ## 4.8.7
 
 - Accept exact old/new causal anchors so removed-line regressions such as deleted authorization checks can become validated blocking findings without being mis-mapped into post-image Problems.
 - Close stable blind fresh convergence into `readiness=ready`, while distinguishing suppressed/rejected candidates from genuinely clean `no_findings` results.
 - Add a permanent removed-authorization High regression case while preserving Safe Contract v2, Policy Schema v4, Review Receipt v5, confidence/severity/coverage gates, and the exact Safe Core pin.
+
+## 4.8.6
+
+- Repin to Codex Safe Core 4.18.0 because the shipped Core runtime digest changed to `0b9c507ddb74bf40a0b950c3d8548ae747f547f76d3d2d37cebbd761cf28f5a0`; publish a new immutable product release and distribution receipt.
+- Refresh Product Contract v2 and generated/current-state Family identity for the exact Core pin.
+- Use the exact-pinned Core display-time implementation directly and stop shipping an unused partial Core index whose dependency closure was incomplete.
 
 ## 4.8.5
 
@@ -83,8 +92,6 @@
 - Retire the user-facing Independent Review command; every forced fresh cycle is automatically blind to prior judgments.
 - Keep deterministic structural Evidence Cache persistent, split analyzer/SARIF composition from structural scanning, and hard-cut legacy `reviewArtifacts.v2`/`semanticRuns.v1` replay state.
 - Preserve Review Receipt v4, Safe Contract v2, Policy Schema v4, lineage/convergence provenance gates, and exact Safe Core 4.10.2 pin.
-
-# Changelog
 
 ## 4.6.1 - 2026-09-02
 

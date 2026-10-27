@@ -51,16 +51,20 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 - Deterministic Evidence Cache 与 Model Judgment Replay 分离；
 - fresh blind review 强制 fresh blind inference，不读取上一轮 accepted findings / suppressed hypotheses 作为 reviewer 输入；
 - convergence 依赖真实 fresh provenance，而不是“缓存输出完全一致”；
-- 模型 Finding 必须精确命中 post-change changed line；
+- 模型 Finding 必须精确命中新增或删除的因果行；删除行 Finding 只在报告中展示，不映射到当前 Problems 行；
+- 所选 Profile Pack 的工程检查进入 hypothesis 和独立 verifier 两阶段输入；verifier 接收 staged 前后变化并必须引用已提供的证据 ID，缺失必需证据形成 coverage gap；
 - Repository Rules 在模型之外确定性执行；
 - 低置信度 Finding 在进入 Problems/verdict 前过滤；
 - coverage 不完整或 Finding 无法验证时 fail closed；
+- mechanical rule 失败会阻止 readiness 与 convergence，即使本次变更没有可发布的行；
 - Review Receipt v5 只为真实 fresh Review 执行记录 immutable evidence/provenance；
 - Restricted Mode 直接拒绝；
 - Safe Contract v2 使用 ephemeral、read-only、no approval，并显式关闭 shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency install；
 - 不自动修改源码、Commit、Push 或创建 PR。
 
 共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.18.1**，SHA 为 `190651770a444b0693d82228afc66879dd57b0c0`。
+
+可执行语义 fixture 使用真实 Git 和受控模型回答验证控制链路，不代表真实模型召回率。验证范围见 [Validation](docs/VALIDATION.md)。
 
 ## 正确理解 Readiness
 
@@ -99,6 +103,8 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 ```
 
 `maxDiffBytes` 是模型/evidence 预算，不是原始 staged diff 拒绝阈值；完整原始 diff 继续用于确定性 fingerprint。
+
+`maxFindings` 限制最终输出与验证预算，不代表“最多只有这么多缺陷”。假设阶段使用独立的候选容量；若模型响应填满候选容量，或候选数超过可验证上限，Review 会保留明确的 coverage gap 并阻止交付，而不是静默丢弃候选。**覆盖不完整但已验证 findings 为零，不等于审查通过。**
 
 ## Family 工作流
 

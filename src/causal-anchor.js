@@ -1,11 +1,11 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { normalizeRepositoryPath: normalizeGitPath, parseGitDiff } = require('./git-diff');
 
 const SUPPORT_KINDS = Object.freeze(['symptom','dependency','test','config','state','other']);
 const CAUSAL_SIDES = Object.freeze(['new','old']);
 
-function normalizeGitPath(value) { return String(value||'').replace(/\\/g,'/').replace(/^\.\//,'').replace(/^a\//,'').replace(/^b\//,''); }
 function lineInRanges(line, ranges=[]) { const n=Number(line); return ranges.some(range=>n>=Number(range.start)&&n<=Number(range.end)); }
 function spanInRanges(line, endLine, ranges=[]) {
   const start=Math.max(1,Math.floor(Number(line)||1));
@@ -28,32 +28,11 @@ function normalizeSupportingLocations(raw=[]) {
 function changedLinesBySide(diff='', side='new') {
   const wanted = side === 'old' ? 'old' : 'new';
   const byPath = new Map();
-  let oldPath='', newPath='', oldLine=0, newLine=0, inHunk=false;
-  const add=(file,line,text)=>{
-    const path=normalizeGitPath(file);
-    if(!path||line<1)return;
-    if(!byPath.has(path))byPath.set(path,new Map());
-    byPath.get(path).set(line,String(text||''));
-  };
-  for(const raw of String(diff||'').split(/\r?\n/)) {
-    const header=raw.match(/^diff --git a\/(.+?) b\/(.+)$/);
-    if(header){oldPath=normalizeGitPath(header[1]);newPath=normalizeGitPath(header[2]);oldLine=0;newLine=0;inHunk=false;continue;}
-    if(raw.startsWith('--- ')){
-      const value=raw.slice(4).trim();
-      if(value!=='/dev/null')oldPath=normalizeGitPath(value);
-      continue;
-    }
-    if(raw.startsWith('+++ ')){
-      const value=raw.slice(4).trim();
-      if(value!=='/dev/null')newPath=normalizeGitPath(value);
-      continue;
-    }
-    const hunk=raw.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-    if(hunk){oldLine=Number(hunk[1]);newLine=Number(hunk[2]);inHunk=true;continue;}
-    if(!inHunk)continue;
-    if(raw.startsWith('-')&&!raw.startsWith('---')){if(wanted==='old')add(oldPath,oldLine,raw.slice(1));oldLine+=1;continue;}
-    if(raw.startsWith('+')&&!raw.startsWith('+++')){if(wanted==='new')add(newPath,newLine,raw.slice(1));newLine+=1;continue;}
-    if(!raw.startsWith('\\')){oldLine+=1;newLine+=1;}
+  for(const section of parseGitDiff(diff)) {
+    const lines = wanted === 'old' ? section.oldLines : section.newLines;
+    if (!lines.size) continue;
+    if (!byPath.has(section.path)) byPath.set(section.path,new Map());
+    for (const [line,text] of lines) byPath.get(section.path).set(line,text);
   }
   return byPath;
 }

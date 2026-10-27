@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "source": "repeated production-aging thermal review case plus cross-review false-negative regressions",
+  "schemaVersion": 2,
+  "source": "Synthetic executable Git fixtures derived from the existing review regression descriptions; these assert controller behavior with controlled model outputs, not live model recall.",
   "cases": [
     {
       "id": "vsapi-trim-ownership-hard-negative",
@@ -8,7 +8,25 @@
       "category": "resource",
       "claimClass": "invalid-free",
       "expected": "suppressed_or_contradicted",
-      "description": "Ownership-replacing trim API must not be treated as pointer-view trim when index evidence shows free/realloc and pointer replacement."
+      "description": "Ownership-replacing trim API must not be treated as pointer-view trim when index evidence shows free/realloc and pointer replacement.",
+      "fixture": {
+        "beforeFiles": {
+          "trim.c": "int main(void) { return 0; }\n",
+          "trim-api.c": "void trim_owned(char **text) {\n  char *replacement = copy_trimmed(*text);\n  free(*text);\n  *text = replacement;\n}\n"
+        },
+        "afterFiles": {
+          "trim.c": "int main(void) { char *text = owned_copy(); trim_owned(&text); free(text); return 0; }\n",
+          "trim-api.c": "void trim_owned(char **text) {\n  char *replacement = copy_trimmed(*text);\n  free(*text);\n  *text = replacement;\n}\n"
+        },
+        "file": "trim.c",
+        "side": "new",
+        "anchorText": "int main(void)",
+        "verifierStatus": "contradicted",
+        "requiredSymbols": [
+          "trim_owned"
+        ],
+        "requiredEvidenceText": "free(*text);"
+      }
     },
     {
       "id": "removed-authorization-old-side-high",
@@ -16,7 +34,19 @@
       "category": "security",
       "claimClass": "missing-check",
       "expected": "verified_old_side_high",
-      "description": "Deleting an authorization guard is a first-class High regression and must remain publishable as an exact old-side causal finding instead of being omitted for lack of a post-image anchor."
+      "description": "Deleting an authorization guard is a first-class High regression and must remain publishable as an exact old-side causal finding instead of being omitted for lack of a post-image anchor.",
+      "fixture": {
+        "beforeFiles": {
+          "auth.c": "int run(User user) {\n  if (!user.authorized) return -1;\n  return sensitive_operation();\n}\n"
+        },
+        "afterFiles": {
+          "auth.c": "int run(User user) {\n  return sensitive_operation();\n}\n"
+        },
+        "file": "auth.c",
+        "side": "old",
+        "anchorText": "if (!user.authorized)",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-recover-reason-loss",
@@ -24,7 +54,19 @@
       "category": "correctness",
       "claimClass": "state-transition",
       "expected": "verified",
-      "description": "RECOVER_WAIT must preserve HOT/COLD origin or the stable recovery window cannot accumulate."
+      "description": "RECOVER_WAIT must preserve HOT/COLD origin or the stable recovery window cannot accumulate.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void enter_recovery(void) {\n  previous_reason = reason;\n  state = RECOVER_WAIT;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void enter_recovery(void) {\n  reason = NONE;\n  state = RECOVER_WAIT;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "reason = NONE;",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-sensor-fault-missing-battery-fail",
@@ -32,7 +74,19 @@
       "category": "correctness",
       "claimClass": "failure-propagation",
       "expected": "verified",
-      "description": "Sensor/current-mode faults must enter the existing Battery failure flow rather than silently continuing the same aging session."
+      "description": "Sensor/current-mode faults must enter the existing Battery failure flow rather than silently continuing the same aging session.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void fault(void) {\n  battery_failed = true;\n  aging_enabled = false;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void fault(void) {\n  sensor_fault = true;\n  aging_enabled = true;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "aging_enabled = true;",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-startup-requires-discharge-deadlock",
@@ -40,7 +94,19 @@
       "category": "correctness",
       "claimClass": "startup-gate",
       "expected": "verified",
-      "description": "A normal first sample must release startup loads even while idle/charging; discharge mode only gates new temperature protection."
+      "description": "A normal first sample must release startup loads even while idle/charging; discharge mode only gates new temperature protection.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void sample(void) {\n  if (temperature_safe) startup_released = true;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void sample(void) {\n  if (temperature_safe && discharging) startup_released = true;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "if (temperature_safe && discharging)",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-motor-health-not-consecutive",
@@ -48,7 +114,19 @@
       "category": "correctness",
       "claimClass": "health-gate",
       "expected": "verified",
-      "description": "A bad Motor health frame between good frames must reset a consecutive-good counter."
+      "description": "A bad Motor health frame between good frames must reset a consecutive-good counter.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void health(bool good) {\n  if (good) consecutive_good++;\n  else consecutive_good = 0;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void health(bool good) {\n  if (good) consecutive_good++;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "old",
+        "anchorText": "else consecutive_good = 0;",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-partial-start-rollback",
@@ -56,7 +134,19 @@
       "category": "correctness",
       "claimClass": "rollback",
       "expected": "verified",
-      "description": "If any managed load fails to resume, already-started managed heat loads must be rolled back off."
+      "description": "If any managed load fails to resume, already-started managed heat loads must be rolled back off.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "int resume(void) {\n  motor_on = true;\n  if (ir_start_failed) { motor_on = false; return -1; }\n  return 0;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "int resume(void) {\n  motor_on = true;\n  if (ir_start_failed) return -1;\n  return 0;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "if (ir_start_failed) return -1;",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-config-gate-bypass",
@@ -64,7 +154,19 @@
       "category": "correctness",
       "claimClass": "config-gate",
       "expected": "verified",
-      "description": "Battery/LCD production gate failure must disable the thermal control path as well as normal aging feature startup."
+      "description": "Battery/LCD production gate failure must disable the thermal control path as well as normal aging feature startup.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void start(void) {\n  thermal_enabled = battery_config_ok && lcd_config_ok;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void start(void) {\n  thermal_enabled = true;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "thermal_enabled = true;",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-invalid-temperature-precedence",
@@ -72,7 +174,19 @@
       "category": "correctness",
       "claimClass": "input-validation",
       "expected": "verified",
-      "description": "Physical temperature validity must be checked before HOT/COLD classification."
+      "description": "Physical temperature validity must be checked before HOT/COLD classification.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void temperature(int t) {\n  if (t == INVALID) state = FAULT;\n  else if (t > HOT_LIMIT) state = HOT;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void temperature(int t) {\n  if (t > HOT_LIMIT) state = HOT;\n  else if (t == INVALID) state = FAULT;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "else if (t == INVALID)",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-stale-event-generation",
@@ -80,7 +194,19 @@
       "category": "concurrency",
       "claimClass": "stale-event",
       "expected": "verified",
-      "description": "A stale event queued for an old sample must not override a newer fresh sample."
+      "description": "A stale event queued for an old sample must not override a newer fresh sample.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void consume(Event event) {\n  if (event.generation != current_generation) return;\n  state = event.state;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void consume(Event event) {\n  state = event.state;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "old",
+        "anchorText": "if (event.generation != current_generation)",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-lazy-mutex-init",
@@ -88,7 +214,19 @@
       "category": "concurrency",
       "claimClass": "initialization-race",
       "expected": "verified",
-      "description": "Thermal mutex initialization must occur before concurrent callbacks rather than using unsynchronized lazy creation."
+      "description": "Thermal mutex initialization must occur before concurrent callbacks rather than using unsynchronized lazy creation.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void callback(void) {\n  lock(initialized_mutex);\n  update_state();\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void callback(void) {\n  if (!mutex) mutex = create_mutex();\n  lock(mutex);\n  update_state();\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "if (!mutex) mutex = create_mutex();",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-trip-single-slot-overwrite",
@@ -96,7 +234,19 @@
       "category": "correctness",
       "claimClass": "event-coalescing",
       "expected": "verified",
-      "description": "A real threshold trip must be latched so a later normal sample cannot erase the safety event before processing."
+      "description": "A real threshold trip must be latched so a later normal sample cannot erase the safety event before processing.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void sample(bool trip) {\n  pending_trip = pending_trip || trip;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void sample(bool trip) {\n  pending_trip = trip;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "pending_trip = trip;",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-recover-timer-leak",
@@ -104,7 +254,19 @@
       "category": "correctness",
       "claimClass": "state-transition",
       "expected": "verified",
-      "description": "Every new HOT/COLD protection cycle must reset its recovery stable timer."
+      "description": "Every new HOT/COLD protection cycle must reset its recovery stable timer.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void protect(void) {\n  stable_since = 0;\n  state = HOT;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void protect(void) {\n  state = HOT;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "old",
+        "anchorText": "stable_since = 0;",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-startup-health-suppression",
@@ -112,7 +274,19 @@
       "category": "correctness",
       "claimClass": "health-gate",
       "expected": "verified",
-      "description": "Managed Motor/IR health checks must be suppressed while startup temperature gating intentionally keeps them stopped."
+      "description": "Managed Motor/IR health checks must be suppressed while startup temperature gating intentionally keeps them stopped.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void health(void) {\n  if (startup_released && !motor_running) battery_failed = true;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void health(void) {\n  if (!motor_running) battery_failed = true;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "if (!motor_running)",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-opposite-boundary-recovery",
@@ -120,7 +294,19 @@
       "category": "correctness",
       "claimClass": "state-transition",
       "expected": "verified",
-      "description": "Recovery must require the complete safe interval and switch protection reason if temperature crosses the opposite cutoff."
+      "description": "Recovery must require the complete safe interval and switch protection reason if temperature crosses the opposite cutoff.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void recovery(int t) {\n  if (t >= COLD_EXIT && t <= HOT_EXIT) resumed = true;\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void recovery(int t) {\n  if (t <= HOT_EXIT) resumed = true;\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "if (t <= HOT_EXIT)",
+        "verifierStatus": "verified"
+      }
     },
     {
       "id": "thermal-lcd-unchanged-symptom-causal-anchor",
@@ -128,7 +314,20 @@
       "category": "correctness",
       "claimClass": "state-presentation",
       "expected": "verified_with_changed_causal_anchor",
-      "description": "An unchanged STATUS RUN symptom may support a finding, but publication must anchor to the changed state transition that introduced/exposed the incorrect display."
+      "description": "An unchanged STATUS RUN symptom may support a finding, but publication must anchor to the changed state transition that introduced/exposed the incorrect display.",
+      "fixture": {
+        "beforeFiles": {
+          "thermal.c": "void protect(void) {\n  state = STOPPED;\n  render_status(state);\n}\n"
+        },
+        "afterFiles": {
+          "thermal.c": "void protect(void) {\n  state = RUNNING;\n  render_status(state);\n}\n"
+        },
+        "file": "thermal.c",
+        "side": "new",
+        "anchorText": "state = RUNNING;",
+        "verifierStatus": "verified"
+      }
     }
-  ]
+  ],
+  "evaluationMode": "controlled-model-controller-regression"
 }

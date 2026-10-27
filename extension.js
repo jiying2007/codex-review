@@ -56,8 +56,8 @@ const { applyResolutionLedger } = require('./src/semantic-review');
 const { computeReviewKey, canonicalJson, sha256, SEMANTIC_REVIEW_VERSION, digestAnalyzerEvidence } = require('./src/codex-safe-core/semantic-review');
 const { REVIEW_PROMPT_CONTRACT_VERSION } = require('./src/codex-safe-core/safe-contract');
 
-const REVIEW_EVIDENCE_PROTOCOL_VERSION = 3;
-const REVIEW_SUBJECT_PROTOCOL_VERSION = 2;
+const REVIEW_EVIDENCE_PROTOCOL_VERSION = 4;
+const REVIEW_SUBJECT_PROTOCOL_VERSION = 3;
 
 let outputChannel;
 let diagnosticCollection;

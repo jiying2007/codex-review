@@ -123,13 +123,15 @@ function validateReviewResult(value, options, stagedPaths, changedLineRanges) {
   findings.sort((a, b) => SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity] || b.confidence - a.confidence);
   return { summary, findings, suppressedFindings, rejectedFindings, modelFindingCount: value.findings.length };
 }
-function firstChangedLine(changedLineRanges, path) { const ranges = changedLineRanges.get(normalizeGitPathForComparison(path)); return ranges?.[0]?.start || null; }
+function firstChangedLine(changedLineRanges, path) { const ranges = changedLineRanges?.get(normalizeGitPathForComparison(path)); return ranges?.[0]?.start || null; }
 function deterministicReview(stagedPaths, changedLineRanges, rules = {}) {
   const evaluated = evaluateReviewRules(stagedPaths, rules); const findings = [];
   for (const violation of evaluated.violations) {
-    const line = firstChangedLine(changedLineRanges, violation.path); if (!line) continue;
-    if (violation.rule === 'forbiddenPathPrefix') findings.push({ severity: 'high', category: 'correctness', file: violation.path, side:'new', line, endLine: line, title: 'Forbidden path changed', description: `Repository review policy forbids changes under ${violation.prefix}.`, suggestion: '', confidence: 1, deterministic: true });
-    else if (violation.rule === 'requireTestsForCodeChanges') findings.push({ severity: 'medium', category: 'test', file: violation.path, side:'new', line, endLine: line, title: 'Code changed without test changes', description: 'Repository review policy requires a test-path change when configured code paths change.', suggestion: '', confidence: 1, deterministic: true });
+    const addedLine = firstChangedLine(changedLineRanges, violation.path);
+    const line = addedLine || firstChangedLine(changedLineRanges?.old, violation.path); if (!line) continue;
+    const side = addedLine ? 'new' : 'old';
+    if (violation.rule === 'forbiddenPathPrefix') findings.push({ severity: 'high', category: 'correctness', file: violation.path, side, line, endLine: line, title: 'Forbidden path changed', description: `Repository review policy forbids changes under ${violation.prefix}.`, suggestion: '', confidence: 1, deterministic: true });
+    else if (violation.rule === 'requireTestsForCodeChanges') findings.push({ severity: 'medium', category: 'test', file: violation.path, side, line, endLine: line, title: 'Code changed without test changes', description: 'Repository review policy requires a test-path change when configured code paths change.', suggestion: '', confidence: 1, deterministic: true });
   }
   return { violations: evaluated.violations, findings };
 }
@@ -138,9 +140,9 @@ function consolidateReviewResults(results, options, stagedPaths, changedLineRang
   for (const result of results) { if (result.summary) summaries.push(result.summary); suppressedFindings.push(...result.suppressedFindings); rejectedFindings.push(...result.rejectedFindings); modelFindingCount += result.modelFindingCount; for (const finding of result.findings) { const key = `${finding.category}\n${finding.file}\n${finding.side||'new'}\n${finding.line}\n${finding.title}`; const previous = deduped.get(key); if (!previous || finding.confidence > previous.confidence) deduped.set(key, finding); } }
   const mechanical = deterministicReview(stagedPaths, changedLineRanges, options.reviewRules || {}); for (const finding of mechanical.findings) deduped.set(`${finding.category}\n${finding.file}\n${finding.side||'new'}\n${finding.line}\n${finding.title}`, finding);
   const uncapped = [...deduped.values()].sort((a, b) => SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity] || b.confidence - a.confidence || a.file.localeCompare(b.file)); const findings = uncapped.slice(0, options.maxFindings);
-  const coverageGaps = [...(evidence?.coverageGaps || [])]; if (rejectedFindings.length) coverageGaps.push(`invalid_model_findings:${rejectedFindings.length}`); const coverageComplete = Boolean(evidence?.complete !== false && rejectedFindings.length === 0);
-  const qualityVerdict = uncapped.some(f => f.severity === 'critical' || f.severity === 'high') ? 'blocked' : uncapped.length ? 'findings_open' : 'no_findings'; const readinessVerdict = !coverageComplete || qualityVerdict === 'blocked' ? 'blocked' : 'needs_evidence';
-  return { summary: summaries.join('\n\n').slice(0, 1200), verdict: computeVerdict(uncapped, coverageComplete), qualityVerdict, readinessVerdict, mechanicalGate: mechanical.violations.length ? 'fail' : 'pass', coverageVerdict: coverageComplete ? 'complete' : 'incomplete', coverageGaps: [...new Set(coverageGaps)], cannotVerify: ['requirements', 'tests'], findings, suppressedFindings, rejectedFindings, mechanicalViolations: mechanical.violations, modelFindingCount, truncatedFindingCount: Math.max(0, uncapped.length - findings.length) };
+  const coverageGaps = [...(evidence?.coverageGaps || [])]; if (rejectedFindings.length) coverageGaps.push(`invalid_model_findings:${rejectedFindings.length}`); const coverageComplete = Boolean(evidence?.complete !== false && rejectedFindings.length === 0 && coverageGaps.length===0);
+  const qualityVerdict = uncapped.some(f => f.severity === 'critical' || f.severity === 'high') ? 'blocked' : uncapped.length ? 'findings_open' : 'no_findings'; const readinessVerdict = !coverageComplete || mechanical.violations.length || qualityVerdict === 'blocked' ? 'blocked' : 'needs_evidence';
+  return { summary: summaries.join('\n\n').slice(0, 1200), verdict: mechanical.violations.length ? 'block' : computeVerdict(uncapped, coverageComplete), qualityVerdict, readinessVerdict, mechanicalGate: mechanical.violations.length ? 'fail' : 'pass', coverageVerdict: coverageComplete ? 'complete' : 'incomplete', coverageGaps: [...new Set(coverageGaps)], cannotVerify: ['requirements', 'tests'], findings, suppressedFindings, rejectedFindings, mechanicalViolations: mechanical.violations, modelFindingCount, truncatedFindingCount: Math.max(0, uncapped.length - findings.length) };
 }
 function buildReviewInputMeta(snapshot, diffFingerprint, diffBytes, stagedPaths, unstagedPathSet, executionMeta = {}) {
   const overlays = stagedPaths.filter(file => unstagedPathSet?.has(normalizeGitPathForComparison(file)));

@@ -1,6 +1,8 @@
 .git/**
 .github/**
 .vscode/**
+.vscode-test
+.vscode-test/**
 node_modules/**
 *.vsix
 *.zip
@@ -8,6 +10,7 @@ extension.js
 src/**
 test.js
 test/**
+quality/semantic-review-corpus.json
 scripts/**
 package-lock.json
 PUBLISHING.md
