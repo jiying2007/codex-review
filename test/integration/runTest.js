@@ -30,7 +30,7 @@ function fakeCodex(base) {
 const fs=require('fs');
 const args=process.argv.slice(2);
 if(process.env.CODEX_REVIEW_IT_FAKE_LOG)fs.appendFileSync(process.env.CODEX_REVIEW_IT_FAKE_LOG,'NODE '+JSON.stringify(args)+'\\n');
-if(args.includes('--version')){console.log('codex-cli fake');process.exit(0);}
+if(args.includes('--version')){console.log('codex-cli 1.2.3');process.exit(0);}
 if(args.length===1&&args[0]==='--help'){console.log('--ask-for-approval --config --model');process.exit(0);}
 if(args.length===2&&args[0]==='exec'&&args[1]==='--help'){console.log('--json --ephemeral --skip-git-repo-check --ignore-user-config --ignore-rules --sandbox --output-schema --config --model');process.exit(0);}
 const execIndex=args.indexOf('exec');
@@ -58,7 +58,10 @@ if(schemaPath.includes('review-hypothesis-schema')||schemaPath.includes('review-
 }else{
   payload={summary:'',findings:[]};
 }
-setTimeout(()=>console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify(payload)}})),delay);
+setTimeout(()=>{
+  console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify(payload)}}));
+  console.log(JSON.stringify({type:'turn.completed',usage:{input_tokens:120,cached_input_tokens:40,output_tokens:12}}));
+},delay);
 `);
 
   if (process.platform === 'win32') {
