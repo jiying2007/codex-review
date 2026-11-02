@@ -4,6 +4,7 @@ const path = require('path');
 const { runProcess } = require('./process');
 const { normalizeGitPathForComparison } = require('./review-support');
 const { normalizeSarif, dedupeAnalyzerFindings, validatePatchProposal } = require('./codex-safe-core/quality-platform');
+const { secureReadText } = require('./codex-safe-core/secure-local-file');
 
 const MAX_SARIF_BYTES = 4 * 1024 * 1024;
 
@@ -21,9 +22,15 @@ function containedPath(repoRoot, candidate) {
 function readSarifFile(repoRoot, file) {
   const relative=normalizeGitPathForComparison(file), absolute=containedPath(repoRoot,relative);
   if (!absolute) throw new Error(`SARIF path must remain inside the repository: ${file}`);
-  const stat=fs.statSync(absolute);
-  if (!stat.isFile() || stat.size > MAX_SARIF_BYTES) throw new Error(`SARIF file exceeds ${MAX_SARIF_BYTES} bytes: ${file}`);
-  return normalizeSarif(fs.readFileSync(absolute,'utf8'));
+  const text=secureReadText(absolute,{
+    maxBytes:MAX_SARIF_BYTES,
+    requireOwner:false,
+    rejectGroupOtherWrite:false
+  });
+  // Ancestor directories and the requested alias must still resolve inside the
+  // repository to the same target before any report contents are consumed.
+  if (containedPath(repoRoot,relative)!==absolute) throw new Error(`SARIF path must remain inside the repository: ${file}`);
+  return normalizeSarif(text);
 }
 function loadSarifFiles(repoRoot, files=[]) {
   const findings=[]; for (const file of files || []) findings.push(...readSarifFile(repoRoot,file));
