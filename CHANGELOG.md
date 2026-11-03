@@ -1,3 +1,10 @@
+## 4.8.9
+
+- Secure SARIF imports with a bounded validated local descriptor, path containment and post-read target identity checks.
+- Reject symlink/ancestor swaps, report replacement and growth races using adversarial regressions.
+- Only verify a new immutable release after a successful publisher job; ordinary no-release pushes do not invalidate the previously signed tag.
+- Preserve exact immutable Core 4.18.2 pin and existing review verification gates.
+
 ## 4.8.8
 
 - Repin to Codex Safe Core 4.18.2 because the shipped Core runtime digest changed to `d50d065c716dcb5b70f9cdd832ea05e6a9d49617bc6582567b3c69a7fb133d6e`; publish a new immutable product release and required distribution evidence.
