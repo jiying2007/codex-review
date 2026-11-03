@@ -6,11 +6,48 @@ on:
     types: [completed]
 
 permissions:
+  actions: read
   contents: read
   attestations: read
 
 jobs:
+  release_admission:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.source.outputs.published }}
+    steps:
+      - name: Distinguish a published Release from a no-op workflow
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
+          PUBLISH_JOB_NAME: "Package / attest / publish"
+        run: |
+          set -euo pipefail
+          response="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_RUN_ID}/jobs?per_page=100")"
+          total="$(jq -r '.total_count // "invalid"' <<<"$response")"
+          if ! [[ "$total" =~ ^[0-9]+$ ]] || (( total > 100 )); then
+            echo "Cannot verify all source Release jobs; refusing incomplete admission" >&2
+            exit 1
+          fi
+          state="$(jq -r --arg job "$PUBLISH_JOB_NAME" '[.jobs[]? | select(.name == $job)] | if length == 1 then .[0].conclusion else "invalid" end' <<<"$response")"
+          case "$state" in
+            success)
+              echo "published=true" >> "$GITHUB_OUTPUT"
+              echo "Source Release publisher succeeded; verify exact immutable assets." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            skipped)
+              echo "published=false" >> "$GITHUB_OUTPUT"
+              echo "No new product release; integrity not applicable. Existing immutable tag stays unchanged." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            *) echo "Unexpected source publisher conclusion: ${state}" >&2; exit 1 ;;
+          esac
+
   integrity:
+    needs: release_admission
+    if: ${{ needs.release_admission.outputs.published == 'true' }}
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     uses: jiying2007/codex-safe-core/.github/workflows/consumer-release-integrity.yml@e962826ee6556fd8ffa74ab1994bf43d62826f10
     with:
