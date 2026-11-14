@@ -41,6 +41,25 @@ assert.deepEqual(oldAnchor, { file:'auth.c', line:10, side:'old' }, 'removed aut
 assert.ok(anchorContextDigestForSide(removedGuardDiff,'auth.c',10,'old'), 'old-side anchors must have a stable content digest');
 assert.throws(() => validateCausalAnchor('auth.c', 10, removedStaged, new Map(), 10, { side:'new', diff:removedGuardDiff }), /exact new-side changed lines/);
 
+const { normalizeGitPath, changedLinesBySide } = require('../src/causal-anchor');
+assert.equal(normalizeGitPath('a/auth.c'), 'a/auth.c', 'real repository directory a/ must not be stripped');
+assert.equal(normalizeGitPath('b/auth.c'), 'b/auth.c', 'real repository directory b/ must not be stripped');
+const nestedDiff = [
+  'diff --git a/a/auth.c b/a/auth.c',
+  '--- a/a/auth.c',
+  '+++ b/a/auth.c',
+  '@@ -8 +8 @@', '-allow_all();', '+check_permission();',
+  'diff --git a/b/auth.c b/b/auth.c',
+  '--- a/b/auth.c',
+  '+++ b/b/auth.c',
+  '@@ -4 +4 @@', '-return true;', '+return denied;'
+].join('\n');
+assert.deepEqual([...changedLinesBySide(nestedDiff, 'new').keys()].sort(), ['a/auth.c','b/auth.c']);
+assert.deepEqual(validateCausalAnchor('a/auth.c', 8, new Set(['a/auth.c','b/auth.c']), new Map([['a/auth.c',[{start:8,end:8}]]])), { file:'a/auth.c', line:8, side:'new' });
+assert.throws(() => validateCausalAnchor('auth.c', 8, new Set(['a/auth.c']), new Map()), /not staged/);
+assert.ok(anchorContextDigestForSide(nestedDiff, 'a/auth.c', 8, 'old'));
+assert.equal(anchorContextDigestForSide(nestedDiff, 'auth.c', 8, 'old'), '');
+
 const schema = hypothesisSchema({ maxFindings:10 });
 assert.deepEqual(schema.properties.hypotheses.items.properties.side.enum, ['new','old']);
 assert.ok(schema.properties.hypotheses.items.required.includes('side'), 'semantic hypothesis contract must require causal side');

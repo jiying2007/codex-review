@@ -1,3 +1,9 @@
+## 4.8.10
+
+- Preserve real repository `a/` and `b/` directories in exact-line causal review anchors; strip only Git's presentation prefixes.
+- Parse quoted and renamed Git diff paths, Unicode, tabs and header-like hunk lines for semantic evidence attribution.
+- Share one deterministic diff parser across causal anchors and dependency evidence. Add negative and real-Git fixtures, with zero additional model calls.
+
 ## 4.8.9
 
 - Secure SARIF imports with a bounded validated local descriptor, path containment and post-read target identity checks.
