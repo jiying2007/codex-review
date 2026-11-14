@@ -62,6 +62,7 @@ function operationTimeout(options){return Math.max(10000,Number(options?.codexRu
 function operationTimeoutError(phase){const error=new Error(`Codex review operation timed out during ${phase}.`);error.code='ECODEX_OPERATION_TIMEOUT';error.phase=phase;return error;}
 function deterministicSummary(review, language='en') {
   const counts={critical:0,high:0,medium:0,low:0,info:0}; for (const f of review.findings||[]) if (counts[f.severity]!==undefined) counts[f.severity]++;
+  if (!(review.findings||[]).length && (review.coverageVerdict!=='complete'||(review.coverageGaps||[]).length))return language==='zh-CN'?'审查覆盖不完整：部分候选缺少可核验证据，未发现已验证问题不代表审查通过。':'Review coverage incomplete: missing verifiable evidence means no verified findings is not a clean pass.';
   if (!(review.findings||[]).length) return language==='zh-CN'?'未发现通过证据验证且达到阈值的实质性问题。':'No substantive evidence-verified findings met the configured threshold.';
   return language==='zh-CN'
     ? `已验证 ${review.findings.length} 个问题：Critical ${counts.critical}，High ${counts.high}，Medium ${counts.medium}，Low ${counts.low}，Info ${counts.info}。`
@@ -131,22 +132,37 @@ async function runCodexReview(diff, stagedPaths, options, token, extraEvidence={
   if(prepared.needsModel.length){
     const remainingMs=deadline-Date.now();
     const paths=[...new Set(prepared.needsModel.map(item=>item.hypothesis.file))];
-    const verificationEvidence=renderEvidenceForPaths(semanticEvidence,paths,{maxBytes:160*1024,maxEntries:64});
-    const input=buildVerificationInput(prepared.needsModel,verificationEvidence.text);
-    const estimatedOutputTokens=256+prepared.needsModel.length*110,estimate=estimateRequestTokens(input,{estimatedOutputTokens});
-    if(remainingMs<=0)throw operationTimeoutError('verification');
-    if(tokenBudget>0&&estimatedTokens+estimate.totalTokens>tokenBudget){
-      coverageGaps.push('verification_budget');evidence.complete=false;
-      verificationResults.push(...prepared.needsModel.map(item=>({hypothesisIndex:item.hypothesisIndex,verificationStatus:'insufficient_evidence',evidenceRefs:[],verificationReason:'Verification budget was exhausted before this semantic hypothesis could be proven.'})));
-    }else{
-      const verificationRoute=resolveManagedModel(options,{role:'reviewer',mode:options.mode||'balanced',explicitModel:options.model});
-      const result=await sharedCodexCli.runStructuredCodex({codexPath:options.codexPath,model:verificationRoute.model,runtime:options.codexRuntime,phase:'verification',timeoutMs:remainingMs,schema:verificationSchema(prepared.needsModel.length),input,schemaFileName:'review-verification-schema.json',token,maxStdoutBytes:4*1024*1024,maxStderrBytes:1024*1024,processOptions:{detached:process.platform!=='win32'},maxEstimatedTokens:tokenBudget>0?Math.max(1,tokenBudget-estimatedTokens):0,estimatedOutputTokens});
-      estimatedTokens+=result.requestEstimate?.totalTokens||estimate.totalTokens;usageAdd(usage,result.usage);resolvedVersion=result.resolved.version||resolvedVersion;models.add(verificationRoute.model||'cli-default');{const evidenceItem=modelEvidenceFor(verificationRoute,result.usage);if(evidenceItem)modelEvidence.push(evidenceItem);}verifierCalled=true;
-      verificationResults.push(...validateVerificationResult(result.parsed,prepared.needsModel));
+    const requiredIds=[...new Set(prepared.needsModel.flatMap(item=>[item.stagedRef,...item.symbolRefs.map(entry=>entry.id)]).filter(Boolean))];
+    const verificationEvidence=renderEvidenceForPaths(semanticEvidence,paths,{maxBytes:160*1024,maxEntries:64,includeStaged:true,requiredIds});
+    const availableIds=new Set(verificationEvidence.entries.map(entry=>entry.id));
+    const eligible=[],missing=[];
+    for(const item of prepared.needsModel){
+      if([item.stagedRef,...item.symbolRefs.map(entry=>entry.id)].every(id=>id&&availableIds.has(id))) eligible.push(item);
+      else missing.push(item);
+    }
+    if(missing.length){
+      evidence.complete=false;
+      coverageGaps.push(`verification_evidence_budget:${missing.length}`);
+      verificationResults.push(...missing.map(item=>({hypothesisIndex:item.hypothesisIndex,verificationStatus:'insufficient_evidence',evidenceRefs:[],verificationReason:'Causal or required symbol evidence was absent from the bounded verifier input.'})));
+    }
+    if(eligible.length){
+      const input=buildVerificationInput(eligible,verificationEvidence.text);
+      const estimatedOutputTokens=256+eligible.length*110,estimate=estimateRequestTokens(input,{estimatedOutputTokens});
+      if(remainingMs<=0)throw operationTimeoutError('verification');
+      if(tokenBudget>0&&estimatedTokens+estimate.totalTokens>tokenBudget){
+        coverageGaps.push('verification_budget');evidence.complete=false;
+        verificationResults.push(...eligible.map(item=>({hypothesisIndex:item.hypothesisIndex,verificationStatus:'insufficient_evidence',evidenceRefs:[],verificationReason:'Verification budget was exhausted before this semantic hypothesis could be proven.'})));
+      }else{
+        const verificationRoute=resolveManagedModel(options,{role:'reviewer',mode:options.mode||'balanced',explicitModel:options.model});
+        const result=await sharedCodexCli.runStructuredCodex({codexPath:options.codexPath,model:verificationRoute.model,runtime:options.codexRuntime,phase:'verification',timeoutMs:remainingMs,schema:verificationSchema(eligible.length),input,schemaFileName:'review-verification-schema.json',token,maxStdoutBytes:4*1024*1024,maxStderrBytes:1024*1024,processOptions:{detached:process.platform!=='win32'},maxEstimatedTokens:tokenBudget>0?Math.max(1,tokenBudget-estimatedTokens):0,estimatedOutputTokens});
+        estimatedTokens+=result.requestEstimate?.totalTokens||estimate.totalTokens;usageAdd(usage,result.usage);resolvedVersion=result.resolved.version||resolvedVersion;models.add(verificationRoute.model||'cli-default');{const evidenceItem=modelEvidenceFor(verificationRoute,result.usage);if(evidenceItem)modelEvidence.push(evidenceItem);}verifierCalled=true;
+        verificationResults.push(...validateVerificationResult(result.parsed,eligible,verificationEvidence.entries));
+      }
     }
   }
 
   const materialized=materializeVerifiedFindings(uniqueHypotheses,verificationResults,semanticEvidence,extraEvidence.resolutions||[],options,extraEvidence.scope);
+  if(materialized.coverageGaps.length){evidence.complete=false;coverageGaps.push(...materialized.coverageGaps);}
   const combinedRejected=[...rejectedHypotheses.map(item=>({index:item.index,reason:item.reason})),...materialized.rejectedFindings.map((item,index)=>({index:modelHypothesisCount+index,reason:item.rejectionReason||'semantic_verification_rejected'}))];
   const resultSet={summary:'',findings:materialized.findings,suppressedFindings:materialized.suppressedFindings,rejectedFindings:combinedRejected,modelFindingCount:modelHypothesisCount};
   evidence.coverageGaps=coverageGaps;
