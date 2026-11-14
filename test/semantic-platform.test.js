@@ -22,6 +22,7 @@ Module._load=function(request,parent,isMain){
   return originalLoad.call(this,request,parent,isMain);
 };
 const productSemantic=require('../src/semantic-review');
+const {renderEvidenceForPaths}=require('../src/semantic-evidence');
 Module._load=originalLoad;
 
 const trimDiff=[
@@ -97,4 +98,43 @@ const replaySource=fs.readFileSync('src/replay-window.js','utf8');
 assert.match(replaySource,/MAX_CONSECUTIVE_REPLAYS=2/);
 assert.match(replaySource,/MAX_REPLAY_AGE_MS=10\*60\*1000/);
 assert.match(extensionSource,/resolveFinding/);
+
+const missingStaged=productSemantic.prepareVerification([localHypothesis],{manifest:{entries:[]},callSymbolsByPath:new Map(),blocks:[]});
+assert.strictEqual(missingStaged.automatic[0].verificationStatus,'insufficient_evidence','missing causal evidence must not be auto-verified');
+assert.strictEqual(missingStaged.needsModel.length,0,'do not spend model tokens without causal evidence');
+const missingRequired={...localHypothesis,requiredSymbols:['required_api']};
+const partiallySupplied=productSemantic.prepareVerification([missingRequired],{
+  manifest:{entries:[{id:'staged-app',kind:'staged',path:'app.c'},{id:'different-symbol',kind:'symbol-definition',symbol:'unrelated_api',path:'app.c'}]},
+  callSymbolsByPath:new Map(),blocks:[]
+});
+assert.strictEqual(partiallySupplied.automatic[0].verificationStatus,'insufficient_evidence','each required symbol must have evidence');
+assert.strictEqual(partiallySupplied.needsModel.length,0);
+
+const claim={hypothesisIndex:0,stagedRef:'E-staged',hypothesis:{requiredSymbols:['required_api']},symbolRefs:[{id:'E-api',symbol:'required_api'}]};
+const supplied=[{id:'E-staged',kind:'staged',path:'app.c'},{id:'E-api',kind:'symbol-definition',symbol:'required_api',path:'app.c'}];
+const verifiedOutput=evidenceRefs=>({results:[{hypothesisIndex:0,verificationStatus:'verified',evidenceRefs,verificationReason:'checked'}]});
+assert.equal(productSemantic.validateVerificationResult(verifiedOutput(['E-staged','E-api']),[claim],supplied)[0].verificationStatus,'verified');
+assert.equal(productSemantic.validateVerificationResult(verifiedOutput(['E-api']),[claim],supplied)[0].verificationStatus,'insufficient_evidence','staged citation is mandatory');
+assert.equal(productSemantic.validateVerificationResult(verifiedOutput(['E-staged']),[claim],supplied)[0].verificationStatus,'insufficient_evidence','required symbol citation is mandatory');
+assert.equal(productSemantic.validateVerificationResult(verifiedOutput(['E-staged','E-api','fake']),[claim],supplied)[0].verificationStatus,'insufficient_evidence','undelivered citation cannot verify a claim');
+assert.equal(productSemantic.validateVerificationResult({results:[{hypothesisIndex:0,verificationStatus:'contradicted',evidenceRefs:['E-api'],verificationReason:'checked'}]},[claim],supplied)[0].verificationStatus,'insufficient_evidence','contradictions must cite causal evidence');
+assert.equal(productSemantic.validateVerificationResult(verifiedOutput(['E-staged','E-api']),[claim],[])[0].verificationStatus,'insufficient_evidence','manifest-only evidence cannot be cited without delivery');
+
+const delivery=renderEvidenceForPaths({
+  manifest:manifest,
+  blocks:manifest.entries.map((entry,index)=>({entry,content:['VSAPISTRING_Trim(&pcFileName);','int VSAPISTRING_Trim(...);','char* duplicated = ...;'][index]}))
+},['app.c'],{includeStaged:true,maxBytes:160*1024,maxEntries:64,requiredIds:ids});
+assert.deepStrictEqual(delivery.missingRequiredIds,[]);
+assert.equal(delivery.entries.length,3);
+assert.match(delivery.text,/EVIDENCE/);
+const noBlocks=renderEvidenceForPaths({manifest,blocks:[]},['app.c'],{includeStaged:true,requiredIds:ids});
+assert.equal(noBlocks.entries.length,0);
+assert.deepStrictEqual(new Set(noBlocks.missingRequiredIds),new Set(ids));
+
+assert.match(codexSource,/includeStaged:true,requiredIds/,'verifier must receive actual staged evidence under bound budget');
+assert.match(codexSource,/verificationEvidence\.entries/,'verifier results must validate against delivered IDs');
+assert.match(codexSource,/verification_evidence_budget/,'missing bounded evidence cannot be a clean pass');
+assert.match(codexSource,/if\(eligible\.length\)/,'do not spend tokens on candidates with missing mandatory citations');
+assert.match(semanticSource,/verification_incomplete:/,'insufficient evidence must become a coverage gap');
+
 console.log('Semantic Review adaptive-replay integrity gates passed.');
