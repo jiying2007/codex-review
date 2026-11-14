@@ -53,7 +53,7 @@ const nestedDiff = [
   '--- a/b/auth.c',
   '+++ b/b/auth.c',
   '@@ -4 +4 @@', '-return true;', '+return denied;'
-].join('\\n');
+].join('\n');
 assert.deepEqual([...changedLinesBySide(nestedDiff, 'new').keys()].sort(), ['a/auth.c','b/auth.c']);
 assert.deepEqual(validateCausalAnchor('a/auth.c', 8, new Set(['a/auth.c','b/auth.c']), new Map([['a/auth.c',[{start:8,end:8}]]])), { file:'a/auth.c', line:8, side:'new' });
 assert.throws(() => validateCausalAnchor('auth.c', 8, new Set(['a/auth.c']), new Map()), /not staged/);
