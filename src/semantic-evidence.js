@@ -216,12 +216,17 @@ function composeSemanticEvidence(structuralEvidence,analyzerFindings,snapshot,di
   const manifest=buildEvidenceManifest(blocks.map(block=>block.entry),{headOid:snapshot?.headOid,indexFingerprint:snapshot?.indexFingerprint,diffFingerprint});
   return {impact:structuralEvidence?.impact||{},callSymbolsByPath:structuralEvidence?.callSymbolsByPath||new Map(),blocks,manifest,analyzerDigest:digestAnalyzerEvidence(analyzerFindings)};
 }
-function renderEvidenceForPaths(evidence,paths,{maxBytes=96*1024,maxEntries=32,includeStaged=false}={}) {
+function renderEvidenceForPaths(evidence,paths,{maxBytes=96*1024,maxEntries=32,includeStaged=false,requiredIds=[]}={}) {
   const sourceEntries=(evidence?.manifest?.entries||[]).filter(entry=>includeStaged||entry.kind!=='staged');
   const selected=selectEvidenceForPaths(sourceEntries,paths,{maxBytes,maxEntries});
   const contentById=new Map((evidence?.blocks||[]).map(block=>[block.entry.id,block.content]));
-  const text=selected.entries.map(entry=>`--- EVIDENCE ${entry.id} kind=${entry.kind} source=${entry.source} path=${entry.path}${entry.symbol?` symbol=${entry.symbol}`:''} ---\n${contentById.get(entry.id)||''}\n--- END EVIDENCE ${entry.id} ---`).join('\n');
-  return {...selected,text};
+  const visible=selected.entries.filter(entry=>contentById.has(entry.id));
+  // Required causal and symbol evidence must be delivered in the actual verifier
+  // prompt, not merely present in a manifest the verifier cannot inspect.
+  const visibleIds=new Set(visible.map(entry=>entry.id));
+  const missingRequiredIds=[...new Set(requiredIds)].filter(id=>!visibleIds.has(id));
+  const text=visible.map(entry=>`--- EVIDENCE ${entry.id} kind=${entry.kind} source=${entry.source} path=${entry.path}${entry.symbol?` symbol=${entry.symbol}`:''} ---\n${contentById.get(entry.id)}\n--- END EVIDENCE ${entry.id} ---`).join('\n');
+  return {...selected,entries:visible,text,missingRequiredIds};
 }
 function evidenceForSymbols(evidence,symbols=[]) {
   const wanted=new Set(symbols||[]);return (evidence?.manifest?.entries||[]).filter(entry=>entry.symbol&&wanted.has(entry.symbol));

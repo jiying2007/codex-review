@@ -115,8 +115,12 @@ function prepareVerification(hypotheses,evidence) {
     const staged=stagedEvidenceRef(evidence.manifest,hypothesis.file);
     const symbolRefs=evidenceForSymbols(evidence,hypothesis.requiredSymbols);
     const declaredExternal=(hypothesis.requiredSymbols||[]).length||(hypothesis.assumptions||[]).length;
-    if(declaredExternal&&!symbolRefs.length){
-      automatic.push({hypothesisIndex:index,verificationStatus:'insufficient_evidence',evidenceRefs:staged?[staged.id]:[],verificationReason:'Required external semantic evidence is absent from the immutable Evidence Manifest.'});
+    const suppliedSymbols=new Set(symbolRefs.map(entry=>entry.symbol));
+    const missingSymbols=(hypothesis.requiredSymbols||[]).filter(symbol=>!suppliedSymbols.has(symbol));
+    if(!staged){
+      automatic.push({hypothesisIndex:index,verificationStatus:'insufficient_evidence',evidenceRefs:[],verificationReason:'The exact staged causal evidence is absent from the immutable Evidence Manifest.'});
+    }else if(missingSymbols.length||(declaredExternal&&!symbolRefs.length)){
+      automatic.push({hypothesisIndex:index,verificationStatus:'insufficient_evidence',evidenceRefs:[staged.id],verificationReason:'Required external semantic evidence is absent from the immutable Evidence Manifest.'});
     }else if(requiresIndependentVerification(hypothesis)){
       needsModel.push({hypothesisIndex:index,hypothesis,stagedRef:staged?.id||'',symbolRefs});
     }else{
@@ -132,21 +136,38 @@ function buildVerificationInput(needsModel,evidenceText) {
     'Do not read files, execute commands, call tools, access the network, or invent missing semantics.',
     'For every hypothesis: VERIFIED only when all assumptions needed for the claim are supported by cited evidence; CONTRADICTED when supplied evidence disproves a required premise; INSUFFICIENT_EVIDENCE otherwise.',
     'Every evidenceRefs item must be an exact EVIDENCE id shown below. Cite the minimal relevant set.',
+    'Both VERIFIED and CONTRADICTED must cite the stagedEvidenceRef corresponding to the causal changed line, delivered in this request.',
+    'For VERIFIED, additionally cite delivered symbol evidence for every required symbol. An unavailable citation means INSUFFICIENT_EVIDENCE.',
     'A high model confidence from the hypothesis stage is not evidence.',
-    '',`Hypotheses:\n${JSON.stringify(needsModel.map(item=>({hypothesisIndex:item.hypothesisIndex,hypothesis:item.hypothesis})),null,2)}`,'',evidenceText
+    '',`Hypotheses:\n${JSON.stringify(needsModel.map(item=>({hypothesisIndex:item.hypothesisIndex,stagedEvidenceRef:item.stagedRef,symbolEvidenceRefs:item.symbolRefs.map(entry=>({id:entry.id,symbol:entry.symbol})),hypothesis:item.hypothesis})),null,2)}`,'',evidenceText
   ].join('\n');
 }
-function validateVerificationResult(value, needsModel) {
+function validateVerificationResult(value, needsModel, suppliedEntries=[]) {
   const expected=new Set(needsModel.map(item=>item.hypothesisIndex)),byIndex=new Map();
-  if(value&&Array.isArray(value.results)) for(const result of value.results){const index=Number(result.hypothesisIndex);if(!expected.has(index)||byIndex.has(index))continue;byIndex.set(index,{hypothesisIndex:index,verificationStatus:String(result.verificationStatus||'insufficient_evidence'),evidenceRefs:[...new Set((result.evidenceRefs||[]).map(String))],verificationReason:String(result.verificationReason||'').slice(0,1000)});}
-  return needsModel.map(item=>byIndex.get(item.hypothesisIndex)||{hypothesisIndex:item.hypothesisIndex,verificationStatus:'insufficient_evidence',evidenceRefs:[],verificationReason:'Verifier did not return a complete result for this hypothesis.'});
+  if(value&&Array.isArray(value.results))for(const result of value.results){
+    const index=Number(result.hypothesisIndex);
+    if(!expected.has(index)||byIndex.has(index))continue;
+    byIndex.set(index,{hypothesisIndex:index,verificationStatus:String(result.verificationStatus||'insufficient_evidence'),evidenceRefs:[...new Set((result.evidenceRefs||[]).map(String))],verificationReason:String(result.verificationReason||'').slice(0,1000)});
+  }
+  const available=new Set(suppliedEntries.map(entry=>entry.id));
+  return needsModel.map(item=>{
+    const result=byIndex.get(item.hypothesisIndex)||{hypothesisIndex:item.hypothesisIndex,verificationStatus:'insufficient_evidence',evidenceRefs:[],verificationReason:'Verifier did not return a complete result for this hypothesis.'};
+    const decisive=['verified','contradicted'].includes(result.verificationStatus);
+    const invalidCausal=decisive&&(!item.stagedRef||!available.has(item.stagedRef)||!result.evidenceRefs.includes(item.stagedRef)||result.evidenceRefs.some(id=>!available.has(id)));
+    const missingSymbols=result.verificationStatus==='verified'&&(item.hypothesis.requiredSymbols||[]).some(symbol=>!suppliedEntries.some(entry=>entry.symbol===symbol&&result.evidenceRefs.includes(entry.id)));
+    if(invalidCausal||missingSymbols||!['verified','contradicted','insufficient_evidence'].includes(result.verificationStatus)){
+      return {...result,verificationStatus:'insufficient_evidence',verificationReason:invalidCausal?'Verification did not cite supplied staged causal evidence.':missingSymbols?'Verification did not cite evidence for every required symbol.':'Unknown verification status.'};
+    }
+    return result;
+  });
 }
 function materializeVerifiedFindings(hypotheses,verificationResults,evidence,resolutions,options,scope=null) {
-  const byIndex=new Map(verificationResults.map(item=>[item.hypothesisIndex,item])),findings=[],suppressedFindings=[],rejectedFindings=[];
+  const byIndex=new Map(verificationResults.map(item=>[item.hypothesisIndex,item])),findings=[],suppressedFindings=[],rejectedFindings=[],coverageGaps=[];
   hypotheses.forEach((hypothesis,index)=>{
     const verification=byIndex.get(index)||{verificationStatus:'insufficient_evidence',evidenceRefs:[],verificationReason:'No verification result.'};
     const stableFindingId=computeStableFindingId({...hypothesis,claimClass:hypothesis.claimClass});
     const checked=validateEvidenceBackedFinding({...hypothesis,stableFindingId,...verification},evidence.manifest,resolutions);
+    if(verification.verificationStatus==='insufficient_evidence')coverageGaps.push(`verification_incomplete:${stableFindingId}`);
     const legacy={
       severity:checked.severity,category:checked.category,file:checked.file,side:hypothesis.side,line:checked.line,endLine:checked.endLine,
       title:checked.claim.slice(0,160),description:checked.claim,suggestion:checked.suggestion,confidence:checked.modelConfidence,modelConfidence:checked.modelConfidence,
@@ -161,7 +182,7 @@ function materializeVerifiedFindings(hypotheses,verificationResults,evidence,res
     else if(!checked.publishable||checked.modelConfidence<options.confidenceThreshold) suppressedFindings.push({...legacy,suppressionReason:checked.resolution?`resolution:${checked.resolution.resolution}`:checked.modelConfidence<options.confidenceThreshold?'confidence_threshold':`verification:${checked.verificationStatus}/${checked.evidenceGrade}`});
     else findings.push(legacy);
   });
-  return {findings,suppressedFindings,rejectedFindings,findingSetDigest:digestFindingSet(findings)};
+  return {findings,suppressedFindings,rejectedFindings,coverageGaps,findingSetDigest:digestFindingSet(findings)};
 }
 function semanticSummary(review,language='en'){
   const counts={critical:0,high:0,medium:0,low:0,info:0};for(const finding of review.findings||[])if(counts[finding.severity]!==undefined)counts[finding.severity]++;
