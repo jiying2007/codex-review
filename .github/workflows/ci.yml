@@ -28,6 +28,7 @@ jobs:
           cache: npm
       - run: npm run verify:lock
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm audit --audit-level=high
       - run: npm run check
 
   integration-latest:
@@ -159,6 +160,7 @@ jobs:
 
   codeql:
     permissions:
+      actions: read
       contents: read
       security-events: write
     uses: ./.github/workflows/codeql.yml
@@ -189,17 +191,17 @@ jobs:
         shell: bash
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          npm audit --audit-level=high --omit=dev
+          npm audit --audit-level=high
           node src/codex-safe-core/scripts/verify-package-licenses.js .
 
   family-release-guard:
     if: github.event_name == 'pull_request'
-    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@59f8a1b84158b05d0c0a5f257ffb8b2452e0b18b
+    uses: jiying2007/codex-safe-core/.github/workflows/family-release-guard.yml@31b94d4c1bddbe9988225eccf632a669d8b124f0
     secrets:
       CODEX_SAFE_FAMILY_READ_TOKEN: ${{ secrets.CODEX_SAFE_FAMILY_READ_TOKEN }}
     with:
       product: codex-review-safe
-      expected_core_sha: 59f8a1b84158b05d0c0a5f257ffb8b2452e0b18b
+      expected_core_sha: 31b94d4c1bddbe9988225eccf632a669d8b124f0
 
   ci-gate:
     name: CI Gate

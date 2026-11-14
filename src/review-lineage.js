@@ -11,7 +11,7 @@ const REQUIRED_FRESH_RUNS = 2;
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
 function normalizeFsPath(value) { const resolved=path.resolve(value); return process.platform==='win32'?resolved.toLowerCase():resolved; }
-function normalizeGitPath(value) { return String(value||'').replace(/\\/g,'/').replace(/^\.\//,''); }
+function normalizeGitPath(value) { return String(value||''); }
 function buildReviewSessionKey({ headOid, policyFingerprint, scopeFingerprint, profile }) {
   return sha256(canonicalJson({ headOid, policyFingerprint, scopeFingerprint, profile }));
 }

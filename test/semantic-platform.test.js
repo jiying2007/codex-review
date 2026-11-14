@@ -138,3 +138,18 @@ assert.match(codexSource,/if\(eligible\.length\)/,'do not spend tokens on candid
 assert.match(semanticSource,/verification_incomplete:/,'insufficient evidence must become a coverage gap');
 
 console.log('Semantic Review adaptive-replay integrity gates passed.');
+
+// Git paths are opaque identities; no causal evidence may cross a slash/backslash alias.
+const rawIdentityManifest=core.buildEvidenceManifest([
+  {kind:'staged',source:'index',path:'x\\y.c',content:'left();',relatedPaths:['x\\y.c']},
+  {kind:'staged',source:'index',path:'x/y.c',content:'right();',relatedPaths:['x/y.c']}
+]);
+assert.deepStrictEqual(rawIdentityManifest.entries.map(item=>item.path).sort(),['x/y.c','x\\y.c'].sort());
+assert.notStrictEqual(core.computeStableFindingId({...localHypothesis,file:'x\\y.c'}),core.computeStableFindingId({...localHypothesis,file:'x/y.c'}));
+assert.strictEqual(productSemantic.stagedEvidenceRef(rawIdentityManifest,'x\\y.c').path,'x\\y.c');
+const onlySlash={manifest:core.buildEvidenceManifest([{kind:'staged',source:'index',path:'x/y.c',content:'left();'}]),callSymbolsByPath:new Map(),blocks:[]};
+assert.strictEqual(productSemantic.prepareVerification([{...localHypothesis,file:'x\\y.c'}],onlySlash).automatic[0].verificationStatus,'insufficient_evidence');
+const {snapshotFinding,transitionBetween:rawTransition}=require('../src/review-lineage');
+const rawBefore=snapshotFinding({stableFindingId:'old',file:'x\\y.c'}),rawAfter=snapshotFinding({stableFindingId:'new',file:'x/y.c'});
+assert.strictEqual(rawBefore.file,'x\\y.c');
+assert.deepStrictEqual(rawTransition([rawBefore],[rawAfter]).likelyFixInducedIds,[]);

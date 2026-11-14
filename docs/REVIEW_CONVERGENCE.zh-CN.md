@@ -36,3 +36,13 @@ Replay 不生成新的 `ReviewRunId`、Lineage run、Review Receipt，也不能�
 `ReviewSubjectKey` 标识不可变审查对象；`ReviewRunId` 标识一次真实 fresh 模型执行。Convergence 仍要求至少两次 coverage complete 且 finding set 一致的 fresh blind runs，Replay 永远不能满足该条件。
 
 Report 必须明确区分 `fresh`、`result-replay` 与 `structural-cache-hit`。长期 Judgment 历史只由 Review Receipt + Review Lineage 保存，它们用于审计，不作为下一轮模型输入。
+
+## 验证覆盖与候选上限
+
+`maxFindings` 限制展示和验证工作量，不能证明被省略的候选已经受审。Hypothesis schema 在该上限之外保留有界余量；响应达到容量、单个 chunk 省略候选、跨 chunk 汇总截断都会生成明确的 coverage gap。展示上限为 1 时仅返回 1 个候选，本身不代表响应容量饱和。
+
+Hypothesis 与 verification 两阶段均接收所选 Profile Pack 检查项。只有 staged 和必需 symbol 证据完整进入实际 verifier input 的候选才可送验。必需证据因预算被省略时，审查保持 incomplete，控制器不会把不具备验证条件的候选交给模型判断。即使没有可发布 Findings 且 finding set 稳定，失败的机械规则仍阻止交付。
+
+## 受控回归证据
+
+语义 corpus 包含可执行的临时 Git 夹具和受控模型输出，实际经过证据收集、两阶段审查、因果行锚点、Lineage、Convergence 与 Receipt 资格判断。`evaluationMode: controlled-model-controller-regression` 明确表示控制器回归覆盖；它不衡量真实新模型的召回率、准确率或生产晋级质量。

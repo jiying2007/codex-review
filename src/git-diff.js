@@ -1,42 +1,24 @@
 'use strict';
 
+const { decodeGitQuotedPath, parseGitDiffHeaderPaths, parseGitFileHeaderPath } = require('./codex-safe-core/context-builder');
+
 // Repository paths and Git's a/ / b/ presentation prefixes are different types.
 // Only diff header parsing removes a presentation prefix, exactly once.
 function normalizeRepositoryPath(value) {
-  return String(value || '').replace(/\\/g, '/').replace(/^\.\//, '');
+  return String(value || '');
 }
 
 function decodeGitPath(raw) {
   // Git appends a literal tab after ---/+++ names containing spaces, including
   // quoted names. A tab inside a quoted filename is C-escaped as backslash+t.
-  raw = raw.split('\t', 1)[0];
-  if (!raw.startsWith('"')) return raw;
-  if (!raw.endsWith('"')) throw new Error('Unterminated quoted Git diff path.');
-  const bytes = [];
-  const escapes = { a:7, b:8, t:9, n:10, v:11, f:12, r:13, '"':34, '\\':92 };
-  for (let index = 1; index < raw.length - 1; index++) {
-    const character = raw[index];
-    if (character !== '\\') {
-      const codepoint = raw.codePointAt(index);
-      const text = String.fromCodePoint(codepoint);
-      bytes.push(...Buffer.from(text, 'utf8'));
-      index += text.length - 1;
-      continue;
-    }
-    const escaped = raw[++index];
-    if (escaped in escapes) { bytes.push(escapes[escaped]); continue; }
-    const octal = raw.slice(index).match(/^[0-7]{1,3}/)?.[0];
-    if (!octal) throw new Error('Invalid quoted Git diff path escape.');
-    bytes.push(parseInt(octal, 8));
-    index += octal.length - 1;
-  }
-  return Buffer.from(bytes).toString('utf8');
+  return decodeGitQuotedPath(String(raw).split('\t', 1)[0]);
 }
 
 function headerPath(raw, prefix) {
-  const decoded = decodeGitPath(raw);
+  const marker = prefix === 'a/' ? '--- ' : '+++ ';
+  const decoded = parseGitFileHeaderPath(marker + raw, marker);
   if (decoded === '/dev/null') return '';
-  return normalizeRepositoryPath(decoded.startsWith(prefix) ? decoded.slice(prefix.length) : decoded);
+  return decoded;
 }
 
 function parseGitDiff(diff = '') {
@@ -45,9 +27,10 @@ function parseGitDiff(diff = '') {
   for (const raw of String(diff || '').split(/\r?\n/)) {
     // A backslash belongs only to the escape branch. Overlapping alternatives
     // make unterminated quoted paths backtrack exponentially.
-    const header = raw.match(/^diff --git ("(?:\\.|[^"\\])*"|a\/.*?) ("(?:\\.|[^"\\])*"|b\/.*)$/);
-    if (header) {
-      section = { oldPath:headerPath(header[1], 'a/'), newPath:headerPath(header[2], 'b/'), lines:[raw], oldLines:new Map(), newLines:new Map() };
+    if (raw.startsWith('diff --git ')) {
+      const header = parseGitDiffHeaderPaths(raw);
+      if (!header) throw new Error('Invalid or ambiguous Git diff path header.');
+      section = { oldPath:header.old, newPath:header.new, lines:[raw], oldLines:new Map(), newLines:new Map() };
       sections.push(section); oldLine = 0; newLine = 0; inHunk = false;
       continue;
     }

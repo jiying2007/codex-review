@@ -92,26 +92,30 @@ jobs:
           unzip -Z1 "release-artifacts/$vsix" > /tmp/vsix-files.txt
           grep -Fx 'extension/package.json' /tmp/vsix-files.txt; grep -Fx 'extension/dist/extension.js' /tmp/vsix-files.txt; grep -Fx 'extension/dist/codex-safe.schema.json' /tmp/vsix-files.txt
           if grep -E '^extension/(extension\.js|src/|test/|scripts/|package-lock\.json|\.gitmodules|\.github/)' /tmp/vsix-files.txt; then echo 'Release VSIX contains development-only files' >&2; exit 1; fi
+      - name: Install locked publication tooling
+        if: steps.release.outputs.eligible == 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Publish exact Release VSIX
+        id: publish_vsix
         if: steps.release.outputs.eligible == 'true'
         env: { VSCE_PAT: '${{ secrets.VSCE_PAT }}', VERSION: '${{ steps.release.outputs.version }}' }
         shell: bash
         run: |
           set -euo pipefail
           test -n "${VSCE_PAT:-}" || { echo 'VSCE_PAT is required.' >&2; exit 1; }
-          npx --yes @vscode/vsce@3.9.2 publish --packagePath "release-artifacts/codex-review-safe-${VERSION}.vsix" -p "$VSCE_PAT" --skip-duplicate
+          node node_modules/@vscode/vsce/vsce publish --packagePath "release-artifacts/codex-review-safe-${VERSION}.vsix" --skip-duplicate
       - name: Record publication result
         id: result
         if: always()
-        env: { ELIGIBLE: '${{ steps.release.outputs.eligible }}' }
+        env: { ELIGIBLE: '${{ steps.release.outputs.eligible }}', PUBLISH_OUTCOME: '${{ steps.publish_vsix.outcome }}' }
         shell: bash
         run: |
-          if [[ "$ELIGIBLE" == true ]]; then echo 'published=true' >> "$GITHUB_OUTPUT"; else echo 'published=false' >> "$GITHUB_OUTPUT"; fi
+          if [[ "$ELIGIBLE" == true && "$PUBLISH_OUTCOME" == success ]]; then echo 'published=true' >> "$GITHUB_OUTPUT"; else echo 'published=false' >> "$GITHUB_OUTPUT"; fi
 
   receipt:
     needs: publish
     if: ${{ needs.publish.result == 'success' && needs.publish.outputs.published == 'true' }}
-    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@59f8a1b84158b05d0c0a5f257ffb8b2452e0b18b
+    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@31b94d4c1bddbe9988225eccf632a669d8b124f0
     with:
       product_id: codex-review-safe
       product_version: ${{ needs.publish.outputs.version }}

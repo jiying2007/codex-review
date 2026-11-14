@@ -36,3 +36,13 @@ Every fresh run receives the current diff/evidence but never previous findings, 
 `ReviewSubjectKey` identifies the immutable review subject. `ReviewRunId` identifies one actual fresh model execution. Convergence still requires at least two fresh blind runs with complete coverage and matching finding sets. Replay cannot satisfy this requirement.
 
 The report must distinguish `fresh`, `result-replay`, and `structural-cache-hit`. Durable judgment history lives only in Review Receipt + Review Lineage; it is audit evidence, not future model input.
+
+## Verification coverage and candidate limits
+
+`maxFindings` limits presentation and verification work. It cannot certify that omitted hypotheses were reviewed. The hypothesis schema reserves bounded headroom beyond that limit, and a saturated response, per-chunk omission or aggregate truncation creates an explicit coverage gap. A single candidate at a display limit of one does not by itself indicate saturation.
+
+Both hypothesis and verification requests receive the selected profile pack checks. Only hypotheses whose staged and required symbol evidence actually fit in the delivered verifier input are eligible for verification. An omitted mandatory evidence block leaves the review incomplete; the controller does not send an ineligible hypothesis for judgment. Failed mechanical rules continue to block delivery even when the result has no publishable findings and its finding set is stable.
+
+## Controlled regression evidence
+
+The semantic corpus contains executable temporary Git fixtures and controlled model responses. Its tests exercise evidence collection, both review stages, causal anchors, lineage, convergence and receipt qualification. `evaluationMode: controlled-model-controller-regression` identifies this evidence as controller regression coverage. It does not measure fresh model recall, accuracy or production promotion quality.

@@ -44,16 +44,17 @@ function evaluateConvergence(review, lineage = null, scope = null) {
   const sessionRunNumber = Number(lineage?.sessionRunNumber || 1);
   const subjectRunNumber = Number(lineage?.subjectRunNumber || 1);
   let state = 'active';
-  if (!coverageComplete || !stabilityOk) state = 'incomplete';
+  if (!coverageComplete || !stabilityOk || review?.mechanicalGate === 'fail') state = 'incomplete';
   else if (!findings.length) state = 'converged';
   else if (reintroduced > 0 || likelyFixInduced > 0 || added > fixed) state = 'regressing';
   else if (fixed > added) state = 'improving';
 
-  const blocked = review?.qualityVerdict === 'blocked' || findings.some(finding => finding?.severity === 'critical' || finding?.severity === 'high');
+  const blocked = review?.mechanicalGate === 'fail' || review?.qualityVerdict === 'blocked' || findings.some(finding => finding?.severity === 'critical' || finding?.severity === 'high');
   const readinessVerdict = blocked || !coverageComplete ? 'blocked' : state === 'converged' && findings.length === 0 ? 'ready' : 'needs_evidence';
   if (review && typeof review === 'object') {
     review.readinessVerdict = readinessVerdict;
-    if (readinessVerdict === 'ready') review.verdict = 'ready';
+    if (readinessVerdict === 'blocked') review.verdict = 'block';
+    else if (readinessVerdict === 'ready') review.verdict = 'ready';
   }
 
   const invariants = invariantCandidates(findings);
@@ -61,6 +62,7 @@ function evaluateConvergence(review, lineage = null, scope = null) {
     state,
     readinessVerdict,
     coverageComplete,
+    mechanicalGate: review?.mechanicalGate || 'pass',
     stabilityOk,
     provenanceComplete,
     stabilityReason: stabilityReason(stability),
@@ -91,6 +93,7 @@ function evaluateConvergence(review, lineage = null, scope = null) {
 function convergenceCoverageGap(convergence) {
   if (!convergence || convergence.state !== 'incomplete') return null;
   if (!convergence.coverageComplete) return 'convergence_coverage_incomplete';
+  if (convergence.mechanicalGate === 'fail') return 'convergence_mechanical_gate_failed';
   return `convergence_stability:${convergence.stabilityReason || 'incomplete'}`;
 }
 

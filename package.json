@@ -2,7 +2,7 @@
   "name": "codex-review-safe",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "4.8.11",
+  "version": "4.8.12",
   "publisher": "jiying2007",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
@@ -422,7 +422,7 @@
   },
   "devDependencies": {
     "@vscode/test-electron": "3.1.0",
-    "@vscode/vsce": "3.9.2"
+    "@vscode/vsce": "4.1.1"
   },
   "extensionDependencies": [
     "vscode.git"
@@ -438,5 +438,10 @@
   "pricing": "Free",
   "preview": false,
   "icon": "images/icon.png",
-  "l10n": "./l10n"
+  "l10n": "./l10n",
+  "overrides": {
+    "@vscode/vsce": {
+      "minimatch": "11.0.1"
+    }
+  }
 }

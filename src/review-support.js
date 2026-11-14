@@ -21,7 +21,7 @@ function normalizeFsPath(value) {
 
 function normalizeGitPathForComparison(value) {
   const text = String(value || '');
-  return process.platform === 'win32' ? text.replace(/\\/g, '/') : text;
+  return text;
 }
 
 function clampNumber(value, fallback, min, max, name) {
