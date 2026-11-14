@@ -4,9 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { spawnSync } = require('child_process');
+const { isDeepStrictEqual } = require('util');
 
 const ROOT = path.resolve(__dirname, '..');
-const RELEASE_FILES = ['CHANGELOG.md', 'package-lock.json', 'package.json'];
+const RELEASE_FILES = ['CHANGELOG.md', 'package-lock.json', 'package.json', 'product-contract.json'];
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 function fail(message) { throw new Error(message); }
@@ -62,6 +63,15 @@ function run(command, args, options = {}) {
 function git(args, options = {}) { return run('git', args, { capture: true, ...options }); }
 function readJson(name) { return JSON.parse(fs.readFileSync(path.join(ROOT, name), 'utf8')); }
 function writeJson(name, value) { fs.writeFileSync(path.join(ROOT, name), `${JSON.stringify(value, null, 2)}\n`); }
+function readReleaseMetadata() {
+  const pkg = readJson('package.json');
+  const lock = readJson('package-lock.json');
+  const contract = readJson('product-contract.json');
+  if (lock.version !== pkg.version || lock.packages?.['']?.version !== pkg.version) fail('package.json 与 package-lock.json 版本不一致');
+  if (contract.productVersion !== pkg.version) fail('product-contract.json 与 package.json 版本不一致');
+  if (contract.productId !== pkg.name) fail('product-contract.json 与 package.json 产品身份不一致');
+  return { pkg, lock, contract };
+}
 function changedFiles() {
   const tracked = git(['diff', '--name-only', 'HEAD', '--']).split('\n').filter(Boolean);
   const untracked = git(['ls-files', '--others', '--exclude-standard']).split('\n').filter(Boolean);
@@ -83,12 +93,13 @@ function assertTagAbsent(tag) {
   if (result.status !== 2) fail(`检查远端 Tag 失败（exit ${result.status}）: ${(result.stderr || '').trim()}`);
 }
 function releaseState() {
-  const pkg = readJson('package.json');
-  const lock = readJson('package-lock.json');
+  const { pkg, contract } = readReleaseMetadata();
   const previous = packageAtHead();
+  const previousContract = JSON.parse(git(['show', 'HEAD:product-contract.json']));
   parseVersion(pkg.version);
   if (compareVersions(pkg.version, previous.version) <= 0) fail(`版本必须递增: ${previous.version} -> ${pkg.version}`);
-  if (lock.version !== pkg.version || lock.packages?.['']?.version !== pkg.version) fail('package.json 与 package-lock.json 版本不一致');
+  if (previousContract.productVersion !== previous.version || previousContract.productId !== previous.name) fail('HEAD 的产品契约与 package.json 不一致');
+  if (!isDeepStrictEqual({ ...contract, productVersion: previousContract.productVersion }, previousContract)) fail('发布只能更新 product-contract.json 的 productVersion，其他契约字段不得变更');
   if (!fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8').includes(`\n## ${pkg.version}\n`)) fail(`CHANGELOG.md 缺少 ${pkg.version} 标题`);
   return { pkg, previous, tag: `v${pkg.version}` };
 }
@@ -115,9 +126,9 @@ function printHelp() {
   npm run release:check -- [--dry-run]
   npm run release:push -- [--dry-run] [--timeout-minutes 30]
 
-prepare  同步 package/lock 版本并把 Unreleased 迁移到版本标题，不提交
+prepare  同步 package/lock/产品契约版本并把 Unreleased 迁移到版本标题，不提交
 check    校验 main、变更白名单、远端 Tag，并执行 lock/check/package 门禁
-push     重跑门禁，仅提交三个发布文件，推送 main，并核验 Actions/Tag/Release
+push     重跑门禁，仅提交四个发布文件，推送 main，并核验 Actions/Tag/Release
 
 可选环境变量 CODEX_RELEASE_GITHUB_TOKEN 用于提高 GitHub API 限额。脚本永不创建或强推 Tag。`);
 }
@@ -126,19 +137,19 @@ function prepare(version, dryRun) {
   parseVersion(version);
   if (changedFiles().length) fail('prepare 前工作区必须干净');
   assertMainSynced();
-  const pkg = readJson('package.json');
+  const { pkg, lock, contract } = readReleaseMetadata();
   if (compareVersions(version, pkg.version) <= 0) fail(`目标版本必须高于当前版本 ${pkg.version}`);
   assertTagAbsent(`v${version}`);
-  const lock = readJson('package-lock.json');
-  if (!lock.packages?.['']) fail('package-lock.json 缺少 packages[""]');
   const changelog = updateChangelog(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'), version);
   console.log(`[release] 准备 ${pkg.version} -> ${version}`);
   if (dryRun) return console.log(`[release] dry-run: 将只修改 ${RELEASE_FILES.join(', ')}`);
   pkg.version = version;
   lock.version = version;
   lock.packages[''].version = version;
+  contract.productVersion = version;
   writeJson('package.json', pkg);
   writeJson('package-lock.json', lock);
+  writeJson('product-contract.json', contract);
   fs.writeFileSync(path.join(ROOT, 'CHANGELOG.md'), changelog);
   console.log('[release] 已准备版本；请审阅 diff，然后运行 npm run release:check');
 }

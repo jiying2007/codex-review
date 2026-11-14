@@ -14,7 +14,7 @@ test('unterminated quoted headers finish within a bounded child process', () => 
     'const fs=require("node:fs");',
     'const {parseGitDiff}=require(process.argv[1]);',
     'for(const input of JSON.parse(fs.readFileSync(0,"utf8")))',
-    'assert.deepEqual(parseGitDiff(input),[]);'
+    'assert.throws(()=>parseGitDiff(input),/Invalid or ambiguous/);'
   ].join('\n');
   const suffix = '\\!'.repeat(200000);
   const result = spawnSync(process.execPath, ['-e', program, path.resolve(__dirname, '../src/git-diff.js')], {
@@ -31,8 +31,8 @@ test('quoted paths preserve escaped quotes, backslashes and tabs', () => {
   const diff = ['diff --git ' + oldPath + ' ' + newPath, '--- ' + oldPath, '+++ ' + newPath,
     '@@ -1 +1 @@', '-old', '+new'].join('\n');
   const [section] = parseGitDiff(diff);
-  assert.equal(section.oldPath, 'quo"ted/path\tname.c');
-  assert.equal(section.newPath, 'quo"ted/path\tname.c');
+  assert.equal(section.oldPath, 'quo"ted\\path\tname.c');
+  assert.equal(section.newPath, 'quo"ted\\path\tname.c');
   assert.equal(section.oldLines.get(1), 'old');
   assert.equal(section.newLines.get(1), 'new');
 });
@@ -69,4 +69,21 @@ test('real Git preserves a and b directories, quoted rename paths and hunk sourc
   assert.equal(renamed.oldPath, oldPath);
   assert.equal(renamed.oldLines.get(2), '--counter;');
   assert.equal(renamed.newLines.get(2), '++counter;');
+});
+
+test('real POSIX Git keeps slash, literal backslash, newline and edge spaces as different identities', { skip: process.platform === 'win32' }, t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'review-raw-paths-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  git('init'); git('config', 'user.name', 'Raw Path Fixture'); git('config', 'user.email', 'raw@example.invalid'); git('config', 'core.autocrlf', 'false');
+  const names = ['x\\y.c', 'x/y.c', ' leading.c', 'trailing.c ', 'line\nname.c'];
+  for (const name of names) { fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true }); fs.writeFileSync(path.join(root, name), 'before\n'); }
+  git('add', '.'); git('commit', '-m', 'baseline');
+  for (let i = 0; i < names.length; i++) fs.writeFileSync(path.join(root, names[i]), `after-${i}\n`);
+  git('add', '-A');
+  for (const quotePath of ['true', 'false']) {
+    const sections = parseGitDiff(git('-c', `core.quotepath=${quotePath}`, 'diff', '--cached', '--no-ext-diff', '--no-textconv'));
+    assert.deepEqual(sections.map(item => item.path).sort(), [...names].sort());
+    for (let i = 0; i < names.length; i++) assert.equal(sections.find(item => item.path === names[i]).newLines.get(1), `after-${i}`);
+  }
 });

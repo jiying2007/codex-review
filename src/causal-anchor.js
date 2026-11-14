@@ -29,9 +29,13 @@ function changedLinesBySide(diff='', side='new') {
   const wanted = side === 'old' ? 'old' : 'new';
   const byPath = new Map();
   for (const section of parseGitDiff(diff)) {
-    const path = normalizeGitPath(wanted === 'old' ? section.oldPath : section.newPath);
-    if (!path) continue;
+    // A review target is the parsed diff section (newPath, or oldPath for a
+    // deletion). Rename old-side lines belong to that target, not a different
+    // staged file that happens to reuse its former name. Keep raw old/new
+    // identities in the parser; this is an explicit section relationship.
+    const path = section.path;
     const lines = wanted === 'old' ? section.oldLines : section.newLines;
+    if (!path || !lines.size) continue;
     if (!byPath.has(path)) byPath.set(path, new Map());
     for (const [line, text] of lines) byPath.get(path).set(line, text);
   }

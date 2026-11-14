@@ -1,3 +1,12 @@
+## 4.8.12
+
+- Advance evidence and subject protocols so persisted pre-upgrade path evidence and fresh-run continuity cannot authorize the new controller.
+- Preserve literal Git path identity throughout staged diff parsing, semantic manifests and finding lineage, including quoted names, backslashes and significant whitespace.
+- Retain hypothesis verification headroom, report omitted or saturated candidates as coverage gaps, and inject profile-pack evidence into both semantic stages.
+- Qualify the locked VSCE 4.1.1 dependency graph, enforce actual CodeQL findings, and publish with locked tooling and truthful completion status.
+- Repin to Codex Safe Core 4.18.4 because the shipped Core runtime digest changed to `f36b7c158ba188989f456d60c55c9974467d166e1b5bea52a0f7bbee4309c548`; publish a new immutable product release and required distribution evidence.
+- Refresh Product Contract v2 and generated/current-state Family identity for the exact Core pin.
+
 ## 4.8.11
 
 - Require verifier citations to reference actual staged causal evidence and every required symbol block delivered under bounded input, rejecting manifest-only or forged evidence IDs.
