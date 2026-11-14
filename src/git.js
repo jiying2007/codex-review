@@ -1,6 +1,8 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
+const { TextDecoder } = require('node:util');
 const vscode = require('vscode');
 const { runProcess, runProcessBuffer } = require('./process');
 const { createGitRepository } = require('./codex-safe-core/git-repository');
@@ -65,12 +67,23 @@ function enumerationError(error, phase, commandClass) {
   return wrapped;
 }
 
+function decodeGitPathEnumeration(raw) {
+  const invalid = () => Object.assign(new Error('Git returned an incomplete or unsupported path inventory.'), { code:'EGITINVENTORY' });
+  if (!Buffer.isBuffer(raw) || (raw.length && raw.at(-1) !== 0)) throw invalid();
+  try { return new TextDecoder('utf-8', { fatal:true, ignoreBOM:true }).decode(raw); }
+  catch { throw invalid(); }
+}
+
 async function runGitEnumeration(args, repoRoot, token, { phase, commandClass, maxStdoutBytes }) {
   try {
-    return await git(args, repoRoot, token, {
+    const result = await runProcessBuffer('git', args, {
+      cwd:repoRoot,
+      timeoutMs:15000,
       maxStdoutBytes,
-      maxStderrBytes: ENUMERATION_STDERR_LIMIT
-    });
+      maxStderrBytes:ENUMERATION_STDERR_LIMIT,
+      env:{ ...process.env, GIT_OPTIONAL_LOCKS:'0', GIT_TERMINAL_PROMPT:'0', LC_ALL:'C' }
+    }, token);
+    return { ...result, stdout:decodeGitPathEnumeration(result.stdout) };
   } catch (error) {
     throw enumerationError(error, phase, commandClass);
   }
@@ -83,6 +96,33 @@ async function getGitApi() {
   return exports?.getAPI?.(1);
 }
 
+function decodeRepositoryRoot(raw) {
+  const invalid = () => Object.assign(new Error('Git returned an invalid repository root identity.'), { code:'EGITROOT' });
+  if (!Buffer.isBuffer(raw) || raw.length < 2 || raw.at(-1) !== 0x0a) throw invalid();
+  let bytes = raw.subarray(0, -1);
+  // Windows cannot represent a trailing CR in a pathname. On POSIX it is a
+  // valid part of the name, so remove only Git's final LF there.
+  if (process.platform === 'win32' && bytes.at(-1) === 0x0d) bytes = bytes.subarray(0, -1);
+  let root;
+  try { root = new TextDecoder('utf-8', { fatal:true, ignoreBOM:true }).decode(bytes); }
+  catch { throw invalid(); }
+  if (!root || root.includes('\0') || !path.isAbsolute(root)) throw invalid();
+  return root;
+}
+
+async function readRepositoryRoot(workspace) {
+  const { stdout } = await runProcessBuffer('git', ['rev-parse', '--show-toplevel'], {
+    cwd:workspace, timeoutMs:15000, maxStdoutBytes:64 * 1024, maxStderrBytes:256 * 1024,
+    env:{ ...process.env, GIT_OPTIONAL_LOCKS:'0', GIT_TERMINAL_PROMPT:'0', LC_ALL:'C' }
+  });
+  const root = decodeRepositoryRoot(stdout);
+  const relative = path.relative(fs.realpathSync.native(root), fs.realpathSync.native(workspace));
+  if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
+    throw Object.assign(new Error('Git repository root does not contain the selected workspace.'), { code:'EGITROOT' });
+  }
+  return root;
+}
+
 async function getRepositories() {
   const api = await getGitApi();
   if (api?.repositories?.length) {
@@ -93,8 +133,7 @@ async function getRepositories() {
   const seen = new Set();
   for (const folder of vscode.workspace.workspaceFolders || []) {
     try {
-      const { stdout } = await git(['rev-parse', '--show-toplevel'], folder.uri.fsPath);
-      const root = stdout.trim();
+      const root = await readRepositoryRoot(folder.uri.fsPath);
       const key = normalizeFsPath(root);
       if (root && !seen.has(key)) {
         seen.add(key);
@@ -311,9 +350,12 @@ module.exports = {
   batchPathspecs,
   literalPathspecArgs,
   enumerationError,
+  decodeGitPathEnumeration,
   runGitEnumeration,
   git,
   getGitApi,
+  decodeRepositoryRoot,
+  readRepositoryRoot,
   getRepositories,
   repositoryFromCommandContext,
   chooseRepository,
