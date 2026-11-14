@@ -1,3 +1,9 @@
+## 4.8.11
+
+- Require verifier citations to reference actual staged causal evidence and every required symbol block delivered under bounded input, rejecting manifest-only or forged evidence IDs.
+- Mark incomplete coverage when verification lacks mandatory evidence; avoid a false clean-pass summary and skip useless model verification for such candidates.
+- Preserve existing bounded token budget, one verifier pass, stable Core pin and all existing Review/Receipt protocols.
+
 ## 4.8.10
 
 - Preserve real repository `a/` and `b/` directories in exact-line causal review anchors; strip only Git's presentation prefixes.
