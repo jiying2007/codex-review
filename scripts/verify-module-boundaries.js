@@ -39,6 +39,10 @@ assert.doesNotMatch(fs.readFileSync('src/semantic-evidence.js','utf8'), /fs\.rea
 assert.match(fs.readFileSync('src/semantic-evidence.js','utf8'), /require\(['\"]\.\/code-intelligence['\"]\)/, 'semantic-evidence must own the code-intelligence provider seam');
 assert.doesNotMatch(extension, /require\(['\"]\.\/src\/code-intelligence['\"]\)/, 'extension must not bypass semantic-evidence to import code-intelligence directly');
 assert.match(fs.readFileSync('src/semantic-review.js','utf8'), /require\(['\"]\.\/causal-anchor['\"]\)/, 'semantic-review must delegate causal anchoring to the headless causal-anchor module');
+assert.match(fs.readFileSync('src/causal-anchor.js','utf8'), /require\(['"]\.\/git-diff['"]\)/, 'causal anchor must use the canonical quoted-path Git parser');
+assert.match(fs.readFileSync('src/semantic-evidence.js','utf8'), /require\(['"]\.\/git-diff['"]\)/, 'semantic evidence must share the same Git path parser');
+assert.doesNotMatch(fs.readFileSync('src/causal-anchor.js','utf8'), /\.replace\(\/\^a\\\/|\.replace\(\/\^b\\\//, 'repository paths must not erase literal a/b directories');
+
 for (const symbol of ['estimateRequestTokens','scoreEvidenceRisk','selectChunksWithinByteBudget','maxEstimatedTokens','requestEstimate','usage']) assert.match(codexModule,new RegExp(`\\b${symbol}\\b`),`Review efficiency adapter must retain ${symbol}`);
 assert.doesNotMatch(reviewModule, /nearestChangedLine|maxDistance\s*=\s*3/, 'nearest-line compatibility residue must not return');
 for (const catalog of ['l10n/bundle.l10n.json','l10n/bundle.l10n.zh-cn.json']) {
