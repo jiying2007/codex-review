@@ -1,5 +1,6 @@
 ## 4.8.12
 
+- Advance evidence and subject protocols so persisted pre-upgrade path evidence and fresh-run continuity cannot authorize the new controller.
 - Preserve literal Git path identity throughout staged diff parsing, semantic manifests and finding lineage, including quoted names, backslashes and significant whitespace.
 - Retain hypothesis verification headroom, report omitted or saturated candidates as coverage gaps, and inject profile-pack evidence into both semantic stages.
 - Qualify the locked VSCE 4.1.1 dependency graph, enforce actual CodeQL findings, and publish with locked tooling and truthful completion status.

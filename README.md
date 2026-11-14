@@ -71,7 +71,7 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
-Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.18.4** submodule at `31b94d4c1bddbe9988225eccf632a669d8b124f0`.
+Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.18.5** submodule at `ac5203e1b65ffdca26064c0887537f64d2a8a6cb`.
 
 ## Reading readiness correctly
 
@@ -89,7 +89,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/31b94d4c1bddbe9988225eccf632a669d8b124f0/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/ac5203e1b65ffdca26064c0887537f64d2a8a6cb/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "en",

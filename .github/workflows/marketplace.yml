@@ -55,7 +55,7 @@ jobs:
           ref: ${{ steps.source.outputs.source_sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with: { node-version: '24.19.0' }
       - name: Resolve exact immutable product release
         id: release
@@ -115,7 +115,7 @@ jobs:
   receipt:
     needs: publish
     if: ${{ needs.publish.result == 'success' && needs.publish.outputs.published == 'true' }}
-    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@31b94d4c1bddbe9988225eccf632a669d8b124f0
+    uses: jiying2007/codex-safe-core/.github/workflows/distribution-receipt.yml@ac5203e1b65ffdca26064c0887537f64d2a8a6cb
     with:
       product_id: codex-review-safe
       product_version: ${{ needs.publish.outputs.version }}

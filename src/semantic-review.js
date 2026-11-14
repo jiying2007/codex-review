@@ -177,7 +177,6 @@ function materializeVerifiedFindings(hypotheses,verificationResults,evidence,res
     const verification=byIndex.get(index)||{verificationStatus:'insufficient_evidence',evidenceRefs:[],verificationReason:'No verification result.'};
     const stableFindingId=computeStableFindingId({...hypothesis,claimClass:hypothesis.claimClass});
     const checked=validateEvidenceBackedFinding({...hypothesis,stableFindingId,...verification},evidence.manifest,resolutions);
-    if(verification.verificationStatus==='insufficient_evidence')coverageGaps.push(`verification_incomplete:${stableFindingId}`);
     const legacy={
       severity:checked.severity,category:checked.category,file:checked.file,side:hypothesis.side,line:checked.line,endLine:checked.endLine,
       title:checked.claim.slice(0,160),description:checked.claim,suggestion:checked.suggestion,confidence:checked.modelConfidence,modelConfidence:checked.modelConfidence,
@@ -187,6 +186,9 @@ function materializeVerifiedFindings(hypotheses,verificationResults,evidence,res
       invariantCandidate:hypothesis.invariantCandidate,invariantText:hypothesis.invariantText
     };
     const scopeAllowed=scopeDispositionAllowsPublish(scope,hypothesis.scopeDisposition,hypothesis.scopeInvariant);
+    if(verification.verificationStatus==='insufficient_evidence'||(scopeAllowed&&!checked.resolution&&checked.verificationStatus!=='contradicted'&&!checked.publishable)){
+      coverageGaps.push(`verification_incomplete:${stableFindingId}`);
+    }
     if(checked.missingEvidenceRefs.length) rejectedFindings.push({...legacy,rejectionReason:`missing_evidence_refs:${checked.missingEvidenceRefs.join(',')}`});
     else if(!scopeAllowed) suppressedFindings.push({...legacy,suppressionReason:`scope:${hypothesis.scopeDisposition}`});
     else if(!checked.publishable||checked.modelConfidence<options.confidenceThreshold) suppressedFindings.push({...legacy,suppressionReason:checked.resolution?`resolution:${checked.resolution.resolution}`:checked.modelConfidence<options.confidenceThreshold?'confidence_threshold':`verification:${checked.verificationStatus}/${checked.evidenceGrade}`});
