@@ -41,6 +41,7 @@ const {
   probeCodexCapabilities,
   probeCodexRuntime,
   runCodexReview,
+  planStagedReview,
   runCodexPatchProposal,
   isCliCompatibilityError
 } = require('./src/codex');
@@ -375,6 +376,37 @@ function computeReviewSubjectKey(snapshot, diffFingerprint, options, analyzerDig
   return sha256(canonicalJson({ reviewSubjectProtocolVersion: REVIEW_SUBJECT_PROTOCOL_VERSION, coreReviewKey, scopeFingerprint }));
 }
 
+async function previewStaged(commandArgs=[]) {
+ assertTrustedWorkspace();
+ const selected=await chooseRepository(commandArgs);
+ if(!selected)return;
+ const repoRoot=selected.root;
+ const snapshotBefore=await getRepositorySnapshot(repoRoot);
+ const options=await getEffectiveOptions(repoRoot,snapshotBefore.headOid);
+ const [diff,metadata]=await Promise.all([getStagedDiff(repoRoot),getStagedChangeMetadata(repoRoot)]);
+ if(Buffer.byteLength(diff,'utf8')>8*1024*1024)
+   throw new Error('Staged Diff exceeds the 8 MiB preview safety ceiling');
+ const snapshotAfter=await getRepositorySnapshot(repoRoot);
+ if(!snapshotsEqual(snapshotBefore,snapshotAfter))
+   throw new Error('Staged snapshot changed during preview; retry');
+ const plan=planStagedReview(diff,options);
+ const known=new Set(plan.preview.items.map(item=>item.path));
+ const unenumerated=[...metadata.keys()].filter(path=>!known.has(path));
+ const actualComplete=plan.preview.complete&&unenumerated.length===0;
+ const output={
+   schemaVersion:1,modelCalls:0,headOid:snapshotBefore.headOid,
+   inputDiffBytes:Buffer.byteLength(diff,'utf8'),
+   chunkBudgetBytes:plan.chunkBudgetBytes,totalEvidenceBudgetBytes:plan.totalBudgetBytes,
+   preview:{...plan.preview,complete:actualComplete},
+   unenumeratedStagedPaths:unenumerated
+ };
+ outputChannel.appendLine('===== STAGED REVIEW PLAN PREVIEW (NO MODEL CALLS) =====');
+ outputChannel.appendLine(JSON.stringify(output,null,2));
+ outputChannel.show(true);
+ vscode.window.showInformationMessage(uiText(
+   'Staged Review Plan Preview: '+plan.preview.plannedFiles+'/'+metadata.size+' files planned; '+(actualComplete?'complete':'coverage gaps remain')+'. No model calls.',
+   '暂存区审查预览：已规划 '+plan.preview.plannedFiles+'/'+metadata.size+' 个文件；'+(actualComplete?'计划完整':'存在覆盖缺口')+'。未调用模型。'));
+}
 async function reviewStaged(commandArgs = [], { forceFresh = false } = {}) {
   assertTrustedWorkspace();
   const repositoryInfo = await chooseRepository(commandArgs);
@@ -749,6 +781,10 @@ function activate(context) {
   void Promise.all([reviewCache.purgeLegacy(), reviewLineage.purgeLegacy()]).catch(error => log(`legacy review state cleanup unavailable: code=${error?.code || error?.name || 'ERROR'}`));
   setupInvalidationWatchers(context);
   context.subscriptions.push(
+    vscode.commands.registerCommand('safeCodexReview.previewStaged', async (...args) => {
+      try { await previewStaged(args); }
+      catch (error) { log('preview failed: '+String(error?.code||'EPREVIEW')); vscode.window.showErrorMessage(uiText('Review preview failed','审查预览失败')); }
+    }),
     vscode.commands.registerCommand('safeCodexReview.reviewStaged', async (...args) => {
       try { await reviewStaged(args); }
       catch (error) {
