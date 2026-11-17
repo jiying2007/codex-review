@@ -17,7 +17,7 @@ const runtimeModules = [
 const coreModules = [
   'safe-contract.js', 'judgment-lifecycle.js', 'codex-runtime.js', 'codex-runtime-resolver.js',
   'model-registry-resolver.js', 'model-routing.js', 'model-capabilities.js', 'model-lineage.js', 'model-economics.js',
-  'codex-jsonl-stream.js', 'codex-cli.js', 'process-runner.js', 'git-repository.js', 'context-builder.js', 'review-optimization.js',
+  'codex-jsonl-stream.js', 'codex-cli.js', 'process-runner.js', 'git-repository.js', 'context-builder.js', 'review-optimization.js', 'review-evidence-v2.js',
   'efficiency-planner.js', 'token-calibration-store.js', 'quality-platform.js', 'review-profile-pack.js',
   'semantic-review.js', 'display-time.js', 'policy.js', 'review-rules.js'
 ];
@@ -55,7 +55,7 @@ function buildInputDigest() {
 function distIsReusable(digest) {
   try {
     if (fs.readFileSync(stampFile, 'utf8').trim() !== digest) return false;
-    for (const file of ['extension.js', 'src/review.js', 'src/codex-safe-core/codex-cli.js', 'src/codex-safe-core/review-optimization.js', 'codex-safe.schema.json']) {
+    for (const file of ['extension.js', 'src/review.js', 'src/codex-safe-core/codex-cli.js', 'src/codex-safe-core/review-optimization.js', 'src/codex-safe-core/review-evidence-v2.js', 'codex-safe.schema.json']) {
       if (!fs.existsSync(path.join(dist, file))) return false;
     }
     return true;
@@ -79,7 +79,7 @@ function main() {
   }
   for (const name of coreRuntimeData) copy(path.join(root, 'src', 'codex-safe-core', name), path.join(dist, 'src', 'codex-safe-core', name));
   copy(path.join(root, 'src', 'codex-safe-core', 'codex-safe.schema.json'), path.join(dist, 'codex-safe.schema.json'));
-  for (const name of ['judgment-lifecycle.js', 'codex-runtime-resolver.js', 'model-routing.js', 'review-profile-pack.js', 'review-optimization.js', 'codex-jsonl-stream.js', 'display-time.js']) {
+  for (const name of ['judgment-lifecycle.js', 'codex-runtime-resolver.js', 'model-routing.js', 'review-profile-pack.js', 'review-optimization.js', 'review-evidence-v2.js', 'codex-jsonl-stream.js', 'display-time.js']) {
     if (!fs.existsSync(path.join(dist, 'src', 'codex-safe-core', name))) throw new Error(`Required Core runtime module missing from dist: ${name}`);
   }
   if (fs.existsSync(path.join(dist, 'src', 'codex-safe-core', 'index.js'))) throw new Error('Partial Core index must not be shipped without its complete module closure.');
