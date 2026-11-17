@@ -75,7 +75,7 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
-Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.18.9** submodule at `d337d9eb0aafb8897b1aa2729a3eee64f5a6c997`.
+Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.18.10** submodule at `bf7f1cfe093f9b9c552eb532fcc2ddc4a0d28fea`.
 
 ## Reading readiness correctly
 
@@ -93,7 +93,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/d337d9eb0aafb8897b1aa2729a3eee64f5a6c997/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/bf7f1cfe093f9b9c552eb532fcc2ddc4a0d28fea/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "en",
@@ -168,6 +168,6 @@ MIT
 Review defaults to **Auto** runtime discovery. If `codex` already works in the current VS Code Extension Host, Review reuses machine Family Runtime (`~/.codex-safe/runtime.json`) or machine Codex configuration (`${CODEX_HOME}/config.toml` / `~/.codex/config.toml`) without re-entering the relay URL. In Remote SSH the workspace extension runs remotely, so the config and `auth.json` are read from the remote Linux account. Literal private-IP HTTP relays are inherited with a plaintext warning; public/non-IP HTTP remains fail-closed. VS Code provider settings are machine-scoped advanced overrides.
 
 
-## Evidence V2 (v4.8.15)
+## Evidence V2 (v4.8.16)
 
 Changed function signatures and callers are represented as **lexical candidates**, not compiler-proven edges. Risk hints are scoped to exact staged lines, and the final Finding verifier checks file, old/new side, and line range before review publication. Unverifiable evidence leaves the review incomplete; security/resource/concurrency claims are never silently removed. Existing staged-only, bounded scope, trusted workspace and per-review model budgets remain unchanged. The new static evidence functions cause **zero additional model calls**. Offline benchmark adapters require verified external labels and cannot establish measured model quality improvements on their own.
