@@ -1,3 +1,11 @@
+## 4.8.15
+
+- Exact-pin formally released Core 4.18.9 and derive bounded function-call candidates and changed-line risk hints only from the immutable staged Git Index.
+- Add original old/new Finding anchor verification before final review publication. Evidence conflicts and missing changed-line anchors make review coverage incomplete; do not auto-remove security, concurrency or resource findings.
+- Invalidate old evidence cache and replay fingerprints when changing the deterministic evidence protocol. Preserve reviewer/hypothesis verification, Fresh Blind Review and current model budget.
+- Include Core evidence verifier in VSIX dist/packaging boundary with cross-platform Extension Host regression.
+- Preserve staged-only and trusted-workspace restrictions. No extra model calls, shell execution privileges, provider credentials or code writes.
+
 ## 4.8.14
 
 - Integrate formally released Safe Core 4.18.8 deterministic semantic review grouping and trusted per-file rules into staged review hypothesis evidence.
