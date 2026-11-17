@@ -1,9 +1,9 @@
 {
   "productContractVersion": 2,
   "productId": "codex-review-safe",
-  "productVersion": "4.8.15",
-  "safeCoreVersion": "4.18.9",
-  "safeCoreCommit": "d337d9eb0aafb8897b1aa2729a3eee64f5a6c997",
+  "productVersion": "4.8.16",
+  "safeCoreVersion": "4.18.10",
+  "safeCoreCommit": "bf7f1cfe093f9b9c552eb532fcc2ddc4a0d28fea",
   "safeCoreMajorVersion": 4,
   "safeContractVersion": 2,
   "policySchemaVersion": 4,
@@ -24,8 +24,8 @@
   "modelLineageVersion": 1,
   "modelEconomicsVersion": 1,
   "tokenCalibrationStoreVersion": 1,
-  "safeCoreRuntimeDigest": "38b318ed1e5a634a61352f4c8a0a964b0c8db26295538b49dc954d2590c0a6ec",
-  "safeCoreGovernanceDigest": "5f31721710617c0d7fe60edc3ca5593cd1e0895ad416d042f734afe293757f13",
+  "safeCoreRuntimeDigest": "af91aff65b51e71b2a96706ed5e46cfddfd3b3282b9bacc277b801fe7a353d6a",
+  "safeCoreGovernanceDigest": "3549789f9514d9a9508b3b1f42d3cfa62b9b17425eb1c771a07bdd45cd6c17e6",
   "commitReceiptVersion": 4,
   "diagnosisReceiptVersion": 2,
   "findingClaimVersion": 1
