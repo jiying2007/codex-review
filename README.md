@@ -27,6 +27,10 @@ For Remote SSH, Dev Containers, Codespaces or WSL, install/authenticate Codex in
 
 Working-tree-only edits are intentionally excluded from the reviewed snapshot.
 
+## Model-free Review Plan Preview
+
+Run **Codex Review Safe: Review Staged Plan (No Model Calls)** from the Command Palette before starting a model review. It reads the exact staged snapshot, groups implementation/header/tests and related references deterministically, applies scoped engineering checks, and reports planned/excluded/unplanned paths and bounded Chunk gaps. No Codex CLI, network model API, AI usage, source modification or Git writes occur. The Preview is a plan, not evidence that a model inspected a file. The existing Fresh Blind Review and provenance gates remain unchanged.
+
 ## Review mode and engineering profile
 
 Execution depth and engineering emphasis are separate controls:
@@ -71,7 +75,7 @@ See [Review Convergence](docs/REVIEW_CONVERGENCE.md) for the full ReviewSubject/
 - Codex runs with Safe Contract v2: ephemeral execution, read-only sandbox, no approvals, no shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency installation;
 - no source edits, commit, push or PR side effects.
 
-Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.18.5** submodule at `ac5203e1b65ffdca26064c0887537f64d2a8a6cb`.
+Shared safety/runtime and repository-policy validation come only from the exact commit-pinned **Codex Safe Core 4.18.8** submodule at `2d256337cf684a491c5034076e0ea378e0369a98`.
 
 ## Reading readiness correctly
 
@@ -89,7 +93,7 @@ The only repository policy file is committed `.codex-safe.json` with `schemaVers
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/ac5203e1b65ffdca26064c0887537f64d2a8a6cb/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/2d256337cf684a491c5034076e0ea378e0369a98/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "en",

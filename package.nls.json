@@ -1,6 +1,7 @@
 {
   "extension.displayName": "Codex Review Safe",
   "extension.description": "Review staged Git changes from VS Code Source Control using the local Codex CLI with fail-safe diagnostics.",
+  "command.preview.title": "Review Staged Plan (No Model Calls)",
   "command.review.title": "Review Staged Changes",
   "command.clear.title": "Clear Review Results",
   "command.showOutput.title": "Show Review Report",

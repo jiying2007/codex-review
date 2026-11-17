@@ -1,3 +1,10 @@
+## 4.8.14
+
+- Integrate formally released Safe Core 4.18.8 deterministic semantic review grouping and trusted per-file rules into staged review hypothesis evidence.
+- Add a zero-model Staged Review Plan Preview command in VS Code. It reports exact files, groups, budget/coverage omissions and staged files lacking Diff records without running Codex.
+- Preserve semantic hypothesis verification and fresh blind review/receipt contracts, reject rounded model finding line anchors, and expose non-deleting factual conflict warnings.
+- Keep budget limits, workspace trust restrictions and side-effect-free review behavior unchanged; no automatic model rounds or provider credentials added.
+
 ## 4.8.13
 
 - Preserve the exact Git repository root in fallback discovery, including significant trailing whitespace; reject invalid UTF-8 and roots outside the selected workspace.

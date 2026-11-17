@@ -1,6 +1,7 @@
 {
   "extension.displayName": "Codex Review Safe",
   "extension.description": "使用本地 Codex CLI 审查 VS Code Source Control 中的 Git 暂存区变更，并以 fail-safe 方式发布诊断结果。",
+  "command.preview.title": "预览暂存区审查计划（不调用模型）",
   "command.review.title": "审查 Staged Changes",
   "command.clear.title": "清除审查结果",
   "command.showOutput.title": "显示审查报告",

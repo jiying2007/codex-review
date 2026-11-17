@@ -2,7 +2,7 @@
   "name": "codex-review-safe",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "4.8.13",
+  "version": "4.8.14",
   "publisher": "jiying2007",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
@@ -29,6 +29,7 @@
   ],
   "activationEvents": [
     "onCommand:safeCodexReview.reviewStaged",
+    "onCommand:safeCodexReview.previewStaged",
     "onCommand:safeCodexReview.reviewFresh",
     "onCommand:safeCodexReview.clearReview",
     "onCommand:safeCodexReview.checkEnvironment",
@@ -56,6 +57,12 @@
         "title": "%command.review.title%",
         "category": "%extension.displayName%",
         "icon": "$(shield)"
+      },
+      {
+        "command": "safeCodexReview.previewStaged",
+        "title": "%command.preview.title%",
+        "category": "%extension.displayName%",
+        "icon": "$(list-tree)"
       },
       {
         "command": "safeCodexReview.reviewFresh",
@@ -112,6 +119,10 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "safeCodexReview.previewStaged",
+          "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
+        },
         {
           "command": "safeCodexReview.reviewStaged",
           "when": "workspaceFolderCount > 0 && isWorkspaceTrusted"
