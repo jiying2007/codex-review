@@ -349,6 +349,8 @@ function reviewOptionsFingerprint(options) {
   return sha256(canonicalJson({
     semanticReviewVersion: SEMANTIC_REVIEW_VERSION,
     causalAnchorContractVersion: 2,
+    reviewPlanningVersion: 1,
+    fileScopedRulesVersion: 1,
     language: options.language,
     profile: options.profile,
     profileConfig: { evidenceFactor: profile.evidenceFactor, tokenFactor: profile.tokenFactor, impactDepth: profile.impactDepth, maxImpactFiles: profile.maxImpactFiles, analyzerMode: profile.analyzerMode, focusCategories: profile.focusCategories },
