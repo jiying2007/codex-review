@@ -11,6 +11,7 @@ const {
   sha256
 } = require('./codex-safe-core/semantic-review');
 const { extractImpactSignals, buildImpactEvidenceGraph } = require('./codex-safe-core/quality-platform');
+const { buildFunctionImpactEvidence, buildReviewRiskEvidence } = require('./codex-safe-core/review-evidence-v2');
 const { rehydrateDiscoveryCandidates } = require('./code-intelligence');
 const { parseGitDiff } = require('./git-diff');
 
@@ -202,19 +203,23 @@ function analyzerBlocks(findings=[]) {
 }
 async function collectStructuralEvidence(repoRoot,diff,stagedPaths,snapshot,profile,token,diffFingerprint='',discoveryCandidates=[]) {
   const [impact,symbols]=await Promise.all([collectIndexImpactEvidence(repoRoot,diff,profile,token),collectIndexSymbolEvidence(repoRoot,diff,stagedPaths,token)]);
+  const functionImpact=buildFunctionImpactEvidence({diff,
+    candidates:(impact.nodes||[]).map(node=>({path:node.path,content:node.content})),
+    maxSymbols:24,maxEdges:48,maxBytes:12*1024});
+  const risk=buildReviewRiskEvidence({diff,maxSignals:48});
   const discoveryBlocks=await rehydrateDiscoveryCandidates(discoveryCandidates,{readIndexText:file=>readIndexText(repoRoot,file,token),snippet,classifySymbolLine,relatedPaths:stagedPaths});
   const raw=[...stagedBlocks(diff),...impactBlocks(impact),...symbols.blocks,...discoveryBlocks];
   const deduped=new Map();for(const block of raw)if(!deduped.has(block.entry.id))deduped.set(block.entry.id,block);
   const blocks=[...deduped.values()];
   const manifest=buildEvidenceManifest(blocks.map(block=>block.entry),{headOid:snapshot?.headOid,indexFingerprint:snapshot?.indexFingerprint,diffFingerprint});
-  return {impact,callSymbolsByPath:symbols.callSymbolsByPath,blocks,manifest};
+  return {impact,functionImpact,risk,callSymbolsByPath:symbols.callSymbolsByPath,blocks,manifest};
 }
 function composeSemanticEvidence(structuralEvidence,analyzerFindings,snapshot,diffFingerprint='') {
   const raw=[...(structuralEvidence?.blocks||[]),...analyzerBlocks(analyzerFindings)];
   const deduped=new Map();for(const block of raw)if(!deduped.has(block.entry.id))deduped.set(block.entry.id,block);
   const blocks=[...deduped.values()];
   const manifest=buildEvidenceManifest(blocks.map(block=>block.entry),{headOid:snapshot?.headOid,indexFingerprint:snapshot?.indexFingerprint,diffFingerprint});
-  return {impact:structuralEvidence?.impact||{},callSymbolsByPath:structuralEvidence?.callSymbolsByPath||new Map(),blocks,manifest,analyzerDigest:digestAnalyzerEvidence(analyzerFindings)};
+  return {impact:structuralEvidence?.impact||{},functionImpact:structuralEvidence?.functionImpact||null,risk:structuralEvidence?.risk||null,callSymbolsByPath:structuralEvidence?.callSymbolsByPath||new Map(),blocks,manifest,analyzerDigest:digestAnalyzerEvidence(analyzerFindings)};
 }
 function renderEvidenceForPaths(evidence,paths,{maxBytes=96*1024,maxEntries=32,includeStaged=false,requiredIds=[]}={}) {
   const sourceEntries=(evidence?.manifest?.entries||[]).filter(entry=>includeStaged||entry.kind!=='staged');

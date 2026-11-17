@@ -20,7 +20,7 @@ assert.strictEqual(fs.existsSync('src/safe-contract.js'), false, 'legacy src/saf
 assert.strictEqual(fs.existsSync('safe-core.lock.json'), false, 'legacy Safe Core lock must not return');
 assert.strictEqual(fs.existsSync('scripts/safe-core.js'), false, 'legacy Safe Core sync script must not return');
 const coreContract=require('../src/codex-safe-core/core-contract.json');
-for (const name of ['index.js','safe-contract.js','codex-cli.js','process-runner.js','git-repository.js','context-builder.js','review-optimization.js','efficiency-planner.js','quality-platform.js','semantic-review.js','policy.js','review-rules.js','core-contract.json']) {
+for (const name of ['index.js','safe-contract.js','codex-cli.js','process-runner.js','git-repository.js','context-builder.js','review-optimization.js','review-evidence-v2.js','efficiency-planner.js','quality-platform.js','semantic-review.js','policy.js','review-rules.js','core-contract.json']) {
   assert.strictEqual(fs.existsSync(path.join('src','codex-safe-core',name)), true, `Safe Core ${coreContract.coreVersion} runtime missing ${name}`);
 }
 assert.doesNotMatch(extension, /\b__test\b/, 'extension.js must not expose a transitional private test surface');
