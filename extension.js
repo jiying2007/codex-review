@@ -57,7 +57,7 @@ const { applyResolutionLedger } = require('./src/semantic-review');
 const { computeReviewKey, canonicalJson, sha256, SEMANTIC_REVIEW_VERSION, digestAnalyzerEvidence } = require('./src/codex-safe-core/semantic-review');
 const { REVIEW_PROMPT_CONTRACT_VERSION } = require('./src/codex-safe-core/safe-contract');
 
-const REVIEW_EVIDENCE_PROTOCOL_VERSION = 4;
+const REVIEW_EVIDENCE_PROTOCOL_VERSION = 5;
 const REVIEW_SUBJECT_PROTOCOL_VERSION = 3;
 
 let outputChannel;
@@ -351,6 +351,9 @@ function reviewOptionsFingerprint(options) {
     causalAnchorContractVersion: 2,
     reviewPlanningVersion: 1,
     fileScopedRulesVersion: 1,
+    reviewFunctionImpactVersion: 1,
+    findingAnchorVerifierVersion: 1,
+    deterministicRiskVersion: 1,
     language: options.language,
     profile: options.profile,
     profileConfig: { evidenceFactor: profile.evidenceFactor, tokenFactor: profile.tokenFactor, impactDepth: profile.impactDepth, maxImpactFiles: profile.maxImpactFiles, analyzerMode: profile.analyzerMode, focusCategories: profile.focusCategories },
