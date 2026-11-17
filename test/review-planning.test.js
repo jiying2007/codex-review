@@ -1,7 +1,19 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
+const Module=require('node:module');
+const originalLoad=Module._load;
+Module._load=function(request,parent,isMain){
+ if(request==='vscode')return {
+   extensions:{getExtension:()=>undefined},
+   workspace:{workspaceFolders:[],textDocuments:[]},window:{},
+   l10n:{t:(message,...args)=>String(message).replace(/\{(\d+)\}/g,(_m,i)=>
+     args[Number(i)]===undefined?'{'+i+'}':String(args[Number(i)]))}
+ };
+ return originalLoad.call(this,request,parent,isMain);
+};
 const {planStagedReview}=require('../src/codex');
 const {buildPrompt,parseChangedLineRanges,normalizeFinding}=require('../src/review');
+Module._load=originalLoad;
 
 const files=[
  ['src/motor.c','-old','+#include "motor.h"'],
