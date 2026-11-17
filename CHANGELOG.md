@@ -1,3 +1,8 @@
+## 4.8.16
+
+- Exact-pin immutable Safe Core 4.18.10 (`bf7f1cfe093f9b9c552eb532fcc2ddc4a0d28fea`), with stricter malformed-Diff Finding anchor rejection, source-code-only lexical caller hints and repaired offline corpus-digest comparison.
+- Refresh VSIX consumer identity, runtime/governance digests, reusable Family/Release Integrity workflow pins and release tests. No new model calls, credentials or user-facing automatic review privileges.
+
 ## 4.8.15
 
 - Exact-pin formally released Core 4.18.9 and derive bounded function-call candidates and changed-line risk hints only from the immutable staged Git Index.
