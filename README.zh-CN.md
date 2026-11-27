@@ -60,7 +60,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 - Safe Contract v2 使用 ephemeral、read-only、no approval，并显式关闭 shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency install；
 - 不自动修改源码、Commit、Push 或创建 PR。
 
-共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.18.10**，SHA 为 `bf7f1cfe093f9b9c552eb532fcc2ddc4a0d28fea`。
+共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.18.13**，SHA 为 `d517dccf1e636f22fd7f9d938a5dd552a91420d3`。
 
 ## 正确理解 Readiness
 
@@ -78,7 +78,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/bf7f1cfe093f9b9c552eb532fcc2ddc4a0d28fea/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/d517dccf1e636f22fd7f9d938a5dd552a91420d3/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "zh-CN",
@@ -156,6 +156,6 @@ Review 默认使用 **Auto** Runtime。只要当前 VS Code Extension Host 中�
 暂存区计划预览不调用模型。
 
 
-## Evidence V2（4.8.16）
+## Evidence V2（4.8.17）
 
 对暂存区精确变更行构建有界函数词法调用候选与 ISR/OTA/安全风险提示，**不是编译器已确认调用图或真实缺陷结论**。最终 Finding 必须再次核对文件、old/new 侧与原始行号；证据不足时审查保持 incomplete，高风险问题不会被自动删除。新静态步骤不增加模型调用，不改变工作区信任和预算门禁。外部 Benchmark 需先核验真实缺陷标签，不能用模拟测试宣称召回率提升。
