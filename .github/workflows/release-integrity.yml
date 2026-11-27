@@ -48,7 +48,7 @@ jobs:
   integrity:
     needs: release_admission
     if: ${{ needs.release_admission.outputs.published == 'true' }}
-    uses: jiying2007/codex-safe-core/.github/workflows/consumer-release-integrity.yml@bf7f1cfe093f9b9c552eb532fcc2ddc4a0d28fea
+    uses: jiying2007/codex-safe-core/.github/workflows/consumer-release-integrity.yml@d517dccf1e636f22fd7f9d938a5dd552a91420d3
     with:
       expected_sha: ${{ github.event.workflow_run.head_sha }}
       product: codex-review-safe

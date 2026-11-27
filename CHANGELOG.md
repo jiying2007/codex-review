@@ -1,3 +1,8 @@
+## 4.8.17
+
+- Repin to Codex Safe Core 4.18.13 because the shipped Core runtime digest changed to `997b7415d10df0c0b79b551fb41f91b46d5c24babcd9942a3f7208c947a998c6`; publish a new immutable product release and required distribution evidence.
+- Refresh Product Contract v2 and generated/current-state Family identity for the exact Core pin.
+
 ## 4.8.16
 
 - Exact-pin immutable Safe Core 4.18.10 (`bf7f1cfe093f9b9c552eb532fcc2ddc4a0d28fea`), with stricter malformed-Diff Finding anchor rejection, source-code-only lexical caller hints and repaired offline corpus-digest comparison.
