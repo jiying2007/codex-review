@@ -1,3 +1,8 @@
+## 4.8.20
+
+- Adopt immutable Safe Core 4.18.16 (`356f1d6871a58ff5c419d67d8c939a8c17e3a1db`) and its exact runtime digest `10b8c8faeb096073620171f5ac5769264b605372a597d0af761e4d02f897953a`.
+- Verify that a text-forced binary rename does not enter model review input while ordinary source changes remain reviewable.
+
 ## 4.8.19
 
 - Use the released Safe Core 4.18.15 exact-chunk structural evidence selector for delivered staged hunks. Remove the local path-only risk, seed and caller filters; report invalid identity separately from optional hint limits.

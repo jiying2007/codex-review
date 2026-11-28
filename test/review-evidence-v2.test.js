@@ -78,3 +78,23 @@ test('actual staged review delivers only the structural hints in each split hunk
    assert.deepEqual(seen.sort((a,b)=>a-b),[11,106]);
  });
 });
+
+test('actual staged binary rename to a text suffix is isolated from model review input',async()=>{
+ const sentinel='PRIVATE_BINARY_RENAME_REVIEW_FIXTURE';
+ const padding='\0\n'+Array.from({length:300},(_,i)=>'unchanged '+String(i).padStart(4,'0')+'\n').join('');
+ const before={'.gitattributes':'* diff\n','firmware/image.BIN':padding+sentinel+'-before\n','src/main.c':'int value(void) { return 0; }\n'};
+ const after={'firmware/image.BIN':null,'firmware/image.txt':padding+sentinel+'-after\n','src/main.c':'int value(void) { return 1; }\n'};
+ await harness.withGitFixture(before,after,async({repo,snapshot,diff,paths})=>{
+   assert.match(diff,/^rename from firmware\/image\.BIN$/m);
+   assert.ok(diff.includes(sentinel));
+   const opts=harness.options();
+   const evidence=await harness.collectStructuralEvidence(repo,diff,paths,snapshot,opts.profileConfig);
+   harness.respond(async request=>{
+     assert.doesNotMatch(request.input,new RegExp(sentinel));
+     return {hypotheses:[]};
+   });
+   await harness.runCodexReview(diff,paths,opts,undefined,{semanticEvidence:evidence});
+   assert.ok(harness.calls.length>0);
+   assert.ok(harness.calls.some(request=>request.input.includes('return 1;')));
+ });
+});
