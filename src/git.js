@@ -248,7 +248,7 @@ function parseNameStatusZ(stdout) {
 
 async function getStagedPathList(repoRoot, token) {
   const { stdout } = await runGitEnumeration(
-    ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTUXB', '-z'],
+    ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTUXB', '-z', '--no-renames'],
     repoRoot,
     token,
     { phase: 'staged-path-discovery', commandClass: 'git diff --cached --name-only', maxStdoutBytes: STAGED_ENUMERATION_STDOUT_LIMIT }
