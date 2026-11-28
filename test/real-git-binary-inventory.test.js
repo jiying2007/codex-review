@@ -98,5 +98,5 @@ test('real Git binary inventory covers extensionless, quoted, attributed, rename
   assert.equal(metadata.get('firmware/renamed "image".bin').status, 'R');
   assert.equal(metadata.get('firmware/renamed "image".bin').oldPath, 'firmware/rename-source.bin');
   assert.ok(binaries.size <= staged.size + 1, 'binary inventory must remain bounded to the staged change set plus rename source');
-  assert.ok(binaryPaths.every(value => typeof value === 'string' && value.length > 0));
+  assert.ok([...binaries].every(value => typeof value === 'string' && value.length > 0));
 });
