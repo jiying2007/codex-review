@@ -31,8 +31,8 @@ function write(root, relative, bytes) {
   fs.writeFileSync(target, bytes);
 }
 
-function binary(seed, size = 1024 * 1024 + 257) {
-  return Buffer.concat([Buffer.from(seed + '\0'), Buffer.alloc(size, 0xA5), Buffer.from('\0' + seed)]);
+function binary(seed, size = 1024 * 1024 + 257, fill = 0xA5) {
+  return Buffer.concat([Buffer.from(seed + '\0'), Buffer.alloc(size, fill), Buffer.from('\0' + seed)]);
 }
 
 test('real Git binary inventory covers extensionless, quoted, attributed, renamed and deleted files without classifying text/LFS pointers', async t => {
@@ -47,15 +47,15 @@ test('real Git binary inventory covers extensionless, quoted, attributed, rename
   git(root, 'config', 'core.quotepath', 'true');
 
   write(root, 'firmware/rename-source.bin', binary('RENAME_SOURCE'));
-  write(root, 'firmware/delete-me.dat', binary('DELETE_ME'));
+  write(root, 'firmware/delete-me.dat', binary('DELETE_ME', undefined, 0x11));
   git(root, 'add', '--all');
   git(root, 'commit', '--quiet', '-m', 'baseline binary artifacts');
 
   git(root, 'mv', 'firmware/rename-source.bin', 'firmware/renamed "image".bin');
   fs.rmSync(path.join(root, 'firmware/delete-me.dat'));
-  write(root, 'firmware/update.bin', binary('UPDATE_BIN'));
-  write(root, 'artifacts/no-extension', binary('NO_EXTENSION'));
-  write(root, 'artifacts/forced.dat', binary('FORCED_BINARY'));
+  write(root, 'firmware/update.bin', binary('UPDATE_BIN', undefined, 0x22));
+  write(root, 'artifacts/no-extension', binary('NO_EXTENSION', undefined, 0x33));
+  write(root, 'artifacts/forced.dat', binary('FORCED_BINARY', undefined, 0x44));
   write(root, '.gitattributes', 'artifacts/forced.dat -diff\n');
   write(root, 'src/large.c', Buffer.from('int changed_value = 1;\n'.repeat(60000)));
   write(root, 'docs/marker-text.txt', [
