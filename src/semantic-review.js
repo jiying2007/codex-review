@@ -189,6 +189,12 @@ function materializeVerifiedFindings(hypotheses,verificationResults,evidence,res
     if(verification.verificationStatus==='insufficient_evidence'||(scopeAllowed&&!checked.resolution&&checked.verificationStatus!=='contradicted'&&!checked.publishable)){
       coverageGaps.push(`verification_incomplete:${stableFindingId}`);
     }
+    // Confidence is not negative evidence. A relevant, evidence-backed high
+    // risk candidate below the display threshold remains unresolved; keep it
+    // separate from confirmed findings but never certify complete coverage.
+    if(scopeAllowed&&!checked.resolution&&checked.publishable&&['critical','high'].includes(checked.severity)&&checked.modelConfidence<options.confidenceThreshold){
+      coverageGaps.push(`high_risk_confidence_unresolved:${stableFindingId}`);
+    }
     if(checked.missingEvidenceRefs.length) rejectedFindings.push({...legacy,rejectionReason:`missing_evidence_refs:${checked.missingEvidenceRefs.join(',')}`});
     else if(!scopeAllowed) suppressedFindings.push({...legacy,suppressionReason:`scope:${hypothesis.scopeDisposition}`});
     else if(!checked.publishable||checked.modelConfidence<options.confidenceThreshold) suppressedFindings.push({...legacy,suppressionReason:checked.resolution?`resolution:${checked.resolution.resolution}`:checked.modelConfidence<options.confidenceThreshold?'confidence_threshold':`verification:${checked.verificationStatus}/${checked.evidenceGrade}`});

@@ -102,3 +102,32 @@ test('contradicted or exactly resolved evidence stays resolved while stale resol
   const stale = materializeVerifiedFindings([hypothesis], [verdict], { manifest }, [{ ...resolution, evidenceDigest:'0'.repeat(64) }], options);
   assert.match(stale.coverageGaps[0], /^verification_incomplete:/);
 });
+
+test('a low-confidence but evidence-backed high-risk candidate cannot yield complete no-findings', () => {
+  const manifest=buildEvidenceManifest([{kind:'staged',source:'index',path:'app.c',content:'int enabled = 1;'}]);
+  const verdict={hypothesisIndex:0,verificationStatus:'verified',evidenceRefs:[manifest.entries[0].id]};
+  const candidate={category:'correctness',file:'app.c',side:'new',line:1,endLine:1,claim:'The changed constant enables an unsafe path.',claimClass:'unsafe-constant',requiredSymbols:[],assumptions:[],modelConfidence:0.69,scopeDisposition:'in_scope'};
+  for(const severity of ['critical','high']){
+    const hypothesis={...candidate,severity};
+    const checked=validateEvidenceBackedFinding({...hypothesis,...verdict},manifest);
+    assert.equal(checked.publishable,true);
+    const result=materializeVerifiedFindings([hypothesis],[verdict],{manifest},[],options);
+    assert.equal(result.findings.length,0);
+    assert.equal(result.suppressedFindings[0].suppressionReason,'confidence_threshold');
+    assert.match(result.coverageGaps[0],/^high_risk_confidence_unresolved:/);
+    const review=harness.consolidateReviewResults([{...result,modelFindingCount:1}],options,[],new Map(),{complete:true,coverageGaps:result.coverageGaps});
+    assert.equal(review.qualityVerdict,'no_findings');
+    assert.equal(review.coverageVerdict,'incomplete');
+    assert.equal(review.readinessVerdict,'blocked');
+    const resolved=materializeVerifiedFindings([hypothesis],[verdict],{manifest},[{stableFindingId:checked.stableFindingId,evidenceDigest:checked.evidenceDigest,resolution:'false_positive'}],options);
+    assert.deepEqual(resolved.coverageGaps,[]);
+    const contradicted=materializeVerifiedFindings([hypothesis],[{...verdict,verificationStatus:'contradicted'}],{manifest},[],options);
+    assert.deepEqual(contradicted.coverageGaps,[]);
+    const above=materializeVerifiedFindings([{...hypothesis,modelConfidence:0.7}],[verdict],{manifest},[],options);
+    assert.equal(above.findings.length,1);
+    assert.deepEqual(above.coverageGaps,[]);
+  }
+  const medium=materializeVerifiedFindings([{...candidate,severity:'medium'}],[verdict],{manifest},[],options);
+  assert.equal(medium.findings.length,0);
+  assert.deepEqual(medium.coverageGaps,[]);
+});
