@@ -1,3 +1,9 @@
+## 4.8.18
+
+- Preserve unresolved, in-scope, evidence-backed High/Critical candidates below the publication threshold as explicit coverage gaps, not complete no-findings results.
+- Keep exact resolutions, contradicted evidence, confidence thresholds and the existing model call count. Exercise final-gate positive and negative controls.
+- Preserve exact Core 4.18.13 and existing distribution gates.
+
 ## 4.8.17
 
 - Repin to Codex Safe Core 4.18.13 because the shipped Core runtime digest changed to `997b7415d10df0c0b79b551fb41f91b46d5c24babcd9942a3f7208c947a998c6`; publish a new immutable product release and required distribution evidence.
