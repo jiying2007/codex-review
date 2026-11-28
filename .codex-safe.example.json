@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/d517dccf1e636f22fd7f9d938a5dd552a91420d3/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/779afbd6982d6271942301e6f59656b50ff7e3cb/codex-safe.schema.json",
   "schemaVersion": 4,
   "commit": {
     "language": "zh-CN",
