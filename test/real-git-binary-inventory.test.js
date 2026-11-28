@@ -91,6 +91,7 @@ test('real Git binary inventory covers extensionless, quoted, attributed, rename
   assert.ok(!binaries.has('docs/marker-text.txt'), 'text containing binary markers must not be classified as binary');
   assert.ok(!binaries.has('artifacts/lfs-pointer.bin'), 'a textual Git LFS pointer must remain text');
   assert.ok(staged.has('firmware/renamed "image".bin'));
+  assert.ok(staged.has('firmware/rename-source.bin'), 'no-renames path inventory must retain the old side');
   assert.ok(staged.has('firmware/delete-me.dat'));
   assert.ok(metadata.has('firmware/renamed "image".bin'));
   assert.ok(metadata.has('firmware/delete-me.dat'));
