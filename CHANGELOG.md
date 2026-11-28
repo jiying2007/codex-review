@@ -1,3 +1,9 @@
+## 4.8.19
+
+- Use the released Safe Core 4.18.14 exact-chunk structural evidence selector for delivered staged hunks. Remove the local path-only risk, seed and caller filters; report invalid identity separately from optional hint limits.
+- Preserve same-named C declarations in separate files and reject stale structural hint identities. Add actual staged Git split-hunk regression at the model delivery boundary.
+- Refresh immutable Core gitlink, runtime/governance digests and release identity.
+
 ## 4.8.18
 
 - Preserve unresolved, in-scope, evidence-backed High/Critical candidates below the publication threshold as explicit coverage gaps, not complete no-findings results.

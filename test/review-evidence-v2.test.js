@@ -47,3 +47,34 @@ test('exact old/new anchors remain fail closed with no suppression',()=>{
  assert.equal(proof.findings.length,2);
  assert.equal(proof.automaticallyRemoved,0);
 });
+
+test('actual staged review delivers only the structural hints in each split hunk of one file',async()=>{
+ const file='src/irq.c';
+ const rows=Array.from({length:155},(_,i)=>'  /* fixture row '+i+' */');
+ const before=[...rows],after=[...rows];
+ for(const [start,name] of [[10,'first'],[105,'second']]){
+   for(let i=0;i<22;i++){
+     before[start+i]='  old_call_'+name+'_'+i+'(); /* '+'a'.repeat(43)+' */';
+     after[start+i]='  new_call_'+name+'_'+i+'(); /* '+'b'.repeat(43)+' */';
+   }
+   after[start]='  mutex_lock(&'+name+');';
+ }
+ await harness.withGitFixture({[file]:before.join('\n')+'\n'},{[file]:after.join('\n')+'\n'},async({repo,snapshot,diff,paths})=>{
+   const opts={...harness.options('embedded-mcu'),contextBudgetBytes:4096,maxDiffBytes:4096,totalContextBudgetBytes:32768,profileConfig:{...harness.options('embedded-mcu').profileConfig,evidenceFactor:1}};
+   const evidence=await harness.collectStructuralEvidence(repo,diff,paths,snapshot,opts.profileConfig);
+   assert.equal(evidence.risk.signals.length,2);
+   const seen=[];
+   harness.respond(async request=>{
+     const raw=request.input.match(/--- UNTRUSTED DETERMINISTIC REVIEW HINTS \(NOT PROVEN DEFECTS\) ---\n([^\n]+)\n--- END DETERMINISTIC REVIEW HINTS ---/);
+     assert.ok(raw,'structural hints must appear in each delivered hunk');
+     const value=JSON.parse(raw[1]);
+     assert.equal(value.risk.length,1);
+     const target=request.input.split('--- STAGED REVIEW TARGET START ---')[1].split('--- STAGED REVIEW TARGET END ---')[0];
+     assert.ok(target.includes(value.risk[0].line===11?'mutex_lock(&first)':'mutex_lock(&second)'));
+     seen.push(value.risk[0].line);
+     return {hypotheses:[]};
+   });
+   await harness.runCodexReview(diff,paths,opts,undefined,{semanticEvidence:evidence});
+   assert.deepEqual(seen.sort((a,b)=>a-b),[11,106]);
+ });
+});
