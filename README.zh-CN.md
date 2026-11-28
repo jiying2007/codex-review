@@ -60,7 +60,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 - Safe Contract v2 使用 ephemeral、read-only、no approval，并显式关闭 shell/web/apps/multi-agent/plugins/hooks/goals/memories/dependency install；
 - 不自动修改源码、Commit、Push 或创建 PR。
 
-共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.18.15**，SHA 为 `779afbd6982d6271942301e6f59656b50ff7e3cb`。
+共享安全/runtime 与 Repository Policy 校验只来自精确 commit-pinned 的 **Codex Safe Core 4.18.16**，SHA 为 `356f1d6871a58ff5c419d67d8c939a8c17e3a1db`。
 
 ## 正确理解 Readiness
 
@@ -78,7 +78,7 @@ Codex Review Safe 明确区分不可变审查对象与每一次真正执行的�
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/779afbd6982d6271942301e6f59656b50ff7e3cb/codex-safe.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jiying2007/codex-safe-core/356f1d6871a58ff5c419d67d8c939a8c17e3a1db/codex-safe.schema.json",
   "schemaVersion": 4,
   "review": {
     "language": "zh-CN",
