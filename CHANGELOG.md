@@ -1,8 +1,8 @@
 ## 4.8.19
 
-- Use the released Safe Core 4.18.14 exact-chunk structural evidence selector for delivered staged hunks. Remove the local path-only risk, seed and caller filters; report invalid identity separately from optional hint limits.
+- Use the released Safe Core 4.18.15 exact-chunk structural evidence selector for delivered staged hunks. Remove the local path-only risk, seed and caller filters; report invalid identity separately from optional hint limits.
 - Preserve same-named C declarations in separate files and reject stale structural hint identities. Add actual staged Git split-hunk regression at the model delivery boundary.
-- Refresh immutable Core gitlink, runtime/governance digests and release identity.
+- Refresh immutable Core gitlink, runtime/governance digests and release identity. Core 4.18.15 fixes multi-file chunk separator framing; preserve the real Git rename/path tests rather than suppressing coverage errors.
 
 ## 4.8.18
 
