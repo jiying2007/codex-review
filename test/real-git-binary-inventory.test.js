@@ -94,7 +94,7 @@ test('real Git binary inventory covers extensionless, quoted, attributed, rename
   assert.ok(staged.has('firmware/rename-source.bin'), 'no-renames path inventory must retain the old side');
   assert.ok(staged.has('firmware/delete-me.dat'));
   assert.ok(metadata.has('firmware/renamed "image".bin'));
-  assert.ok(binaryPaths.includes('firmware/delete-me.dat'), 'deleted binary remains in the no-renames binary inventory');
+  assert.ok(binaries.has('firmware/delete-me.dat'), 'deleted binary remains in the no-renames binary inventory');
   assert.equal(metadata.get('firmware/renamed "image".bin').status, 'R');
   assert.equal(metadata.get('firmware/renamed "image".bin').oldPath, 'firmware/rename-source.bin');
   assert.ok(binaries.size <= staged.size + 1, 'binary inventory must remain bounded to the staged change set plus rename source');
