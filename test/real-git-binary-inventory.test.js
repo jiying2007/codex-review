@@ -32,7 +32,7 @@ function write(root, relative, bytes) {
 }
 
 function binary(seed, size = 1024 * 1024 + 257) {
-  return Buffer.concat([Buffer.from(seed + '\\0'), Buffer.alloc(size, 0xA5), Buffer.from('\\0' + seed)]);
+  return Buffer.concat([Buffer.from(seed + '\0'), Buffer.alloc(size, 0xA5), Buffer.from('\0' + seed)]);
 }
 
 test('real Git binary inventory covers extensionless, quoted, attributed, renamed and deleted files without classifying text/LFS pointers', async t => {
@@ -56,19 +56,19 @@ test('real Git binary inventory covers extensionless, quoted, attributed, rename
   write(root, 'firmware/update.bin', binary('UPDATE_BIN'));
   write(root, 'artifacts/no-extension', binary('NO_EXTENSION'));
   write(root, 'artifacts/forced.dat', binary('FORCED_BINARY'));
-  write(root, '.gitattributes', 'artifacts/forced.dat -diff\\n');
-  write(root, 'src/large.c', Buffer.from('int changed_value = 1;\\n'.repeat(60000)));
+  write(root, '.gitattributes', 'artifacts/forced.dat -diff\n');
+  write(root, 'src/large.c', Buffer.from('int changed_value = 1;\n'.repeat(60000)));
   write(root, 'docs/marker-text.txt', [
     'GIT binary patch',
     'Binary files a/not-a-binary b/not-a-binary differ',
     'SOURCE_MARKER_TEXT_MUST_REMAIN_TEXT'
-  ].join('\\n') + '\\n');
+  ].join('\n') + '\n');
   write(root, 'artifacts/lfs-pointer.bin', [
     'version https://git-lfs.github.com/spec/v1',
     'oid sha256:' + 'a'.repeat(64),
     'size 1048833',
     ''
-  ].join('\\n'));
+  ].join('\n'));
 
   git(root, 'add', '--all');
   const [stagedPaths, binaryPaths, metadata] = await Promise.all([
